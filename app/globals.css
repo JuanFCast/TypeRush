@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Tema oscuro minimalista — TypeRush Mini */
+@theme {
+  --color-bg: #0d0f14;
+  --color-panel: #161a22;
+  --color-panel2: #1b2029;
+  --color-line: #232a35;
+  --color-ink: #e8edf2;
+  --color-muted: #8a93a3;
+  --color-mint: #00d18f;
+  --color-mintdark: #00b87e;
+  --color-coral: #ff6b57;
+  --color-sky: #4a90ff;
+  --color-sun: #f4b942;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(0, 209, 143, 0.1), transparent 60%),
+    radial-gradient(50rem 40rem at 110% 10%, rgba(74, 144, 255, 0.08), transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Resaltado por carácter en la frase */
+.char-correct {
+  color: var(--color-mint);
+}
+
+.char-wrong {
+  color: var(--color-coral);
+  background: rgba(255, 107, 87, 0.16);
+  border-radius: 3px;
+}
+
+.char-current {
+  color: var(--color-ink);
+  background: rgba(0, 209, 143, 0.22);
+  border-radius: 3px;
+}
+
+/* Oculto accesible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
