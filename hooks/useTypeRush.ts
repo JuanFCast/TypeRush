@@ -2,205 +2,115 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ADD_CASH_URL,
-  buildLeaderboard,
+  buildPassage,
   computeStats,
   DURATION,
-  ENTRY_FEE,
-  Mode,
-  money,
-  ownRank,
-  PHRASES,
-  pickPhrase,
-  Stablecoin,
-  WIN_THRESHOLD,
-  PAYOUT,
+  loadBestScore,
+  saveBestScore,
+  Stats,
 } from "@/lib/game";
 
-type GameState = {
-  balance: number;
-  pool: number;
-  entry: number;
-  locked: number;
-  earnings: number;
-  joined: boolean;
-  running: boolean;
-  finished: boolean;
-  mode: Mode;
-  phrase: string;
-  seed: number;
-  stablecoin: Stablecoin;
-  antiCheatLabel: string;
-  startedAt: number;
-  typed: string;
-};
-
-const initial: GameState = {
-  balance: 12.4,
-  pool: 24.5,
-  entry: ENTRY_FEE,
-  locked: 0,
-  earnings: 0,
-  joined: false,
-  running: false,
-  finished: false,
-  mode: "ranked",
-  // Frase inicial estable (evita mismatch de hidratación con valor aleatorio).
-  phrase: PHRASES[0],
-  seed: 42220,
-  stablecoin: "USDm",
-  antiCheatLabel: "Cadencia limpia",
-  startedAt: 0,
-  typed: "",
-};
+export type Status = "idle" | "racing" | "finished";
 
 export function useTypeRush() {
-  const [s, setS] = useState<GameState>(initial);
+  const [status, setStatus] = useState<Status>("idle");
+  const [passage, setPassage] = useState("");
+  const [typed, setTyped] = useState("");
+  const [startedAt, setStartedAt] = useState(0);
   const [nowMs, setNowMs] = useState(0);
-  const stateRef = useRef(s);
-  // Mantiene el ref sincronizado fuera del render (para leer estado en handlers).
+  const [best, setBest] = useState(0);
+  const [result, setResult] = useState<Stats | null>(null);
+  const [isNewBest, setIsNewBest] = useState(false);
+
+  // Refs sincronizados fuera del render para leer valores frescos en callbacks.
+  const statusRef = useRef(status);
+  const typedRef = useRef(typed);
+  const passageRef = useRef(passage);
+  const startedAtRef = useRef(startedAt);
+  const bestRef = useRef(best);
   useEffect(() => {
-    stateRef.current = s;
+    statusRef.current = status;
+    typedRef.current = typed;
+    passageRef.current = passage;
+    startedAtRef.current = startedAt;
+    bestRef.current = best;
   });
 
-  const patch = useCallback((next: Partial<GameState>) => {
-    setS((prev) => ({ ...prev, ...next }));
+  // Carga el mejor puntaje al montar. Va en un effect (no en el initializer de
+  // useState) para no provocar mismatch de hidratación: el server renderiza 0.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBest(loadBestScore());
   }, []);
 
-  const finish = useCallback((won: boolean) => {
-    setS((prev) => {
-      if (!prev.running) return prev;
-      const nextLocked = Math.max(0, prev.locked - prev.entry);
-      if (won && prev.mode === "ranked") {
-        return {
-          ...prev,
-          running: false,
-          finished: true,
-          earnings: prev.earnings + PAYOUT,
-          balance: prev.balance + PAYOUT,
-          locked: nextLocked,
-          antiCheatLabel: `Payout ${money(PAYOUT, prev.stablecoin)}`,
-        };
-      }
-      return {
-        ...prev,
-        running: false,
-        finished: true,
-        locked: nextLocked,
-        antiCheatLabel: "Resultado guardado",
-      };
-    });
+  const finish = useCallback(() => {
+    if (statusRef.current !== "racing") return;
+    const elapsed = Date.now() - startedAtRef.current;
+    const final = computeStats(typedRef.current, passageRef.current, elapsed);
+    const record = final.score > bestRef.current;
+    if (record) {
+      saveBestScore(final.score);
+      setBest(final.score);
+    }
+    setIsNewBest(record);
+    setResult(final);
+    setStatus("finished");
   }, []);
 
   const start = useCallback(() => {
-    const cur = stateRef.current;
-    if (cur.running) return;
-
-    if (cur.mode === "ranked" && cur.balance < cur.entry) {
-      window.location.href = ADD_CASH_URL;
-      return;
-    }
-
-    const { phrase, seed } = pickPhrase();
     const now = Date.now();
+    setPassage(buildPassage());
+    setTyped("");
+    setResult(null);
+    setIsNewBest(false);
+    setStartedAt(now);
     setNowMs(now);
-
-    setS((prev) => {
-      const ranked = prev.mode === "ranked";
-      return {
-        ...prev,
-        balance: ranked ? prev.balance - prev.entry : prev.balance,
-        locked: ranked ? prev.locked + prev.entry : prev.locked,
-        pool: ranked ? prev.pool + prev.entry : prev.pool,
-        joined: true,
-        running: true,
-        finished: false,
-        phrase,
-        seed,
-        typed: "",
-        startedAt: now,
-        antiCheatLabel: "Cadencia limpia",
-      };
-    });
+    setStatus("racing");
   }, []);
 
   const onInput = useCallback(
     (value: string) => {
-      const cur = stateRef.current;
-      if (!cur.running) return;
-
-      const elapsed = Date.now() - cur.startedAt;
-      const stats = computeStats(value, cur.phrase, elapsed);
-      patch({ typed: value });
-
-      if (value.length >= cur.phrase.length || stats.completion === 1) {
-        finish(stats.score >= WIN_THRESHOLD);
-      }
+      if (statusRef.current !== "racing") return;
+      // Nunca dejar escribir más allá del pasaje.
+      const clipped = value.slice(0, passageRef.current.length);
+      setTyped(clipped);
+      if (clipped.length >= passageRef.current.length) finish();
     },
-    [patch, finish],
+    [finish],
   );
 
-  const blockPaste = useCallback(() => {
-    patch({ antiCheatLabel: "Pegado bloqueado" });
-  }, [patch]);
-
-  const setMode = useCallback(
-    (mode: Mode) => {
-      if (stateRef.current.running) return;
-      patch({ mode });
-    },
-    [patch],
-  );
-
-  const setStablecoin = useCallback(
-    (stablecoin: Stablecoin) => patch({ stablecoin }),
-    [patch],
-  );
-
-  const deposit = useCallback(() => {
-    window.location.href = ADD_CASH_URL;
-  }, []);
-
-  // Reloj de la ronda: actualiza nowMs cada 250ms y cierra al agotarse el tiempo.
+  // Reloj de la carrera + cierre al agotarse el tiempo.
   useEffect(() => {
-    if (!s.running) return;
+    if (status !== "racing") return;
     const id = setInterval(() => {
       const now = Date.now();
       setNowMs(now);
-      if (now - s.startedAt >= DURATION * 1000) finish(false);
-    }, 250);
+      if (now - startedAtRef.current >= DURATION * 1000) finish();
+    }, 200);
     return () => clearInterval(id);
-  }, [s.running, s.startedAt, finish]);
+  }, [status, finish]);
 
-  const elapsedMs = s.running ? Math.max(0, nowMs - s.startedAt) : 0;
-  const remaining = s.running
-    ? Math.max(0, DURATION - Math.floor(elapsedMs / 1000))
-    : DURATION;
+  const elapsedMs = status === "racing" ? Math.max(0, nowMs - startedAt) : 0;
+  const remaining =
+    status === "racing"
+      ? Math.max(0, DURATION - Math.floor(elapsedMs / 1000))
+      : DURATION;
 
-  const stats = useMemo(
-    () => computeStats(s.typed, s.phrase, elapsedMs),
-    [s.typed, s.phrase, elapsedMs],
-  );
-
-  const leaderboard = useMemo(
-    () => buildLeaderboard(s.joined, stats.score),
-    [s.joined, stats.score],
-  );
-
-  const rank = ownRank(leaderboard);
-
-  const fmt = useCallback(
-    (value: number) => money(value, s.stablecoin),
-    [s.stablecoin],
+  const liveStats = useMemo(
+    () => computeStats(typed, passage, elapsedMs),
+    [typed, passage, elapsedMs],
   );
 
   return {
-    state: s,
-    stats,
-    leaderboard,
-    rank,
+    status,
+    passage,
+    typed,
+    best,
+    result,
+    isNewBest,
     remaining,
-    actions: { start, onInput, blockPaste, setMode, setStablecoin, deposit },
-    fmt,
+    liveStats,
+    start,
+    onInput,
   };
 }
