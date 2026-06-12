@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeStats, DURATION, loadBestScore, saveBestScore, Stats } from "@/lib/game";
-import { buildPassage, CategoryId, DEFAULT_CATEGORY } from "@/lib/passages";
+import { buildPassage, DEFAULT_MODE, ModeId } from "@/lib/passages";
 
 export type Status = "idle" | "racing" | "finished";
 
@@ -17,7 +17,7 @@ export function useTypeRush() {
   const [isNewBest, setIsNewBest] = useState(false);
   // Posiciones donde el jugador se equivocó alguna vez (no se borran al corregir).
   const [mistakeIndices, setMistakeIndices] = useState<Set<number>>(new Set());
-  const [category, setCategory] = useState<CategoryId>(DEFAULT_CATEGORY);
+  const [mode, setMode] = useState<ModeId>(DEFAULT_MODE);
 
   // Refs sincronizados fuera del render para leer valores frescos en callbacks.
   const statusRef = useRef(status);
@@ -26,7 +26,7 @@ export function useTypeRush() {
   const startedAtRef = useRef(startedAt);
   const bestRef = useRef(best);
   const mistakeIndicesRef = useRef(mistakeIndices);
-  const categoryRef = useRef(category);
+  const modeRef = useRef(mode);
   useEffect(() => {
     statusRef.current = status;
     typedRef.current = typed;
@@ -34,7 +34,7 @@ export function useTypeRush() {
     startedAtRef.current = startedAt;
     bestRef.current = best;
     mistakeIndicesRef.current = mistakeIndices;
-    categoryRef.current = category;
+    modeRef.current = mode;
   });
 
   // Carga el mejor puntaje al montar. Va en un effect (no en el initializer de
@@ -65,7 +65,7 @@ export function useTypeRush() {
 
   const start = useCallback(() => {
     const now = Date.now();
-    setPassage(buildPassage(categoryRef.current));
+    setPassage(buildPassage(modeRef.current));
     setTyped("");
     setResult(null);
     setIsNewBest(false);
@@ -127,8 +127,8 @@ export function useTypeRush() {
     result,
     isNewBest,
     mistakeIndices,
-    category,
-    setCategory,
+    mode,
+    setMode,
     remaining,
     liveStats,
     start,

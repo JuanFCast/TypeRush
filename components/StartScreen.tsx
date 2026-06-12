@@ -1,82 +1,72 @@
 "use client";
 
 import { DURATION } from "@/lib/game";
-import { CATEGORY_OPTIONS, CategoryId } from "@/lib/passages";
+import { MODES, ModeId } from "@/lib/passages";
 
 type Props = {
   best: number;
-  category: CategoryId;
-  onSelectCategory: (id: CategoryId) => void;
+  mode: ModeId;
+  onSelectMode: (id: ModeId) => void;
   onStart: () => void;
 };
 
 export default function StartScreen({
   best,
-  category,
-  onSelectCategory,
+  mode,
+  onSelectMode,
   onStart,
 }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <div className="mb-6 grid h-16 w-16 place-items-center rounded-2xl border border-brand/30 bg-brand-soft font-mono text-2xl font-bold text-brand">
-        ⌨
-      </div>
-
       <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
         Type<span className="text-brand">Rush</span>
       </h1>
       <p className="mt-3 max-w-xs text-balance text-muted">
-        Escribe el texto que aparece lo más rápido y preciso que puedas.
+        Escribe el texto lo más rápido y preciso que puedas. Tienes{" "}
+        <span className="text-ink">{DURATION} segundos</span>.
       </p>
 
-      <ul className="mt-6 w-full max-w-xs space-y-2.5 text-left text-sm text-muted">
-        <li className="flex gap-2.5">
-          <span className="text-brand">⌨</span>
-          <span>
-            Copia el texto mostrado tecleándolo lo más{" "}
-            <span className="text-ink">rápido y preciso</span> posible.
-          </span>
-        </li>
-        <li className="flex gap-2.5">
-          <span className="text-brand">⏱</span>
-          <span>
-            Tienes <span className="text-ink">{DURATION} segundos</span> por
-            carrera.
-          </span>
-        </li>
-        <li className="flex gap-2.5">
-          <span className="text-brand">✦</span>
-          <span>
-            Cada error baja tu <span className="text-ink">precisión</span> y
-            reduce el puntaje final.
-          </span>
-        </li>
-      </ul>
-
-      <div className="mt-7 w-full max-w-xs">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-          Categoría
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {CATEGORY_OPTIONS.map((opt) => {
-            const selected = opt.id === category;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => onSelectCategory(opt.id)}
-                aria-pressed={selected}
-                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition active:scale-[0.97] ${
+      {/* Selector de modo tipo cards grandes */}
+      <div className="mt-7 w-full max-w-xs space-y-2.5">
+        {MODES.map((m) => {
+          const selected = m.id === mode;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onSelectMode(m.id)}
+              aria-pressed={selected}
+              className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[0.99] ${
+                selected
+                  ? "border-brand bg-brand-soft"
+                  : "border-line bg-surface"
+              }`}
+            >
+              <span className="text-2xl leading-none">{m.icon}</span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className={`block text-base font-bold ${
+                    selected ? "text-brand" : "text-ink"
+                  }`}
+                >
+                  {m.label}
+                </span>
+                <span className="block text-xs text-muted">
+                  {m.description}
+                </span>
+              </span>
+              <span
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[0.7rem] font-bold ${
                   selected
-                    ? "border-brand bg-brand-soft text-brand"
-                    : "border-line text-muted"
+                    ? "border-brand text-brand"
+                    : "border-line text-transparent"
                 }`}
               >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+                ✓
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <button

@@ -14,8 +14,8 @@ export default function Page() {
     result,
     isNewBest,
     mistakeIndices,
-    category,
-    setCategory,
+    mode,
+    setMode,
     remaining,
     liveStats,
     start,
@@ -37,8 +37,8 @@ export default function Page() {
         {status === "idle" && (
           <StartScreen
             best={best}
-            category={category}
-            onSelectCategory={setCategory}
+            mode={mode}
+            onSelectMode={setMode}
             onStart={start}
           />
         )}
