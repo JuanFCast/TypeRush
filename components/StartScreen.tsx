@@ -18,22 +18,50 @@ export default function StartScreen({ best, onStart }: Props) {
         Type<span className="text-brand">Rush</span>
       </h1>
       <p className="mt-3 max-w-xs text-balance text-muted">
-        Escribe contra el reloj durante{" "}
-        <span className="text-ink">{DURATION} segundos</span>. Mantén el ritmo y
-        supera tu récord.
+        Escribe el texto que aparece lo más rápido y preciso que puedas.
       </p>
+
+      <ul className="mt-6 w-full max-w-xs space-y-2.5 text-left text-sm text-muted">
+        <li className="flex gap-2.5">
+          <span className="text-brand">⌨</span>
+          <span>
+            Copia el texto mostrado tecleándolo lo más{" "}
+            <span className="text-ink">rápido y preciso</span> posible.
+          </span>
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-brand">⏱</span>
+          <span>
+            Tienes <span className="text-ink">{DURATION} segundos</span> por
+            carrera.
+          </span>
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-brand">✦</span>
+          <span>
+            Cada error baja tu <span className="text-ink">precisión</span> y
+            reduce el puntaje final.
+          </span>
+        </li>
+      </ul>
 
       <button
         type="button"
         onClick={onStart}
-        className="mt-9 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
+        className="mt-8 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
       >
         Empezar
       </button>
 
       <div className="mt-6 font-mono text-sm text-muted">
-        Mejor puntaje:{" "}
-        <span className="font-bold text-ink">{best.toLocaleString()}</span>
+        {best > 0 ? (
+          <>
+            Mejor puntaje:{" "}
+            <span className="font-bold text-ink">{best.toLocaleString()}</span>
+          </>
+        ) : (
+          <span>Aún no tienes récord</span>
+        )}
       </div>
     </div>
   );

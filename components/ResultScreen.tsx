@@ -36,10 +36,14 @@ export default function ResultScreen({
         palabras por minuto
       </div>
 
-      <div className="mt-7 grid w-full max-w-xs grid-cols-3 gap-2.5">
-        <StatBlock label="Precisión" value={`${Math.round(result.accuracy * 100)}%`} />
+      <div className="mt-7 grid w-full max-w-xs grid-cols-2 gap-2.5">
+        <StatBlock
+          label="Precisión"
+          value={`${Math.round(result.accuracy * 100)}%`}
+        />
         <StatBlock label="Errores" value={result.errors} />
         <StatBlock label="Puntaje" value={result.score} accent />
+        <StatBlock label="Mejor puntaje" value={best.toLocaleString()} />
       </div>
 
       <button
@@ -49,11 +53,6 @@ export default function ResultScreen({
       >
         Jugar otra vez
       </button>
-
-      <div className="mt-5 font-mono text-sm text-muted">
-        Mejor puntaje:{" "}
-        <span className="font-bold text-ink">{best.toLocaleString()}</span>
-      </div>
     </div>
   );
 }
