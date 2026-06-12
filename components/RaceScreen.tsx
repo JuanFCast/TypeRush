@@ -9,6 +9,7 @@ type Props = {
   typed: string;
   remaining: number;
   stats: Stats;
+  mistakeIndices: Set<number>;
   onInput: (value: string) => void;
 };
 
@@ -17,6 +18,7 @@ export default function RaceScreen({
   typed,
   remaining,
   stats,
+  mistakeIndices,
   onInput,
 }: Props) {
   const urgent = remaining <= 10;
@@ -49,7 +51,13 @@ export default function RaceScreen({
 
       <Track progress={stats.progress} />
 
-      <TypeField passage={passage} typed={typed} active onInput={onInput} />
+      <TypeField
+        passage={passage}
+        typed={typed}
+        active
+        mistakeIndices={mistakeIndices}
+        onInput={onInput}
+      />
 
       {/* Métricas en vivo */}
       <div className="grid grid-cols-3 gap-2.5">

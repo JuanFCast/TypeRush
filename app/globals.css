@@ -12,6 +12,7 @@
   --color-brand: #00d18f;
   --color-brand-soft: #0e3a2c;
   --color-danger: #ff5d5d;
+  --color-warn: #f4c95d;
 
   --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
@@ -42,6 +43,12 @@ body {
 .ch-wrong {
   color: var(--color-danger);
   background: rgba(255, 93, 93, 0.14);
+  border-radius: 2px;
+}
+/* Posición donde el jugador se equivocó antes pero ya corrigió/borró. */
+.ch-fixed {
+  color: var(--color-warn);
+  background: rgba(244, 201, 93, 0.16);
   border-radius: 2px;
 }
 .ch-current {

@@ -6,10 +6,17 @@ type Props = {
   passage: string;
   typed: string;
   active: boolean;
+  mistakeIndices: Set<number>;
   onInput: (value: string) => void;
 };
 
-export default function TypeField({ passage, typed, active, onInput }: Props) {
+export default function TypeField({
+  passage,
+  typed,
+  active,
+  mistakeIndices,
+  onInput,
+}: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Al arrancar la carrera, enfoca para abrir el teclado en móvil.
@@ -32,9 +39,17 @@ export default function TypeField({ passage, typed, active, onInput }: Props) {
         {[...passage].map((char, i) => {
           let cls = "ch";
           if (i < typed.length) {
-            cls = typed[i] === char ? "ch ch-done" : "ch ch-wrong";
+            if (typed[i] !== char) {
+              cls = "ch ch-wrong"; // error activo
+            } else if (mistakeIndices.has(i)) {
+              cls = "ch ch-fixed"; // corregido: te equivocaste aquí antes
+            } else {
+              cls = "ch ch-done";
+            }
           } else if (i === typed.length && active) {
             cls = "ch ch-current caret-blink";
+          } else if (mistakeIndices.has(i)) {
+            cls = "ch ch-fixed"; // borraste tras equivocarte aquí
           }
           return (
             <span key={i} className={cls}>

@@ -21,6 +21,8 @@ export function useTypeRush() {
   const [best, setBest] = useState(0);
   const [result, setResult] = useState<Stats | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
+  // Posiciones donde el jugador se equivocó alguna vez (no se borran al corregir).
+  const [mistakeIndices, setMistakeIndices] = useState<Set<number>>(new Set());
 
   // Refs sincronizados fuera del render para leer valores frescos en callbacks.
   const statusRef = useRef(status);
@@ -63,6 +65,7 @@ export function useTypeRush() {
     setTyped("");
     setResult(null);
     setIsNewBest(false);
+    setMistakeIndices(new Set());
     setStartedAt(now);
     setNowMs(now);
     setStatus("racing");
@@ -74,6 +77,17 @@ export function useTypeRush() {
       // Nunca dejar escribir más allá del pasaje.
       const clipped = value.slice(0, passageRef.current.length);
       setTyped(clipped);
+      // Recuerda las posiciones erróneas; no se borran aunque el jugador corrija.
+      setMistakeIndices((prev) => {
+        let next: Set<number> | null = null;
+        for (let i = 0; i < clipped.length; i += 1) {
+          if (clipped[i] !== passageRef.current[i] && !prev.has(i)) {
+            if (!next) next = new Set(prev);
+            next.add(i);
+          }
+        }
+        return next ?? prev;
+      });
       if (clipped.length >= passageRef.current.length) finish();
     },
     [finish],
@@ -108,6 +122,7 @@ export function useTypeRush() {
     best,
     result,
     isNewBest,
+    mistakeIndices,
     remaining,
     liveStats,
     start,

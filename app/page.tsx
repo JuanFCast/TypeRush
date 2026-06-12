@@ -13,6 +13,7 @@ export default function Page() {
     best,
     result,
     isNewBest,
+    mistakeIndices,
     remaining,
     liveStats,
     start,
@@ -39,6 +40,7 @@ export default function Page() {
             typed={typed}
             remaining={remaining}
             stats={liveStats}
+            mistakeIndices={mistakeIndices}
             onInput={onInput}
           />
         )}
