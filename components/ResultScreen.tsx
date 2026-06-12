@@ -36,14 +36,24 @@ export default function ResultScreen({
         palabras por minuto
       </div>
 
-      <div className="mt-7 grid w-full max-w-xs grid-cols-2 gap-2.5">
+      <div className="mt-7 grid w-full max-w-xs grid-cols-3 gap-2.5">
         <StatBlock
           label="Precisión"
           value={`${Math.round(result.accuracy * 100)}%`}
         />
         <StatBlock label="Errores" value={result.errors} />
         <StatBlock label="Puntaje" value={result.score} accent />
-        <StatBlock label="Mejor puntaje" value={best.toLocaleString()} />
+      </div>
+
+      <div className="mt-5 font-mono text-sm text-muted">
+        {best > 0 ? (
+          <>
+            Mejor puntaje:{" "}
+            <span className="font-bold text-ink">{best.toLocaleString()}</span>
+          </>
+        ) : (
+          <span>Aún no tienes récord</span>
+        )}
       </div>
 
       <button
