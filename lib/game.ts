@@ -1,12 +1,13 @@
 // Lógica pura del juego de mecanografía. Sin DOM, sin wallet.
 
 export const DURATION = 45; // segundos por carrera
-const BEST_KEY = "typerush.best.v2";
+const BEST_KEY = "typerush.best.v3";
 
 export type Stats = {
   wpm: number; // palabras por minuto
   accuracy: number; // 0..1
-  errors: number; // caracteres tecleados que no coinciden
+  errors: number; // errores activos: caracteres tecleados que no coinciden (rojos)
+  mistakes: number; // errores cometidos alguna vez, incluso los corregidos (amarillos)
   score: number;
   progress: number; // 0..1 del pasaje
 };
@@ -50,6 +51,7 @@ export function computeStats(
   typed: string,
   passage: string,
   elapsedMs: number,
+  mistakeCount = 0,
 ): Stats {
   let correct = 0;
   for (let i = 0; i < typed.length; i += 1) {
@@ -61,10 +63,12 @@ export function computeStats(
   const minutes = Math.max(elapsedMs / 60000, 1 / 60);
   const wpm = Math.round(correct / 5 / minutes);
   const progress = passage.length ? Math.min(typed.length / passage.length, 1) : 0;
-  // El puntaje premia velocidad, precisión y cuánto del texto se completó.
-  const score = Math.round(wpm * accuracy * progress * 100);
+  // Penalización suave por errores históricos (incluye los ya corregidos).
+  const mistakePenalty = Math.max(0.7, 1 - mistakeCount * 0.03);
+  // El puntaje premia velocidad, precisión y avance; los errores lo bajan un poco.
+  const score = Math.round(wpm * accuracy * progress * mistakePenalty * 100);
 
-  return { wpm, accuracy, errors, score, progress };
+  return { wpm, accuracy, errors, mistakes: mistakeCount, score, progress };
 }
 
 /** Lee el mejor puntaje guardado (0 si no hay o no hay localStorage). */

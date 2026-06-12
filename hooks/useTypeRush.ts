@@ -30,12 +30,14 @@ export function useTypeRush() {
   const passageRef = useRef(passage);
   const startedAtRef = useRef(startedAt);
   const bestRef = useRef(best);
+  const mistakeIndicesRef = useRef(mistakeIndices);
   useEffect(() => {
     statusRef.current = status;
     typedRef.current = typed;
     passageRef.current = passage;
     startedAtRef.current = startedAt;
     bestRef.current = best;
+    mistakeIndicesRef.current = mistakeIndices;
   });
 
   // Carga el mejor puntaje al montar. Va en un effect (no en el initializer de
@@ -48,7 +50,12 @@ export function useTypeRush() {
   const finish = useCallback(() => {
     if (statusRef.current !== "racing") return;
     const elapsed = Date.now() - startedAtRef.current;
-    const final = computeStats(typedRef.current, passageRef.current, elapsed);
+    const final = computeStats(
+      typedRef.current,
+      passageRef.current,
+      elapsed,
+      mistakeIndicesRef.current.size,
+    );
     const record = final.score > bestRef.current;
     if (record) {
       saveBestScore(final.score);
@@ -111,8 +118,8 @@ export function useTypeRush() {
       : DURATION;
 
   const liveStats = useMemo(
-    () => computeStats(typed, passage, elapsedMs),
-    [typed, passage, elapsedMs],
+    () => computeStats(typed, passage, elapsedMs, mistakeIndices.size),
+    [typed, passage, elapsedMs, mistakeIndices],
   );
 
   return {

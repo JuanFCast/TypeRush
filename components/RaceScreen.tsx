@@ -60,10 +60,11 @@ export default function RaceScreen({
       />
 
       {/* Métricas en vivo */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-4 gap-2">
         <Live label="WPM" value={stats.wpm} accent />
         <Live label="Precisión" value={`${Math.round(stats.accuracy * 100)}%`} />
         <Live label="Errores" value={stats.errors} />
+        <Live label="Correc." value={stats.mistakes} />
       </div>
     </div>
   );
