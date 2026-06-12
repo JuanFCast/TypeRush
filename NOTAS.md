@@ -54,7 +54,8 @@ Es por dispositivo+navegador, offline, sin cuentas ni backend. Código en `lib/g
 - Repo: **https://github.com/JuanFCast/TypeRush** (público).
 - Rama de trabajo del MVP: **`mvp-typing-game`** (subida a GitHub).
 - **`main` NO se toca** sin pedirlo explícitamente.
-- Identidad de commits: `JuanFCast <1006071586@u.icesi.edu.co>`. Sin co-autor de Claude.
+- Identidad de commits: `JuanFCast <1006071586@u.icesi.edu.co>`.
+- Co-autor: **siempre** añadir `Co-Authored-By: Claude` en cada commit (decidido 2026-06-11).
 
 ## Pendientes / ideas
 
