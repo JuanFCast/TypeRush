@@ -8,6 +8,7 @@ type Props = {
   best: number;
   isNewBest: boolean;
   onPlayAgain: () => void;
+  onExit: () => void;
 };
 
 export default function ResultScreen({
@@ -15,6 +16,7 @@ export default function ResultScreen({
   best,
   isNewBest,
   onPlayAgain,
+  onExit,
 }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
@@ -63,6 +65,14 @@ export default function ResultScreen({
         className="mt-8 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
       >
         Jugar otra vez
+      </button>
+
+      <button
+        type="button"
+        onClick={onExit}
+        className="mt-3 text-sm font-semibold text-muted transition active:scale-[0.98]"
+      >
+        Volver al inicio
       </button>
     </div>
   );

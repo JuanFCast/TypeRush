@@ -1,7 +1,8 @@
 // Lógica pura del juego de mecanografía. Sin DOM, sin wallet.
 
 export const DURATION = 45; // segundos por carrera
-const BEST_KEY = "typerush.best.v3";
+// El mejor puntaje se guarda por reto: typerush.best.v3.<challengeId>.
+const BEST_PREFIX = "typerush.best.v3.";
 
 export type Stats = {
   wpm: number; // palabras por minuto
@@ -39,24 +40,31 @@ export function computeStats(
   return { wpm, accuracy, errors, mistakes: mistakeCount, score, progress };
 }
 
-/** Lee el mejor puntaje guardado (0 si no hay o no hay localStorage). */
-export function loadBestScore(): number {
+/** Lee el mejor puntaje de un reto (0 si no hay o no hay localStorage). */
+export function loadBestScore(challengeId: string): number {
   if (typeof window === "undefined") return 0;
   try {
-    const raw = window.localStorage.getItem(BEST_KEY);
+    const raw = window.localStorage.getItem(BEST_PREFIX + challengeId);
     return raw ? Number(raw) || 0 : 0;
   } catch {
     return 0;
   }
 }
 
-/** Guarda el puntaje si supera al anterior. Devuelve true si fue récord. */
-export function saveBestScore(score: number): boolean {
+/** Lee los mejores puntajes de varios retos como un mapa challengeId -> score. */
+export function loadAllBestScores(challengeIds: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of challengeIds) out[id] = loadBestScore(id);
+  return out;
+}
+
+/** Guarda el puntaje del reto si supera al anterior. Devuelve true si fue récord. */
+export function saveBestScore(challengeId: string, score: number): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const prev = loadBestScore();
+    const prev = loadBestScore(challengeId);
     if (score > prev) {
-      window.localStorage.setItem(BEST_KEY, String(score));
+      window.localStorage.setItem(BEST_PREFIX + challengeId, String(score));
       return true;
     }
   } catch {

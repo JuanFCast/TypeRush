@@ -1,8 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { computeStats, DURATION, loadBestScore, saveBestScore, Stats } from "@/lib/game";
-import { buildPassage, DEFAULT_MODE, ModeId } from "@/lib/passages";
+import {
+  computeStats,
+  DURATION,
+  loadAllBestScores,
+  saveBestScore,
+  Stats,
+} from "@/lib/game";
+import {
+  ALL_CHALLENGE_IDS,
+  buildPassage,
+  ChallengeId,
+  DEFAULT_CHALLENGE,
+} from "@/lib/passages";
 
 export type Status = "idle" | "racing" | "finished";
 
@@ -12,36 +23,39 @@ export function useTypeRush() {
   const [typed, setTyped] = useState("");
   const [startedAt, setStartedAt] = useState(0);
   const [nowMs, setNowMs] = useState(0);
-  const [best, setBest] = useState(0);
   const [result, setResult] = useState<Stats | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
   // Posiciones donde el jugador se equivocó alguna vez (no se borran al corregir).
   const [mistakeIndices, setMistakeIndices] = useState<Set<number>>(new Set());
-  const [mode, setMode] = useState<ModeId>(DEFAULT_MODE);
+  const [challenge, setChallenge] = useState<ChallengeId>(DEFAULT_CHALLENGE);
+  // Mejor puntaje local por reto: challengeId -> score.
+  const [bestByChallenge, setBestByChallenge] = useState<Record<string, number>>(
+    {},
+  );
 
   // Refs sincronizados fuera del render para leer valores frescos en callbacks.
   const statusRef = useRef(status);
   const typedRef = useRef(typed);
   const passageRef = useRef(passage);
   const startedAtRef = useRef(startedAt);
-  const bestRef = useRef(best);
   const mistakeIndicesRef = useRef(mistakeIndices);
-  const modeRef = useRef(mode);
+  const challengeRef = useRef(challenge);
+  const bestByChallengeRef = useRef(bestByChallenge);
   useEffect(() => {
     statusRef.current = status;
     typedRef.current = typed;
     passageRef.current = passage;
     startedAtRef.current = startedAt;
-    bestRef.current = best;
     mistakeIndicesRef.current = mistakeIndices;
-    modeRef.current = mode;
+    challengeRef.current = challenge;
+    bestByChallengeRef.current = bestByChallenge;
   });
 
-  // Carga el mejor puntaje al montar. Va en un effect (no en el initializer de
-  // useState) para no provocar mismatch de hidratación: el server renderiza 0.
+  // Carga los mejores puntajes al montar. Va en un effect (no en el initializer
+  // de useState) para no provocar mismatch de hidratación: el server ve {}.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBest(loadBestScore());
+    setBestByChallenge(loadAllBestScores(ALL_CHALLENGE_IDS));
   }, []);
 
   const finish = useCallback(() => {
@@ -53,19 +67,23 @@ export function useTypeRush() {
       elapsed,
       mistakeIndicesRef.current.size,
     );
-    const record = final.score > bestRef.current;
+    const id = challengeRef.current;
+    const prevBest = bestByChallengeRef.current[id] ?? 0;
+    const record = final.score > prevBest;
     if (record) {
-      saveBestScore(final.score);
-      setBest(final.score);
+      saveBestScore(id, final.score);
+      setBestByChallenge((m) => ({ ...m, [id]: final.score }));
     }
     setIsNewBest(record);
     setResult(final);
     setStatus("finished");
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((next?: ChallengeId) => {
+    const challengeId = next ?? challengeRef.current;
     const now = Date.now();
-    setPassage(buildPassage(modeRef.current));
+    setChallenge(challengeId);
+    setPassage(buildPassage(challengeId));
     setTyped("");
     setResult(null);
     setIsNewBest(false);
@@ -75,6 +93,9 @@ export function useTypeRush() {
     setStatus("racing");
   }, []);
 
+  // Vuelve al lobby (estado inicial) sin empezar una carrera.
+  const reset = useCallback(() => setStatus("idle"), []);
+
   const onInput = useCallback(
     (value: string) => {
       if (statusRef.current !== "racing") return;
@@ -83,14 +104,14 @@ export function useTypeRush() {
       setTyped(clipped);
       // Recuerda las posiciones erróneas; no se borran aunque el jugador corrija.
       setMistakeIndices((prev) => {
-        let next: Set<number> | null = null;
+        let nextSet: Set<number> | null = null;
         for (let i = 0; i < clipped.length; i += 1) {
           if (clipped[i] !== passageRef.current[i] && !prev.has(i)) {
-            if (!next) next = new Set(prev);
-            next.add(i);
+            if (!nextSet) nextSet = new Set(prev);
+            nextSet.add(i);
           }
         }
-        return next ?? prev;
+        return nextSet ?? prev;
       });
       if (clipped.length >= passageRef.current.length) finish();
     },
@@ -119,19 +140,22 @@ export function useTypeRush() {
     [typed, passage, elapsedMs, mistakeIndices],
   );
 
+  const best = bestByChallenge[challenge] ?? 0;
+
   return {
     status,
     passage,
     typed,
     best,
+    bestByChallenge,
     result,
     isNewBest,
     mistakeIndices,
-    mode,
-    setMode,
+    challenge,
     remaining,
     liveStats,
     start,
+    reset,
     onInput,
   };
 }

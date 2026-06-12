@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useTypeRush } from "@/hooks/useTypeRush";
-import StartScreen from "@/components/StartScreen";
+import ModeHome from "@/components/ModeHome";
+import ChallengeLobby from "@/components/ChallengeLobby";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
+import BottomNav, { Tab } from "@/components/BottomNav";
+import { ChallengeId, ModeId } from "@/lib/passages";
 
 export default function Page() {
   const {
@@ -11,16 +15,27 @@ export default function Page() {
     passage,
     typed,
     best,
+    bestByChallenge,
     result,
     isNewBest,
     mistakeIndices,
-    mode,
-    setMode,
     remaining,
     liveStats,
     start,
+    reset,
     onInput,
   } = useTypeRush();
+
+  const [tab, setTab] = useState<Tab>("home");
+  const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
+
+  const onTabChange = (next: Tab) => {
+    setTab(next);
+    // "Inicio" siempre vuelve a la pantalla de modos.
+    if (next === "home") setSelectedMode(null);
+  };
+
+  const onPlay = (id: ChallengeId) => start(id);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-5">
@@ -34,15 +49,6 @@ export default function Page() {
       </header>
 
       <div className="flex flex-1 flex-col">
-        {status === "idle" && (
-          <StartScreen
-            best={best}
-            mode={mode}
-            onSelectMode={setMode}
-            onStart={start}
-          />
-        )}
-
         {status === "racing" && (
           <RaceScreen
             passage={passage}
@@ -59,10 +65,65 @@ export default function Page() {
             result={result}
             best={best}
             isNewBest={isNewBest}
-            onPlayAgain={start}
+            onPlayAgain={() => start()}
+            onExit={reset}
           />
         )}
+
+        {status === "idle" && (
+          <>
+            {tab === "home" &&
+              (selectedMode ? (
+                <ChallengeLobby
+                  modeId={selectedMode}
+                  bestByChallenge={bestByChallenge}
+                  onBack={() => setSelectedMode(null)}
+                  onPlay={onPlay}
+                />
+              ) : (
+                <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
+              ))}
+
+            {tab === "history" && (
+              <Placeholder
+                icon="🕘"
+                title="Historial"
+                text="Aquí verás tus partidas recientes. Próximamente."
+              />
+            )}
+
+            {tab === "you" && (
+              <Placeholder
+                icon="👤"
+                title="Tú"
+                text="Tu perfil y tus logros llegarán pronto."
+              />
+            )}
+          </>
+        )}
       </div>
+
+      {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
     </main>
+  );
+}
+
+function Placeholder({
+  icon,
+  title,
+  text,
+}: {
+  icon: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center text-center">
+      <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-line bg-surface text-2xl">
+        {icon}
+      </div>
+      <h2 className="text-xl font-bold">{title}</h2>
+      <p className="mt-2 max-w-xs text-balance text-sm text-muted">{text}</p>
+    </div>
   );
 }
