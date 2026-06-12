@@ -2,10 +2,10 @@
 
 /* TypeRush — un solo color de marca (verde Celo) sobre neutros oscuros. */
 @theme {
-  --color-bg: #0a0e0c;
-  --color-surface: #121815;
-  --color-surface2: #18201c;
-  --color-line: #232c27;
+  --color-bg: #080b0a;
+  --color-surface: #11161a;
+  --color-surface2: #1a2127;
+  --color-line: #2b343b;
   --color-ink: #eaf0ec;
   --color-muted: #76847d;
   --color-faint: #3a443e;

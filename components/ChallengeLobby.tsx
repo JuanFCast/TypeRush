@@ -31,7 +31,7 @@ export default function ChallengeLobby({
           type="button"
           onClick={onBack}
           aria-label="Volver a los modos"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-lg text-muted transition active:scale-95"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-surface2 text-lg text-muted transition active:scale-95"
         >
           ‹
         </button>

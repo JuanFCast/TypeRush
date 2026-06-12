@@ -25,9 +25,11 @@ export default function ModeHome({ onSelectMode }: Props) {
             key={m.id}
             type="button"
             onClick={() => onSelectMode(m.id)}
-            className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left transition active:scale-[0.99]"
+            className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface2 p-4 text-left shadow-sm transition active:scale-[0.99]"
           >
-            <span className="text-3xl leading-none">{m.icon}</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bg text-2xl leading-none">
+              {m.icon}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-bold text-ink">{m.label}</span>
               <span className="block text-xs text-muted">{m.description}</span>

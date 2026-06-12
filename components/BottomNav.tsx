@@ -7,10 +7,10 @@ type Props = {
   onChange: (tab: Tab) => void;
 };
 
-const ITEMS: { id: Tab; label: string; icon: string }[] = [
-  { id: "home", label: "Inicio", icon: "🏠" },
-  { id: "history", label: "Historial", icon: "🕘" },
-  { id: "you", label: "Tú", icon: "👤" },
+const ITEMS: { id: Tab; label: string }[] = [
+  { id: "home", label: "Inicio" },
+  { id: "history", label: "Historial" },
+  { id: "you", label: "Tú" },
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
@@ -24,11 +24,10 @@ export default function BottomNav({ active, onChange }: Props) {
             type="button"
             onClick={() => onChange(it.id)}
             aria-current={on ? "page" : undefined}
-            className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.65rem] font-semibold transition ${
-              on ? "bg-brand-soft text-brand" : "text-muted"
+            className={`rounded-xl py-2.5 text-sm font-semibold transition ${
+              on ? "bg-surface2 text-brand" : "text-muted"
             }`}
           >
-            <span className="text-base leading-none">{it.icon}</span>
             {it.label}
           </button>
         );
