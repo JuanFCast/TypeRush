@@ -1,7 +1,7 @@
 // Lógica pura del juego de mecanografía. Sin DOM, sin wallet.
 
 export const DURATION = 45; // segundos por carrera
-const BEST_KEY = "typerush.best";
+const BEST_KEY = "typerush.best.v2";
 
 export type Stats = {
   wpm: number; // palabras por minuto
@@ -61,7 +61,8 @@ export function computeStats(
   const minutes = Math.max(elapsedMs / 60000, 1 / 60);
   const wpm = Math.round(correct / 5 / minutes);
   const progress = passage.length ? Math.min(typed.length / passage.length, 1) : 0;
-  const score = Math.round(wpm * accuracy * 100);
+  // El puntaje premia velocidad, precisión y cuánto del texto se completó.
+  const score = Math.round(wpm * accuracy * progress * 100);
 
   return { wpm, accuracy, errors, score, progress };
 }
