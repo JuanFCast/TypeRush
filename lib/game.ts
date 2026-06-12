@@ -12,39 +12,7 @@ export type Stats = {
   progress: number; // 0..1 del pasaje
 };
 
-// Frases simples, sin tildes ni ñ (para que escribir en celular sea justo).
-const CLAUSES = [
-  "los dedos rapidos ganan la carrera cuando la mente sigue tranquila",
-  "escribir bien es un ritmo constante que no se apura ni se traba",
-  "cada palabra cuenta y cada error te frena un poco mas",
-  "la velocidad llega sola cuando dejas de mirar el teclado",
-  "respira hondo y deja que las manos encuentren su propio ritmo",
-  "un buen tecleo se siente como musica que no se detiene",
-  "la precision vale mas que la prisa en una carrera larga",
-  "manten la calma y las teclas haran el resto del trabajo",
-  "practicar todos los dias convierte la torpeza en destreza pura",
-  "el secreto no es ir rapido sino no detenerse nunca",
-];
-
-/** Mezcla y une frases hasta superar minChars, para llenar los 45 segundos. */
-export function buildPassage(minChars = 280): string {
-  const pool = [...CLAUSES];
-  for (let i = pool.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  const parts: string[] = [];
-  let length = 0;
-  let i = 0;
-  while (length < minChars) {
-    const clause = pool[i % pool.length];
-    parts.push(clause);
-    length += clause.length + 1;
-    i += 1;
-  }
-  return parts.join(" ");
-}
+// Los textos a escribir viven en lib/passages.ts, agrupados por categoría.
 
 /** Calcula WPM, precisión, errores, puntaje y progreso. */
 export function computeStats(

@@ -14,6 +14,8 @@ export default function Page() {
     result,
     isNewBest,
     mistakeIndices,
+    category,
+    setCategory,
     remaining,
     liveStats,
     start,
@@ -32,7 +34,14 @@ export default function Page() {
       </header>
 
       <div className="flex flex-1 flex-col">
-        {status === "idle" && <StartScreen best={best} onStart={start} />}
+        {status === "idle" && (
+          <StartScreen
+            best={best}
+            category={category}
+            onSelectCategory={setCategory}
+            onStart={start}
+          />
+        )}
 
         {status === "racing" && (
           <RaceScreen

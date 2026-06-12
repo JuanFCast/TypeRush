@@ -1,13 +1,21 @@
 "use client";
 
 import { DURATION } from "@/lib/game";
+import { CATEGORY_OPTIONS, CategoryId } from "@/lib/passages";
 
 type Props = {
   best: number;
+  category: CategoryId;
+  onSelectCategory: (id: CategoryId) => void;
   onStart: () => void;
 };
 
-export default function StartScreen({ best, onStart }: Props) {
+export default function StartScreen({
+  best,
+  category,
+  onSelectCategory,
+  onStart,
+}: Props) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
       <div className="mb-6 grid h-16 w-16 place-items-center rounded-2xl border border-brand/30 bg-brand-soft font-mono text-2xl font-bold text-brand">
@@ -45,10 +53,36 @@ export default function StartScreen({ best, onStart }: Props) {
         </li>
       </ul>
 
+      <div className="mt-7 w-full max-w-xs">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+          Categoría
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {CATEGORY_OPTIONS.map((opt) => {
+            const selected = opt.id === category;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => onSelectCategory(opt.id)}
+                aria-pressed={selected}
+                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition active:scale-[0.97] ${
+                  selected
+                    ? "border-brand bg-brand-soft text-brand"
+                    : "border-line text-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={onStart}
-        className="mt-8 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
+        className="mt-7 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
       >
         Empezar
       </button>
