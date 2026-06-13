@@ -127,18 +127,20 @@ export function useTypeRush() {
       if (statusRef.current !== "racing") return;
       // Nunca dejar escribir más allá del pasaje.
       const clipped = value.slice(0, passageRef.current.length);
-      setTyped(clipped);
       // Recuerda las posiciones erróneas; no se borran aunque el jugador corrija.
-      setMistakeIndices((prev) => {
-        let nextSet: Set<number> | null = null;
-        for (let i = 0; i < clipped.length; i += 1) {
-          if (clipped[i] !== passageRef.current[i] && !prev.has(i)) {
-            if (!nextSet) nextSet = new Set(prev);
-            nextSet.add(i);
-          }
+      let mistakes = mistakeIndicesRef.current;
+      for (let i = 0; i < clipped.length; i += 1) {
+        if (clipped[i] !== passageRef.current[i] && !mistakes.has(i)) {
+          if (mistakes === mistakeIndicesRef.current) mistakes = new Set(mistakes);
+          mistakes.add(i);
         }
-        return nextSet ?? prev;
-      });
+      }
+      // Sincroniza los refs ya mismo: si esta tecla completa el pasaje,
+      // finish() debe ver este input, no el del render anterior.
+      typedRef.current = clipped;
+      mistakeIndicesRef.current = mistakes;
+      setTyped(clipped);
+      setMistakeIndices(mistakes);
       if (clipped.length >= passageRef.current.length) finish();
     },
     [finish],
