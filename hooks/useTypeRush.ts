@@ -9,10 +9,17 @@ import {
   Stats,
 } from "@/lib/game";
 import {
+  getPlayerId,
+  getPlayerName,
+  saveMatchResultToSupabase,
+} from "@/lib/leaderboard";
+import {
   ALL_CHALLENGE_IDS,
   buildPassage,
   ChallengeId,
   DEFAULT_CHALLENGE,
+  getChallenge,
+  getMode,
 } from "@/lib/passages";
 
 export type Status = "idle" | "racing" | "finished";
@@ -77,6 +84,25 @@ export function useTypeRush() {
     setIsNewBest(record);
     setResult(final);
     setStatus("finished");
+
+    // Guarda la partida en Supabase sin bloquear la UI; si falla, queda lo local.
+    const challengeInfo = getChallenge(id);
+    const modeInfo = challengeInfo ? getMode(challengeInfo.modeId) : undefined;
+    void saveMatchResultToSupabase({
+      player_id: getPlayerId(),
+      player_name: getPlayerName(),
+      mode_id: challengeInfo?.modeId ?? "",
+      challenge_id: id,
+      mode_name: modeInfo?.label ?? "",
+      challenge_name: challengeInfo?.title ?? "",
+      score: final.score,
+      wpm: final.wpm,
+      accuracy: final.accuracy,
+      errors: final.errors,
+      mistakes: final.mistakes,
+      progress: final.progress,
+      is_new_best: record,
+    });
   }, []);
 
   const start = useCallback((next?: ChallengeId) => {

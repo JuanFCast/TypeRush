@@ -1,6 +1,8 @@
 "use client";
 
-import { Challenge } from "@/lib/passages";
+import { useEffect, useState } from "react";
+import { loadLeaderboard } from "@/lib/leaderboard";
+import { Challenge, RankingEntry } from "@/lib/passages";
 
 type Props = {
   challenge: Challenge;
@@ -9,6 +11,19 @@ type Props = {
 };
 
 export default function ChallengeCard({ challenge, best, onPlay }: Props) {
+  // Ranking real desde Supabase; mientras carga (o si falla) se ve el mock.
+  const [ranking, setRanking] = useState<RankingEntry[]>(challenge.ranking);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadLeaderboard(challenge.id).then((rows) => {
+      if (!cancelled && rows) setRanking(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [challenge.id]);
+
   return (
     <div className="rounded-2xl border border-line bg-surface2 p-4 text-left shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -21,10 +36,10 @@ export default function ChallengeCard({ challenge, best, onPlay }: Props) {
         </span>
       </div>
 
-      {/* Ranking local (temporal) */}
+      {/* Ranking: real desde Supabase, mock como fallback */}
       <div className="mt-3 space-y-1">
-        {challenge.ranking.map((r, i) => (
-          <div key={r.name} className="flex items-center justify-between text-xs">
+        {ranking.map((r, i) => (
+          <div key={`${r.name}-${i}`} className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-2 text-muted">
               <span className="grid h-4 w-4 place-items-center rounded-full bg-bg text-[0.58rem] font-bold text-muted">
                 {i + 1}
