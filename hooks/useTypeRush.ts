@@ -8,11 +8,8 @@ import {
   saveBestScore,
   Stats,
 } from "@/lib/game";
-import {
-  getPlayerId,
-  getPlayerName,
-  saveMatchResultToSupabase,
-} from "@/lib/leaderboard";
+import { saveMatchResultToSupabase } from "@/lib/leaderboard";
+import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
   ALL_CHALLENGE_IDS,
   buildPassage,

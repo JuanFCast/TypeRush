@@ -7,6 +7,7 @@ import ChallengeLobby from "@/components/ChallengeLobby";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import BottomNav, { Tab } from "@/components/BottomNav";
+import ProfileScreen from "@/components/ProfileScreen";
 import { ChallengeId, ModeId } from "@/lib/passages";
 
 export default function Page() {
@@ -92,13 +93,7 @@ export default function Page() {
               />
             )}
 
-            {tab === "you" && (
-              <Placeholder
-                icon="👤"
-                title="Tú"
-                text="Tu perfil y tus logros llegarán pronto."
-              />
-            )}
+            {tab === "you" && <ProfileScreen />}
           </>
         )}
       </div>

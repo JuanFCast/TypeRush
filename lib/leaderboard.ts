@@ -5,8 +5,6 @@
 import { RankingEntry } from "./passages";
 import { supabase } from "./supabase";
 
-const PLAYER_ID_KEY = "typerush.player.id";
-
 export type MatchResult = {
   player_id: string;
   player_name: string;
@@ -22,28 +20,6 @@ export type MatchResult = {
   progress: number;
   is_new_best: boolean;
 };
-
-/** Identidad local persistente mientras no hay login. */
-export function getPlayerId(): string {
-  if (typeof window === "undefined") return "anonymous";
-  try {
-    const existing = window.localStorage.getItem(PLAYER_ID_KEY);
-    if (existing) return existing;
-    const id =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `p-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    window.localStorage.setItem(PLAYER_ID_KEY, id);
-    return id;
-  } catch {
-    return "anonymous";
-  }
-}
-
-/** Nombre temporal hasta que exista perfil/login. */
-export function getPlayerName(): string {
-  return "Player";
-}
 
 /** Top 3 real de un reto, o null si Supabase falla o no está configurado. */
 export async function loadLeaderboard(
