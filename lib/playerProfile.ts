@@ -12,6 +12,23 @@ import {
 } from "./player";
 import { supabase } from "./supabase";
 
+/** Fila de `player_profiles` en Supabase. */
+export type PlayerProfile = {
+  player_id: string;
+  player_name: string;
+  player_name_key: string;
+  /** Dirección pública de la wallet (p. ej. 0x… en Celo/EVM); null si aún no asoció una. */
+  wallet_address: string | null;
+  /** Saldo en centavos de USD acumulado en la app y aún no reclamado a la wallet. */
+  unclaimed_balance_cents: number;
+  /** true si el jugador aún tiene su tiro gratis disponible. */
+  has_free_attempt: boolean;
+  /** Intentos de pago o extra disponibles para jugar. */
+  attempt_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export const ALIAS_TAKEN = "Ese alias ya está en uso. Prueba otro.";
 export const ALIAS_UNVERIFIED =
   "No pudimos verificar disponibilidad ahora. Se guardó localmente.";
