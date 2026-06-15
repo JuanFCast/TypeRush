@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  getPlayerId,
-  getPlayerName,
-  NAME_MAX,
-  NAME_MIN,
-  savePlayerName,
-} from "@/lib/player";
+import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
+import { ensurePlayerProfile } from "@/lib/playerProfile";
 
 export default function ProfileScreen() {
   const [name, setName] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
 
   // Lee el perfil en un effect para no romper la hidratación (el server no
   // tiene localStorage).
@@ -23,13 +21,25 @@ export default function ProfileScreen() {
   }, []);
 
   const trimmed = name.trim();
-  // Vacío es válido: vuelve a "Player". Un solo carácter no.
   const tooShort = trimmed.length > 0 && trimmed.length < NAME_MIN;
 
-  const onSave = () => {
-    if (tooShort) return;
-    setName(savePlayerName(name));
-    setSaved(true);
+  const onSave = async () => {
+    if (tooShort || busy) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    setSaved(false);
+    // Valida formato y, si Supabase está disponible, disponibilidad global.
+    const res = await ensurePlayerProfile(name);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setName(res.name);
+    // verified:false → se guardó local pero no se pudo verificar (Supabase off).
+    if (res.verified) setSaved(true);
+    else setNotice("No pudimos verificar disponibilidad ahora. Se guardó localmente.");
   };
 
   return (
@@ -54,13 +64,19 @@ export default function ProfileScreen() {
           onChange={(e) => {
             setName(e.target.value);
             setSaved(false);
+            setError("");
+            setNotice("");
           }}
           autoComplete="off"
           spellCheck={false}
           placeholder="Player"
           className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
         />
-        {tooShort ? (
+        {error ? (
+          <p className="mt-2 text-xs text-danger">{error}</p>
+        ) : notice ? (
+          <p className="mt-2 text-xs text-warn">{notice}</p>
+        ) : tooShort ? (
           <p className="mt-2 text-xs text-muted">
             El nombre necesita al menos {NAME_MIN} caracteres.
           </p>
@@ -72,11 +88,11 @@ export default function ProfileScreen() {
 
         <button
           type="button"
-          onClick={onSave}
-          disabled={tooShort}
+          onClick={() => void onSave()}
+          disabled={tooShort || busy}
           className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
         >
-          {saved ? "✓ Guardado" : "Guardar"}
+          {busy ? "Verificando…" : saved ? "✓ Guardado" : "Guardar"}
         </button>
       </div>
 

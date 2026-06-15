@@ -38,6 +38,22 @@ export function getPlayerName(): string {
 }
 
 /**
+ * ¿Hay ya un alias válido elegido? (distinto del placeholder "Player").
+ * Se usa para decidir si pedir alias antes de jugar.
+ */
+export function hasPlayerAlias(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = (window.localStorage.getItem(PLAYER_NAME_KEY) ?? "").trim();
+    return (
+      raw.length >= NAME_MIN && raw.toLowerCase() !== DEFAULT_NAME.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Normaliza (trim, máximo 16) y guarda el nombre. Vacío vuelve a "Player";
  * un solo carácter no es válido y conserva el nombre actual.
  * Devuelve el nombre que quedó guardado.

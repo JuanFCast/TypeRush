@@ -9,6 +9,8 @@ import ResultScreen from "@/components/ResultScreen";
 import BottomNav, { Tab } from "@/components/BottomNav";
 import HistoryScreen from "@/components/HistoryScreen";
 import ProfileScreen from "@/components/ProfileScreen";
+import AliasModal from "@/components/AliasModal";
+import { hasPlayerAlias } from "@/lib/player";
 import { ChallengeId, ModeId } from "@/lib/passages";
 
 export default function Page() {
@@ -30,6 +32,10 @@ export default function Page() {
 
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
+  // Reto pendiente de jugar mientras el jugador elige alias.
+  const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
+    null,
+  );
 
   const onTabChange = (next: Tab) => {
     setTab(next);
@@ -37,7 +43,11 @@ export default function Page() {
     if (next === "home") setSelectedMode(null);
   };
 
-  const onPlay = (id: ChallengeId) => start(id);
+  // Antes de jugar exige un alias válido; si no lo hay, abre el modal.
+  const onPlay = (id: ChallengeId) => {
+    if (hasPlayerAlias()) start(id);
+    else setPendingChallenge(id);
+  };
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-5">
@@ -94,6 +104,17 @@ export default function Page() {
       </div>
 
       {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
+
+      {pendingChallenge && (
+        <AliasModal
+          onClose={() => setPendingChallenge(null)}
+          onSaved={() => {
+            const id = pendingChallenge;
+            setPendingChallenge(null);
+            start(id);
+          }}
+        />
+      )}
     </main>
   );
 }
