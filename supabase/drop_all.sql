@@ -8,8 +8,7 @@
 --
 -- Seguro de re-ejecutar: usa IF EXISTS y no falla si la tabla ya no está.
 
--- Historial de partidas.
 drop table if exists public.match_results cascade;
-
--- Perfiles de jugador.
+drop table if exists public.player_game_modes cascade;
 drop table if exists public.player_profiles cascade;
+drop table if exists public.game_modes cascade;

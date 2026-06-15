@@ -21,10 +21,28 @@ export type PlayerProfile = {
   wallet_address: string | null;
   /** Saldo en centavos de USD acumulado en la app y aún no reclamado a la wallet. */
   unclaimed_balance_cents: number;
-  /** true si el jugador aún tiene su tiro gratis disponible. */
-  has_free_attempt: boolean;
   /** Intentos de pago o extra disponibles para jugar. */
   attempt_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Fila de `game_modes` en Supabase. */
+export type GameMode = {
+  id: string;
+  name: string;
+  /** true = activo, false = borrado lógico. */
+  status: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Fila de `player_game_modes` en Supabase. */
+export type PlayerGameMode = {
+  player_id: string;
+  game_mode_id: string;
+  /** true si el jugador aún tiene tiro gratis en esa modalidad. */
+  has_free_attempt: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -92,9 +110,42 @@ export async function checkPlayerNameAvailable(
 export type RegisterResult = "ok" | "taken" | "unknown";
 
 /**
+ * Crea una fila en player_game_modes por cada modalidad activa del catálogo.
+ * Idempotente: no pisa filas existentes ni resetea has_free_attempt.
+ */
+export async function ensurePlayerGameModes(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const playerId = getPlayerId();
+    const { data: modes, error: modesError } = await supabase
+      .from("game_modes")
+      .select("id")
+      .eq("status", true);
+    if (modesError || !modes?.length) return false;
+
+    const now = new Date().toISOString();
+    const rows = modes.map((m) => ({
+      player_id: playerId,
+      game_mode_id: m.id,
+      has_free_attempt: true,
+      updated_at: now,
+    }));
+
+    const { error } = await supabase.from("player_game_modes").upsert(rows, {
+      onConflict: "player_id,game_mode_id",
+      ignoreDuplicates: true,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Registra el alias del jugador. Usa INSERT ... ON CONFLICT (player_id) DO
  * NOTHING: si el jugador ya tiene perfil no falla; si el alias lo tiene otro,
- * la restricción única lo rechaza ("taken").
+ * la restricción única lo rechaza ("taken"). Tras crear el perfil, asegura
+ * player_game_modes para cada modalidad activa (es, en, …).
  */
 export async function registerPlayerName(
   name: string,
@@ -112,6 +163,7 @@ export async function registerPlayerName(
       { onConflict: "player_id", ignoreDuplicates: true },
     );
     if (error) return error.code === "23505" ? "taken" : "unknown";
+    await ensurePlayerGameModes();
     return "ok";
   } catch {
     return "unknown";
@@ -130,6 +182,101 @@ export type EnsureResult =
  * - verified:false → guardado local pero sin poder verificar (Supabase caído):
  *   la app sigue funcionando, conviene avisar con ALIAS_UNVERIFIED.
  */
+export type PlayEligibility = {
+  hasFreeAttempt: boolean;
+  attemptCount: number;
+};
+
+export type PlayEligibilityResult =
+  | { status: "ok"; eligibility: PlayEligibility; canPlay: boolean }
+  | { status: "unknown" };
+
+/**
+ * Consulta en Supabase si el jugador aún tiene tiro gratis en una modalidad.
+ * Sin fila en player_game_modes se asume que sí (default al crear). Modalidades
+ * fuera del catálogo (p. ej. code) no bloquean. Si Supabase falla, devuelve
+ * "unknown" para no romper la app.
+ */
+export async function fetchPlayEligibility(
+  gameModeId: string,
+): Promise<PlayEligibilityResult> {
+  if (!supabase) return { status: "unknown" };
+  try {
+    const { data: mode, error: modeError } = await supabase
+      .from("game_modes")
+      .select("id")
+      .eq("id", gameModeId)
+      .eq("status", true)
+      .maybeSingle();
+    if (modeError) return { status: "unknown" };
+    if (!mode) {
+      return {
+        status: "ok",
+        eligibility: { hasFreeAttempt: true, attemptCount: 0 },
+        canPlay: true,
+      };
+    }
+
+    const playerId = getPlayerId();
+    const [profileRes, modeAttemptRes] = await Promise.all([
+      supabase
+        .from("player_profiles")
+        .select("attempt_count")
+        .eq("player_id", playerId)
+        .maybeSingle(),
+      supabase
+        .from("player_game_modes")
+        .select("has_free_attempt")
+        .eq("player_id", playerId)
+        .eq("game_mode_id", gameModeId)
+        .maybeSingle(),
+    ]);
+    if (profileRes.error || modeAttemptRes.error) return { status: "unknown" };
+
+    const attemptCount = Number(profileRes.data?.attempt_count) || 0;
+    const hasFreeAttempt =
+      modeAttemptRes.data == null
+        ? true
+        : modeAttemptRes.data.has_free_attempt === true;
+    return {
+      status: "ok",
+      eligibility: { hasFreeAttempt, attemptCount },
+      canPlay: hasFreeAttempt,
+    };
+  } catch {
+    return { status: "unknown" };
+  }
+}
+
+/**
+ * Consume el tiro gratis de una modalidad (has_free_attempt → false). Solo aplica
+ * a modalidades del catálogo. Idempotente si ya se usó. Falla en silencio.
+ */
+export async function consumeFreeAttempt(gameModeId: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { data: mode, error: modeError } = await supabase
+      .from("game_modes")
+      .select("id")
+      .eq("id", gameModeId)
+      .eq("status", true)
+      .maybeSingle();
+    if (modeError || !mode) return;
+
+    await supabase
+      .from("player_game_modes")
+      .update({
+        has_free_attempt: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("player_id", getPlayerId())
+      .eq("game_mode_id", gameModeId)
+      .eq("has_free_attempt", true);
+  } catch {
+    // Sin Supabase o sin fila: la partida local sigue.
+  }
+}
+
 export async function ensurePlayerProfile(raw: string): Promise<EnsureResult> {
   const norm = normalizePlayerName(raw);
   if (!norm.ok) return { ok: false, error: norm.error };

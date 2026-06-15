@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import { useTypeRush } from "@/hooks/useTypeRush";
 import ModeHome from "@/components/ModeHome";
 import ChallengeLobby from "@/components/ChallengeLobby";
@@ -26,6 +27,7 @@ export default function Page() {
     mistakeIndices,
     remaining,
     liveStats,
+    challenge,
     start,
     reset,
     onInput,
@@ -33,6 +35,9 @@ export default function Page() {
 
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
+
+  const { canPlay, loading: playLoading, refresh: refreshPlayEligibility } =
+    usePlayEligibility(selectedMode);
   // Reto pendiente de jugar mientras el jugador elige alias.
   const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
     null,
@@ -50,8 +55,25 @@ export default function Page() {
   // Antes de jugar exige un alias válido; si no lo hay, abre el modal.
   // Con alias listo no se inicia de inmediato: primero la cuenta regresiva.
   const onPlay = (id: ChallengeId) => {
+    if (playLoading || !canPlay) return;
     if (hasPlayerAlias()) setCountdownChallenge(id);
     else setPendingChallenge(id);
+  };
+
+  const beginRace = (id: ChallengeId) => {
+    start(id);
+    void refreshPlayEligibility();
+  };
+
+  const onPlayAgain = () => {
+    void refreshPlayEligibility().then((allowed) => {
+      if (allowed) beginRace(challenge);
+    });
+  };
+
+  const onExitRace = () => {
+    reset();
+    void refreshPlayEligibility();
   };
 
   return (
@@ -82,8 +104,8 @@ export default function Page() {
             result={result}
             best={best}
             isNewBest={isNewBest}
-            onPlayAgain={() => start()}
-            onExit={reset}
+            onPlayAgain={onPlayAgain}
+            onExit={onExitRace}
           />
         )}
 
@@ -94,6 +116,8 @@ export default function Page() {
                 <ChallengeLobby
                   modeId={selectedMode}
                   bestByChallenge={bestByChallenge}
+                  canPlay={canPlay}
+                  playLoading={playLoading}
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
                 />
@@ -116,8 +140,9 @@ export default function Page() {
           onSaved={() => {
             const id = pendingChallenge;
             setPendingChallenge(null);
-            // Con el alias ya guardado, pasa a la cuenta regresiva.
-            setCountdownChallenge(id);
+            void refreshPlayEligibility().then((allowed) => {
+              if (allowed) setCountdownChallenge(id);
+            });
           }}
         />
       )}
@@ -132,8 +157,7 @@ export default function Page() {
           onDone={() => {
             const id = countdownChallenge;
             setCountdownChallenge(null);
-            // La carrera (y el cronómetro de 45s) recién empieza aquí.
-            start(id);
+            beginRace(id);
           }}
         />
       )}

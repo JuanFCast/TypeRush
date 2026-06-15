@@ -11,6 +11,8 @@ import ChallengeCard from "./ChallengeCard";
 type Props = {
   modeId: ModeId;
   bestByChallenge: Record<string, number>;
+  canPlay: boolean;
+  playLoading: boolean;
   onBack: () => void;
   onPlay: (id: ChallengeId) => void;
 };
@@ -18,6 +20,8 @@ type Props = {
 export default function ChallengeLobby({
   modeId,
   bestByChallenge,
+  canPlay,
+  playLoading,
   onBack,
   onPlay,
 }: Props) {
@@ -47,6 +51,8 @@ export default function ChallengeLobby({
             key={c.id}
             challenge={c}
             best={bestByChallenge[c.id] ?? 0}
+            canPlay={canPlay}
+            playLoading={playLoading}
             onPlay={() => onPlay(c.id)}
           />
         ))}

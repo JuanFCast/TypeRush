@@ -7,10 +7,18 @@ import { Challenge, RankingEntry } from "@/lib/passages";
 type Props = {
   challenge: Challenge;
   best: number;
+  canPlay: boolean;
+  playLoading: boolean;
   onPlay: () => void;
 };
 
-export default function ChallengeCard({ challenge, best, onPlay }: Props) {
+export default function ChallengeCard({
+  challenge,
+  best,
+  canPlay,
+  playLoading,
+  onPlay,
+}: Props) {
   // Ranking real desde Supabase; mientras carga (o si falla) se ve el mock.
   const [ranking, setRanking] = useState<RankingEntry[]>(challenge.ranking);
 
@@ -67,9 +75,14 @@ export default function ChallengeCard({ challenge, best, onPlay }: Props) {
       <button
         type="button"
         onClick={onPlay}
-        className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98]"
+        disabled={playLoading || !canPlay}
+        className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        ▶ Jugar gratis
+        {playLoading
+          ? "Verificando…"
+          : canPlay
+            ? "▶ Jugar gratis"
+            : "Sin intento gratis"}
       </button>
     </div>
   );
