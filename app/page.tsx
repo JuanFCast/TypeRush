@@ -7,6 +7,7 @@ import ChallengeLobby from "@/components/ChallengeLobby";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import BottomNav, { Tab } from "@/components/BottomNav";
+import HistoryScreen from "@/components/HistoryScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import { ChallengeId, ModeId } from "@/lib/passages";
 
@@ -85,13 +86,7 @@ export default function Page() {
                 <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
               ))}
 
-            {tab === "history" && (
-              <Placeholder
-                icon="🕘"
-                title="Historial"
-                text="Aquí verás tus partidas recientes. Próximamente."
-              />
-            )}
+            {tab === "history" && <HistoryScreen />}
 
             {tab === "you" && <ProfileScreen />}
           </>
@@ -100,25 +95,5 @@ export default function Page() {
 
       {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
     </main>
-  );
-}
-
-function Placeholder({
-  icon,
-  title,
-  text,
-}: {
-  icon: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-line bg-surface text-2xl">
-        {icon}
-      </div>
-      <h2 className="text-xl font-bold">{title}</h2>
-      <p className="mt-2 max-w-xs text-balance text-sm text-muted">{text}</p>
-    </div>
   );
 }

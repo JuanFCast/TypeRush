@@ -9,6 +9,7 @@ import {
   Stats,
 } from "@/lib/game";
 import { saveMatchResultToSupabase } from "@/lib/leaderboard";
+import { saveMatchHistoryItem } from "@/lib/history";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
   ALL_CHALLENGE_IDS,
@@ -85,13 +86,18 @@ export function useTypeRush() {
     // Guarda la partida en Supabase sin bloquear la UI; si falla, queda lo local.
     const challengeInfo = getChallenge(id);
     const modeInfo = challengeInfo ? getMode(challengeInfo.modeId) : undefined;
+    const playerId = getPlayerId();
+    const playerName = getPlayerName();
+    const modeId = challengeInfo?.modeId ?? "";
+    const modeName = modeInfo?.label ?? "";
+    const challengeName = challengeInfo?.title ?? "";
     void saveMatchResultToSupabase({
-      player_id: getPlayerId(),
-      player_name: getPlayerName(),
-      mode_id: challengeInfo?.modeId ?? "",
+      player_id: playerId,
+      player_name: playerName,
+      mode_id: modeId,
       challenge_id: id,
-      mode_name: modeInfo?.label ?? "",
-      challenge_name: challengeInfo?.title ?? "",
+      mode_name: modeName,
+      challenge_name: challengeName,
       score: final.score,
       wpm: final.wpm,
       accuracy: final.accuracy,
@@ -99,6 +105,28 @@ export function useTypeRush() {
       mistakes: final.mistakes,
       progress: final.progress,
       is_new_best: record,
+    });
+
+    // Historial local: solo las partidas de este navegador/jugador.
+    saveMatchHistoryItem({
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: Date.now(),
+      playerId,
+      playerName,
+      modeId,
+      challengeId: id,
+      modeName,
+      challengeName,
+      score: final.score,
+      wpm: final.wpm,
+      accuracy: final.accuracy,
+      errors: final.errors,
+      mistakes: final.mistakes,
+      progress: final.progress,
+      isNewBest: record,
     });
   }, []);
 
