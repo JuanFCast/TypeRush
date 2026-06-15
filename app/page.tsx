@@ -12,7 +12,7 @@ import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
-import { ChallengeId, ModeId } from "@/lib/passages";
+import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
 export default function Page() {
   const {
@@ -124,6 +124,10 @@ export default function Page() {
 
       {countdownChallenge && (
         <CountdownScreen
+          challengeName={getChallenge(countdownChallenge)?.title}
+          modeName={
+            getMode(getChallenge(countdownChallenge)?.modeId ?? "es")?.label
+          }
           onCancel={() => setCountdownChallenge(null)}
           onDone={() => {
             const id = countdownChallenge;
