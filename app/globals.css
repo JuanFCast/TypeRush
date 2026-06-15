@@ -75,6 +75,16 @@ body {
   animation: blink 1s steps(2, start) infinite;
 }
 
+/* Pop de cada número del countdown previo a la carrera. */
+@keyframes countdown-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  40% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.countdown-pop {
+  animation: countdown-pop 0.45s ease-out;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

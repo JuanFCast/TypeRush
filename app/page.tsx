@@ -10,6 +10,7 @@ import BottomNav, { Tab } from "@/components/BottomNav";
 import HistoryScreen from "@/components/HistoryScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
+import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
 import { ChallengeId, ModeId } from "@/lib/passages";
 
@@ -36,6 +37,9 @@ export default function Page() {
   const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
     null,
   );
+  // Reto en cuenta regresiva: la carrera real arranca al terminar el countdown.
+  const [countdownChallenge, setCountdownChallenge] =
+    useState<ChallengeId | null>(null);
 
   const onTabChange = (next: Tab) => {
     setTab(next);
@@ -44,8 +48,9 @@ export default function Page() {
   };
 
   // Antes de jugar exige un alias válido; si no lo hay, abre el modal.
+  // Con alias listo no se inicia de inmediato: primero la cuenta regresiva.
   const onPlay = (id: ChallengeId) => {
-    if (hasPlayerAlias()) start(id);
+    if (hasPlayerAlias()) setCountdownChallenge(id);
     else setPendingChallenge(id);
   };
 
@@ -111,6 +116,19 @@ export default function Page() {
           onSaved={() => {
             const id = pendingChallenge;
             setPendingChallenge(null);
+            // Con el alias ya guardado, pasa a la cuenta regresiva.
+            setCountdownChallenge(id);
+          }}
+        />
+      )}
+
+      {countdownChallenge && (
+        <CountdownScreen
+          onCancel={() => setCountdownChallenge(null)}
+          onDone={() => {
+            const id = countdownChallenge;
+            setCountdownChallenge(null);
+            // La carrera (y el cronómetro de 45s) recién empieza aquí.
             start(id);
           }}
         />
