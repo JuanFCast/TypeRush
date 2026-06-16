@@ -9,6 +9,7 @@ import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import BottomNav, { Tab } from "@/components/BottomNav";
 import HistoryScreen from "@/components/HistoryScreen";
+import RankingScreen from "@/components/RankingScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
@@ -125,6 +126,8 @@ export default function Page() {
               ) : (
                 <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
               ))}
+
+            {tab === "ranking" && <RankingScreen />}
 
             {tab === "history" && <HistoryScreen />}
 
