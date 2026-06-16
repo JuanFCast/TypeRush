@@ -5,6 +5,13 @@ pragma solidity ^0.8.28;
 /// @notice Paga 0.001 CELO al #1 de cada modalidad por periodo diario (8 p.m. Colombia).
 ///         Los ganadores se calculan en Supabase; un operador autorizado llama `distribute`.
 ///         `periodId` = bytes32(uint256(periodStartUnix)) · `modeId` = keccak256(mode string).
+///
+/// @dev LEGACY — modelo de PREMIO FIJO prefondeado. Desplegado en Celo Sepolia en
+///      0x2f38bA8108a1D76F55415abE23f6138D8eC52989 (env PRIZE_POOL_ADDRESS). NO lo
+///      borres ni reemplaces: aún tiene saldo de testnet. Será sustituido por
+///      `TypeRushPayToPlay` (entrada pagada, split 50/50 dev/pozo, pozo creciente
+///      que el #1 se lleva). El nuevo usa otras env vars (PAY_TO_PLAY_*), así que
+///      ambos pueden coexistir mientras se migra.
 contract TypeRushDailyPrizes {
     uint256 public constant PRIZE_WEI = 0.001 ether;
 
