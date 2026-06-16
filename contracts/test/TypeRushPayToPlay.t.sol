@@ -126,6 +126,24 @@ contract TypeRushPayToPlayTest is Test {
         assertTrue(p2p.distributed(periodId, modeEs), "marcado como distribuido");
     }
 
+    function test_prize_comes_from_contract_not_distributor() public {
+        // El distributor NO tiene tokens; aun asi puede pagar el premio porque
+        // sale del POZO del contrato (transfer), no de su wallet (transferFrom).
+        vm.prank(player);
+        p2p.payToPlay(periodId, modeEs);
+        uint256 prize = p2p.poolAmount();
+
+        assertEq(token.balanceOf(distributor), 0, "distributor empieza sin tokens");
+        uint256 contractBefore = token.balanceOf(address(p2p));
+
+        vm.prank(distributor);
+        p2p.distribute(periodId, modeEs, winner);
+
+        assertEq(token.balanceOf(distributor), 0, "el premio NO sale del wallet del distributor");
+        assertEq(token.balanceOf(winner), prize, "el ganador recibe el premio");
+        assertEq(token.balanceOf(address(p2p)), contractBefore - prize, "el premio salio del pozo del contrato");
+    }
+
     function test_distribute_reverts_if_already_distributed() public {
         vm.prank(player);
         p2p.payToPlay(periodId, modeEs);
