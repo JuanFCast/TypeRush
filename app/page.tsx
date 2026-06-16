@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import { useTypeRush } from "@/hooks/useTypeRush";
 import ModeHome from "@/components/ModeHome";
@@ -47,6 +47,15 @@ export default function Page() {
   const [countdownChallenge, setCountdownChallenge] =
     useState<ChallengeId | null>(null);
 
+  // Teclado "cebador": en móvil el teclado solo abre dentro del gesto del usuario.
+  // Como entre el tap y la carrera hay un countdown (~3.3s sin tocar nada), el
+  // foco programático del campo de escritura no abriría el teclado. Por eso, al
+  // tocar Jugar/Guardar enfocamos este textarea oculto: el teclado abre dentro
+  // del gesto y, como mover el foco entre campos de texto no cierra un teclado ya
+  // abierto, se mantiene durante el 3·2·1 y al arrancar a escribir.
+  const primerRef = useRef<HTMLTextAreaElement>(null);
+  const primeKeyboard = () => primerRef.current?.focus();
+
   const onTabChange = (next: Tab) => {
     setTab(next);
     // "Inicio" siempre vuelve a la pantalla de modos.
@@ -57,8 +66,13 @@ export default function Page() {
   // Con alias listo no se inicia de inmediato: primero la cuenta regresiva.
   const onPlay = (id: ChallengeId) => {
     if (playLoading || !canPlay) return;
-    if (hasPlayerAlias()) setCountdownChallenge(id);
-    else setPendingChallenge(id);
+    if (hasPlayerAlias()) {
+      // Dentro del gesto del tap: abre el teclado antes del countdown.
+      primeKeyboard();
+      setCountdownChallenge(id);
+    } else {
+      setPendingChallenge(id);
+    }
   };
 
   const beginRace = (id: ChallengeId) => {
@@ -142,6 +156,20 @@ export default function Page() {
         )}
       </div>
 
+      {/* Cebador de teclado (móvil): oculto y fuera del alcance de foco/lectores.
+          Solo se enfoca por código para abrir el teclado dentro de un gesto. */}
+      <textarea
+        ref={primerRef}
+        aria-hidden
+        tabIndex={-1}
+        inputMode="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        className="pointer-events-none fixed bottom-0 left-0 h-px w-px resize-none border-0 bg-transparent p-0 opacity-0"
+      />
+
       {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
 
       {pendingChallenge && (
@@ -150,6 +178,9 @@ export default function Page() {
           onSaved={() => {
             const id = pendingChallenge;
             setPendingChallenge(null);
+            // El teclado ya está abierto (el jugador acaba de escribir el alias);
+            // mover el foco al cebador lo mantiene abierto hacia la carrera.
+            primeKeyboard();
             void refreshPlayEligibility().then((allowed) => {
               if (allowed) setCountdownChallenge(id);
             });
