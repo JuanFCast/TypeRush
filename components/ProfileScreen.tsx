@@ -1,8 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
-import { ensurePlayerProfile } from "@/lib/playerProfile";
+import {
+  ensurePlayerProfile,
+  fetchPlayerWallet,
+  hasPlayerProfileInDb,
+  savePlayerWallet,
+} from "@/lib/playerProfile";
+import {
+  connectWallet,
+  getConnectedWallet,
+  hasEthereumProvider,
+  isMiniPay,
+  shortWalletAddress,
+} from "@/lib/wallet";
 
 export default function ProfileScreen() {
   const [name, setName] = useState("");
@@ -12,13 +24,40 @@ export default function ProfileScreen() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [savedWallet, setSavedWallet] = useState<string | null>(null);
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletError, setWalletError] = useState("");
+  const [walletSaved, setWalletSaved] = useState(false);
+  const [inMiniPay, setInMiniPay] = useState(false);
+  const [hasProvider, setHasProvider] = useState(false);
+  const [profileInDb, setProfileInDb] = useState<boolean | null>(null);
+
+  const loadWalletState = useCallback(async () => {
+    setWalletLoading(true);
+    setWalletError("");
+    const [dbRes, providerAddress, hasProfile] = await Promise.all([
+      fetchPlayerWallet(),
+      getConnectedWallet(),
+      hasPlayerProfileInDb(),
+    ]);
+    if (dbRes.status === "ok") setSavedWallet(dbRes.address);
+    setConnectedWallet(providerAddress);
+    setProfileInDb(hasProfile);
+    setWalletLoading(false);
+  }, []);
+
   // Lee el perfil en un effect para no romper la hidratación (el server no
   // tiene localStorage).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(getPlayerName());
     setPlayerId(getPlayerId());
-  }, []);
+    setInMiniPay(isMiniPay());
+    setHasProvider(hasEthereumProvider());
+    void loadWalletState();
+  }, [loadWalletState]);
 
   const trimmed = name.trim();
   const tooShort = trimmed.length > 0 && trimmed.length < NAME_MIN;
@@ -40,7 +79,40 @@ export default function ProfileScreen() {
     // verified:false → se guardó local pero no se pudo verificar (Supabase off).
     if (res.verified) setSaved(true);
     else setNotice("No pudimos verificar disponibilidad ahora. Se guardó localmente.");
+    setProfileInDb(true);
   };
+
+  const onConnectAndSave = async () => {
+    if (walletBusy) return;
+    setWalletBusy(true);
+    setWalletError("");
+    setWalletSaved(false);
+
+    const conn = await connectWallet();
+    if (!conn.ok) {
+      setWalletBusy(false);
+      setWalletError(conn.error);
+      return;
+    }
+
+    setConnectedWallet(conn.address);
+    const res = await savePlayerWallet(conn.address);
+    setWalletBusy(false);
+
+    if (!res.ok) {
+      setWalletError(res.error);
+      return;
+    }
+
+    setSavedWallet(res.address);
+    setWalletSaved(true);
+    setProfileInDb(true);
+  };
+
+  const walletMismatch =
+    savedWallet &&
+    connectedWallet &&
+    savedWallet.toLowerCase() !== connectedWallet.toLowerCase();
 
   return (
     <div className="flex flex-1 flex-col">
@@ -94,6 +166,92 @@ export default function ProfileScreen() {
         >
           {busy ? "Verificando…" : saved ? "✓ Guardado" : "Guardar"}
         </button>
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-line bg-surface2 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
+            Wallet para premios
+          </span>
+          {inMiniPay ? (
+            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[0.6rem] font-semibold text-brand">
+              MiniPay
+            </span>
+          ) : hasProvider ? (
+            <span className="text-[0.6rem] text-muted">Web3</span>
+          ) : null}
+        </div>
+
+        <p className="mt-2 text-xs text-muted">
+          Asocia tu wallet de Celo para recibir el premio on-chain si quedas #1 del
+          día en una modalidad.
+        </p>
+
+        {profileInDb === false && (
+          <p className="mt-2 text-xs text-warn">
+            Primero guarda tu nombre de jugador arriba. La wallet se vincula a tu
+            perfil en el servidor.
+          </p>
+        )}
+
+        {walletLoading ? (
+          <p className="mt-3 text-xs text-muted">Cargando wallet…</p>
+        ) : (
+          <>
+            <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-bg px-3 py-3">
+              <span className="text-xs text-muted">Asociada</span>
+              <span className="font-mono text-sm text-ink">
+                {savedWallet ? shortWalletAddress(savedWallet) : "Sin wallet"}
+              </span>
+            </div>
+
+            {connectedWallet && !savedWallet && (
+              <p className="mt-2 text-xs text-muted">
+                Detectada:{" "}
+                <span className="font-mono text-ink/80">
+                  {shortWalletAddress(connectedWallet)}
+                </span>
+              </p>
+            )}
+
+            {walletMismatch && (
+              <p className="mt-2 text-xs text-warn">
+                La wallet conectada ({shortWalletAddress(connectedWallet!)}) no
+                coincide con la guardada. Puedes actualizarla abajo.
+              </p>
+            )}
+
+            {walletError ? (
+              <p className="mt-2 text-xs text-danger">{walletError}</p>
+            ) : walletSaved ? (
+              <p className="mt-2 text-xs text-brand">✓ Wallet guardada para premios</p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void onConnectAndSave()}
+              disabled={walletBusy}
+              className="mt-4 h-12 w-full rounded-xl border border-brand/40 bg-brand/10 text-base font-bold text-brand transition active:scale-[0.98] disabled:opacity-40"
+            >
+              {walletBusy
+                ? "Conectando…"
+                : savedWallet
+                  ? walletMismatch
+                    ? "Actualizar wallet"
+                    : "Cambiar wallet"
+                  : inMiniPay
+                    ? "Guardar wallet de MiniPay"
+                    : "Conectar y guardar wallet"}
+            </button>
+
+            {!hasProvider && !walletLoading && (
+              <p className="mt-2 text-xs text-muted">
+                Abre TypeRush dentro de MiniPay o instala una extensión compatible
+                (MetaMask, etc.) para asociar tu dirección.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 text-xs">

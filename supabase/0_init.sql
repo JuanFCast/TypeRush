@@ -157,7 +157,26 @@ begin
 end
 $$;
 
--- Sin policies de UPDATE ni DELETE a propósito en player_profiles.
+-- UPDATE solo para que el cliente asocie wallet_address (pestaña Tú).
+-- Sin DELETE a propósito.
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'player_profiles'
+      and policyname = 'player_profiles_update_wallet_public'
+  ) then
+    create policy "player_profiles_update_wallet_public"
+      on public.player_profiles
+      for update
+      using (true)
+      with check (true);
+  end if;
+end
+$$;
 
 -- ---------------------------------------------------------------------------
 -- player_game_modes · tiro gratis por jugador y modalidad

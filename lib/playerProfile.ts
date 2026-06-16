@@ -6,12 +6,14 @@
 import {
   DEFAULT_NAME,
   getPlayerId,
+  getPlayerName,
   NAME_MAX,
   NAME_MIN,
   savePlayerName,
 } from "./player";
 import { isBeforeCurrentPeriod } from "./gamePeriod";
 import { supabase } from "./supabase";
+import { normalizeWalletAddress } from "./wallet";
 
 /** Fila de `player_profiles` en Supabase. */
 export type PlayerProfile = {
@@ -311,4 +313,108 @@ export async function ensurePlayerProfile(raw: string): Promise<EnsureResult> {
   const reg = await registerPlayerName(name, key);
   if (reg === "taken") return { ok: false, error: ALIAS_TAKEN };
   return { ok: true, name: savePlayerName(name), verified: reg === "ok" };
+}
+
+export type WalletFetchResult =
+  | { status: "ok"; address: string | null }
+  | { status: "unknown" };
+
+/** Lee la wallet asociada en Supabase para el jugador local. */
+export async function fetchPlayerWallet(): Promise<WalletFetchResult> {
+  if (!supabase) return { status: "unknown" };
+  try {
+    const { data, error } = await supabase
+      .from("player_profiles")
+      .select("wallet_address")
+      .eq("player_id", getPlayerId())
+      .maybeSingle();
+    if (error) return { status: "unknown" };
+    const raw = data?.wallet_address;
+    if (!raw || !raw.trim()) return { status: "ok", address: null };
+    return { status: "ok", address: normalizeWalletAddress(raw) ?? raw.trim() };
+  } catch {
+    return { status: "unknown" };
+  }
+}
+
+export type SaveWalletResult =
+  | { ok: true; address: string; verified: boolean }
+  | { ok: false; error: string };
+
+/** ¿Existe ya una fila en player_profiles para este jugador local? */
+export async function hasPlayerProfileInDb(): Promise<boolean | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("player_profiles")
+      .select("player_id")
+      .eq("player_id", getPlayerId())
+      .maybeSingle();
+    if (error) return null;
+    return Boolean(data);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda la wallet en player_profiles. Si aún no hay perfil, intenta crearlo con
+ * el alias local (debe estar libre). Si ya hay perfil, solo actualiza la wallet.
+ */
+export async function savePlayerWallet(rawAddress: string): Promise<SaveWalletResult> {
+  const address = normalizeWalletAddress(rawAddress);
+  if (!address) {
+    return { ok: false, error: "Dirección de wallet inválida." };
+  }
+  if (!supabase) {
+    return { ok: false, error: "No hay conexión con el servidor. Intenta más tarde." };
+  }
+
+  const playerId = getPlayerId();
+  const now = new Date().toISOString();
+
+  try {
+    const { data: profile, error: fetchError } = await supabase
+      .from("player_profiles")
+      .select("player_id")
+      .eq("player_id", playerId)
+      .maybeSingle();
+
+    if (fetchError) return { ok: false, error: "No se pudo guardar la wallet." };
+
+    if (!profile) {
+      const norm = normalizePlayerName(getPlayerName());
+      if (!norm.ok) {
+        return {
+          ok: false,
+          error: "Primero elige un nombre de jugador válido arriba y pulsa Guardar.",
+        };
+      }
+
+      const ensured = await ensurePlayerProfile(norm.name);
+      if (!ensured.ok) {
+        if (ensured.error === ALIAS_TAKEN) {
+          return {
+            ok: false,
+            error: `El alias «${norm.name}» ya lo usa otro jugador. Elige otro nombre, guárdalo arriba, y luego asocia tu wallet.`,
+          };
+        }
+        return { ok: false, error: ensured.error };
+      }
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from("player_profiles")
+      .update({ wallet_address: address, updated_at: now })
+      .eq("player_id", playerId)
+      .select("player_id")
+      .maybeSingle();
+
+    if (updateError) return { ok: false, error: "No se pudo guardar la wallet." };
+    if (!updated) return { ok: false, error: "No se pudo guardar la wallet." };
+
+    return { ok: true, address, verified: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar la wallet." };
+  }
 }
