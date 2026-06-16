@@ -66,14 +66,18 @@ export default function Page() {
     void refreshPlayEligibility();
   };
 
-  const onPlayAgain = () => {
-    void refreshPlayEligibility().then((allowed) => {
-      if (allowed) beginRace(challenge);
-    });
+  const onBackToLobby = () => {
+    const mode = getChallenge(challenge)?.modeId ?? "es";
+    setSelectedMode(mode);
+    reset();
+    setTab("home");
+    void refreshPlayEligibility(mode);
   };
 
   const onExitRace = () => {
     reset();
+    setSelectedMode(null);
+    setTab("home");
     void refreshPlayEligibility();
   };
 
@@ -105,7 +109,8 @@ export default function Page() {
             result={result}
             best={best}
             isNewBest={isNewBest}
-            onPlayAgain={onPlayAgain}
+            modeId={getChallenge(challenge)?.modeId ?? "es"}
+            onBackToLobby={onBackToLobby}
             onExit={onExitRace}
           />
         )}

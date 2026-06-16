@@ -14,11 +14,12 @@ export function usePlayEligibility(modeId: ModeId | null) {
   const [canPlay, setCanPlay] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const refresh = useCallback(async () => {
-    if (!modeId) return true;
-    const res = await fetchPlayEligibility(modeId);
+  const refresh = useCallback(async (overrideModeId?: ModeId | null) => {
+    const id = overrideModeId ?? modeId;
+    if (!id) return true;
+    const res = await fetchPlayEligibility(id);
     const nextCanPlay = res.status === "ok" ? res.canPlay : true;
-    setResolvedModeId(modeId);
+    setResolvedModeId(id);
     setCanPlay(nextCanPlay);
     return nextCanPlay;
   }, [modeId]);
