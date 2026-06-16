@@ -80,7 +80,8 @@ Copia `.env.example` → `.env`. Solo necesitas **5**:
 node scripts/distribute-prizes.mjs
 ```
 
-Programa este script tras el cron (cron job del servidor, GitHub Action, etc.).
+Programa este script tras el cron (GitHub Action en `.github/workflows/distribute-prizes.yml`,
+cron del servidor, etc.).
 
 ## Identificadores on-chain
 

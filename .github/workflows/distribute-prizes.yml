@@ -1,0 +1,46 @@
+# Paga premios on-chain pendientes en Supabase (prize_payouts.status = pending).
+#
+# Horario: 8:10 p.m. Colombia ≈ 01:10 UTC (10 min después del cron de Supabase).
+# También puedes lanzarlo a mano: Actions → Distribute prizes → Run workflow.
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   NEXT_PUBLIC_SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   PRIZE_POOL_ADDRESS
+#   PRIVATE_KEY
+
+name: Distribute prizes
+
+on:
+  schedule:
+    - cron: "10 1 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: distribute-prizes
+  cancel-in-progress: false
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Distribute pending on-chain prizes
+        run: npm run prizes:distribute
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRIZE_POOL_ADDRESS: ${{ secrets.PRIZE_POOL_ADDRESS }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
