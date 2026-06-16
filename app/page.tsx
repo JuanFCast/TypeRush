@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import { useTypeRush } from "@/hooks/useTypeRush";
 import ModeHome from "@/components/ModeHome";
@@ -15,6 +15,11 @@ import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
 import { claimFreeAttempt } from "@/lib/playerProfile";
+import {
+  entryAmountLabel,
+  isPayToPlayConfigured,
+  payEntry,
+} from "@/lib/payToPlay";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
 // Mensaje cuando no se puede validar el tiro contra Supabase (no inicia ranking).
@@ -64,6 +69,19 @@ export default function Page() {
   // Aviso cuando no se pudo validar el tiro gratis contra Supabase.
   const [attemptError, setAttemptError] = useState<string | null>(null);
 
+  // Pago de entrada (cuando se agota el tiro gratis): estado del flujo on-chain.
+  const [payState, setPayState] = useState<"idle" | "paying" | "error">("idle");
+  const [payError, setPayError] = useState<string | null>(null);
+  // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
+  const paidEntryRef = useRef<ChallengeId | null>(null);
+
+  // Al cambiar de modalidad, limpia cualquier estado/aviso de pago anterior.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPayState("idle");
+    setPayError(null);
+  }, [selectedMode]);
+
   const onTabChange = (next: Tab) => {
     setTab(next);
     // "Inicio" siempre vuelve a la pantalla de modos.
@@ -84,10 +102,39 @@ export default function Page() {
     }
   };
 
+  // Tiro gratis agotado: paga la entrada en stablecoin y, si confirma, pasa al
+  // countdown. La partida pagada arranca sin consumir tiro gratis (beginRace).
+  const onPayAndPlay = async (id: ChallengeId) => {
+    if (payState === "paying") return;
+    setPayError(null);
+    setPayState("paying");
+    const modeId = getChallenge(id)?.modeId ?? "es";
+    const res = await payEntry(modeId);
+    if (!res.ok) {
+      setPayState("error");
+      setPayError(res.error);
+      return;
+    }
+    setPayState("idle");
+    paidEntryRef.current = id;
+    // Dentro del gesto post-pago: abre el teclado antes del countdown.
+    primeKeyboard();
+    setCountdownChallenge(id);
+  };
+
   // Al terminar el countdown: valida/consume el tiro gratis de forma autoritativa
   // antes de iniciar una partida de ranking. Si Supabase no permite validar, no
   // arranca la carrera y muestra el aviso.
   const beginRace = async (id: ChallengeId) => {
+    // Entrada pagada on-chain: arranca sin tocar el tiro gratis.
+    if (paidEntryRef.current === id) {
+      paidEntryRef.current = null;
+      setCountdownChallenge(null);
+      setAttemptError(null);
+      start(id);
+      void refreshPlayEligibility();
+      return;
+    }
     const modeId = getChallenge(id)?.modeId ?? "es";
     const claim = await claimFreeAttempt(modeId);
     setCountdownChallenge(null);
@@ -165,6 +212,11 @@ export default function Page() {
                   resetCountdown={resetCountdown}
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
+                  payEnabled={isPayToPlayConfigured()}
+                  entryLabel={entryAmountLabel()}
+                  payState={payState}
+                  payError={payError}
+                  onPayAndPlay={onPayAndPlay}
                 />
               ) : (
                 <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
@@ -230,7 +282,10 @@ export default function Page() {
           modeName={
             getMode(getChallenge(countdownChallenge)?.modeId ?? "es")?.label
           }
-          onCancel={() => setCountdownChallenge(null)}
+          onCancel={() => {
+            paidEntryRef.current = null;
+            setCountdownChallenge(null);
+          }}
           onDone={() => {
             const id = countdownChallenge;
             // beginRace cierra el countdown tras validar (mantiene "¡YA!" mientras tanto).
