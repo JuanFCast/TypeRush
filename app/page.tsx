@@ -14,7 +14,12 @@ import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
+import { claimFreeAttempt } from "@/lib/playerProfile";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
+
+// Mensaje cuando no se puede validar el tiro contra Supabase (no inicia ranking).
+const ATTEMPT_VALIDATION_ERROR =
+  "No pudimos validar tu intento, revisa tu conexión e intenta de nuevo.";
 
 export default function Page() {
   const {
@@ -56,6 +61,9 @@ export default function Page() {
   const primerRef = useRef<HTMLTextAreaElement>(null);
   const primeKeyboard = () => primerRef.current?.focus();
 
+  // Aviso cuando no se pudo validar el tiro gratis contra Supabase.
+  const [attemptError, setAttemptError] = useState<string | null>(null);
+
   const onTabChange = (next: Tab) => {
     setTab(next);
     // "Inicio" siempre vuelve a la pantalla de modos.
@@ -66,6 +74,7 @@ export default function Page() {
   // Con alias listo no se inicia de inmediato: primero la cuenta regresiva.
   const onPlay = (id: ChallengeId) => {
     if (playLoading || !canPlay) return;
+    setAttemptError(null);
     if (hasPlayerAlias()) {
       // Dentro del gesto del tap: abre el teclado antes del countdown.
       primeKeyboard();
@@ -75,8 +84,22 @@ export default function Page() {
     }
   };
 
-  const beginRace = (id: ChallengeId) => {
-    start(id);
+  // Al terminar el countdown: valida/consume el tiro gratis de forma autoritativa
+  // antes de iniciar una partida de ranking. Si Supabase no permite validar, no
+  // arranca la carrera y muestra el aviso.
+  const beginRace = async (id: ChallengeId) => {
+    const modeId = getChallenge(id)?.modeId ?? "es";
+    const claim = await claimFreeAttempt(modeId);
+    setCountdownChallenge(null);
+    if (claim === "claimed") {
+      setAttemptError(null);
+      start(id);
+      void refreshPlayEligibility();
+      return;
+    }
+    // No se inicia ranking: cierra el teclado y refresca la elegibilidad.
+    primerRef.current?.blur();
+    if (claim === "error") setAttemptError(ATTEMPT_VALIDATION_ERROR);
     void refreshPlayEligibility();
   };
 
@@ -170,6 +193,18 @@ export default function Page() {
         className="pointer-events-none fixed bottom-0 left-0 h-px w-px resize-none border-0 bg-transparent p-0 opacity-0"
       />
 
+      {attemptError && (
+        <button
+          type="button"
+          onClick={() => setAttemptError(null)}
+          className="fixed inset-x-0 bottom-24 z-40 mx-auto w-full max-w-md px-5 text-left"
+        >
+          <span className="block rounded-xl border border-line bg-surface2 px-4 py-3 text-sm font-semibold text-danger shadow-xl">
+            {attemptError}
+          </span>
+        </button>
+      )}
+
       {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
 
       {pendingChallenge && (
@@ -197,8 +232,8 @@ export default function Page() {
           onCancel={() => setCountdownChallenge(null)}
           onDone={() => {
             const id = countdownChallenge;
-            setCountdownChallenge(null);
-            beginRace(id);
+            // beginRace cierra el countdown tras validar (mantiene "¡YA!" mientras tanto).
+            if (id) void beginRace(id);
           }}
         />
       )}

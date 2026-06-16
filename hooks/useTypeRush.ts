@@ -10,7 +10,6 @@ import {
 } from "@/lib/game";
 import { saveMatchResultToSupabase } from "@/lib/leaderboard";
 import { saveMatchHistoryItem } from "@/lib/history";
-import { consumeFreeAttempt } from "@/lib/playerProfile";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
   ALL_CHALLENGE_IDS,
@@ -129,9 +128,9 @@ export function useTypeRush() {
   }, []);
 
   const start = useCallback((next?: ChallengeId) => {
+    // El tiro gratis ya se validó/consumió antes (claimFreeAttempt en page.tsx);
+    // aquí solo se arranca la carrera.
     const challengeId = next ?? challengeRef.current;
-    const challengeInfo = getChallenge(challengeId);
-    if (challengeInfo) void consumeFreeAttempt(challengeInfo.modeId);
     const now = Date.now();
     setChallenge(challengeId);
     setPassage(buildPassage(challengeId));

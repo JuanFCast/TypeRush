@@ -268,32 +268,83 @@ export async function fetchPlayEligibility(
   }
 }
 
-/**
- * Consume el tiro gratis de una modalidad (has_free_attempt → false). Solo aplica
- * a modalidades del catálogo. Idempotente si ya se usó. Falla en silencio.
- */
-export async function consumeFreeAttempt(gameModeId: string): Promise<void> {
-  if (!supabase) return;
-  try {
-    const { data: mode, error: modeError } = await supabase
-      .from("game_modes")
-      .select("id")
-      .eq("id", gameModeId)
-      .eq("status", true)
-      .maybeSingle();
-    if (modeError || !mode) return;
+export type AttemptClaim = "claimed" | "exhausted" | "error";
 
-    await supabase
+/**
+ * Garantiza que exista el perfil del jugador y sus filas en player_game_modes.
+ * Idempotente. Si aún no hay perfil, lo crea con el alias local (debe ser válido
+ * y estar libre). Devuelve false si Supabase no está disponible o no se pudo
+ * crear (p. ej. el alias local ya lo usa otro jugador).
+ */
+async function ensureProfileAndGameModes(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const playerId = getPlayerId();
+    const { data: profile, error } = await supabase
+      .from("player_profiles")
+      .select("player_id")
+      .eq("player_id", playerId)
+      .maybeSingle();
+    if (error) return false;
+
+    if (!profile) {
+      const norm = normalizePlayerName(getPlayerName());
+      if (!norm.ok) return false;
+      // registerPlayerName crea el perfil y, en "ok", también las filas por modalidad.
+      return (await registerPlayerName(norm.name, norm.key)) === "ok";
+    }
+
+    // Perfil ya existe: asegura las filas por modalidad (idempotente).
+    return await ensurePlayerGameModes();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Valida y consume el tiro gratis de una modalidad, de forma autoritativa para
+ * partidas de ranking. Antes de consumir garantiza perfil + filas por modalidad
+ * (así un alias local sin perfil en Supabase ya no juega gratis ilimitado).
+ * - "claimed"   → tenía tiro gratis (o se reinició el periodo) y se consumió.
+ * - "exhausted" → ya no le queda tiro gratis en este periodo.
+ * - "error"     → no se pudo validar contra Supabase; NO debe iniciarse ranking.
+ */
+export async function claimFreeAttempt(
+  gameModeId: string,
+): Promise<AttemptClaim> {
+  if (!supabase) return "error";
+  try {
+    const ready = await ensureProfileAndGameModes();
+    if (!ready) return "error";
+
+    const playerId = getPlayerId();
+    const { data: row, error: rowError } = await supabase
+      .from("player_game_modes")
+      .select("has_free_attempt, updated_at")
+      .eq("player_id", playerId)
+      .eq("game_mode_id", gameModeId)
+      .maybeSingle();
+    // Sin fila, la modalidad no está en el catálogo: no podemos validar.
+    if (rowError || !row) return "error";
+
+    const resetSincePrevPeriod =
+      row.updated_at != null &&
+      isBeforeCurrentPeriod(new Date(row.updated_at as string));
+    const available = row.has_free_attempt === true || resetSincePrevPeriod;
+    if (!available) return "exhausted";
+
+    const { error: claimError } = await supabase
       .from("player_game_modes")
       .update({
         has_free_attempt: false,
         updated_at: new Date().toISOString(),
       })
-      .eq("player_id", getPlayerId())
-      .eq("game_mode_id", gameModeId)
-      .eq("has_free_attempt", true);
+      .eq("player_id", playerId)
+      .eq("game_mode_id", gameModeId);
+    if (claimError) return "error";
+    return "claimed";
   } catch {
-    // Sin Supabase o sin fila: la partida local sigue.
+    return "error";
   }
 }
 
@@ -306,7 +357,14 @@ export async function ensurePlayerProfile(raw: string): Promise<EnsureResult> {
   if (avail === "taken") return { ok: false, error: ALIAS_TAKEN };
 
   if (avail === "unknown") {
-    // Supabase no disponible: guardar local sin verificar para no romper nada.
+    // No dejar el perfil solo en localStorage para siempre: intenta registrar
+    // igual (idempotente). Si Supabase responde, crea/asegura el perfil + filas.
+    const regUnknown = await registerPlayerName(name, key);
+    if (regUnknown === "taken") return { ok: false, error: ALIAS_TAKEN };
+    if (regUnknown === "ok") {
+      return { ok: true, name: savePlayerName(name), verified: true };
+    }
+    // Sigue sin poder verificar (sin red): guarda local sin verificar.
     return { ok: true, name: savePlayerName(name), verified: false };
   }
 
