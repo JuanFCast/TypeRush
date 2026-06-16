@@ -1,16 +1,14 @@
 // Textos para mecanografía, organizados por modo y, dentro de cada modo, por reto.
 // Con ortografía, tildes y puntuación correctas (mayúsculas, comas y punto final).
 
-export type ModeId = "es" | "en" | "code";
+export type ModeId = "es" | "en";
 
 export type ChallengeId =
   | "motivacionEs"
   | "noticiasEs"
   | "cryptoEs"
   | "motivationEn"
-  | "dailyEn"
-  | "javascript"
-  | "python";
+  | "dailyEn";
 
 export type RankingEntry = { name: string; score: number };
 
@@ -43,12 +41,6 @@ export const MODES: Mode[] = [
     label: "English",
     description: "Motivation and everyday English practice.",
     icon: "🇺🇸",
-  },
-  {
-    id: "code",
-    label: "Programación",
-    description: "JavaScript, Python y backend.",
-    icon: "💻",
   },
 ];
 
@@ -148,45 +140,6 @@ export const CHALLENGES: Challenge[] = [
       "Please remember to bring your umbrella, it might rain today.",
       "We watched a great movie and talked about it for hours.",
       "Reading a few pages each night is a simple, healthy habit.",
-    ],
-  },
-  // ---- Programación ----
-  {
-    id: "javascript",
-    modeId: "code",
-    title: "JavaScript",
-    description: "Frases con sabor a JavaScript.",
-    ranking: [
-      { name: "devAna", score: 5550 },
-      { name: "k_byte", score: 4720 },
-      { name: "loopz", score: 4090 },
-    ],
-    clauses: [
-      "A function should do one thing and return a clear value.",
-      "Use const for values that never change during execution.",
-      "An array stores an ordered list of items you can iterate.",
-      "Every object groups related data under simple key names.",
-      "Use map and filter to transform an array without a loop.",
-      "Always handle the promise rejection before it breaks the app.",
-    ],
-  },
-  {
-    id: "python",
-    modeId: "code",
-    title: "Python / Backend",
-    description: "Backend, datos y buenas prácticas.",
-    ranking: [
-      { name: "pyMar", score: 5210 },
-      { name: "srv_io", score: 4630 },
-      { name: "queryQ", score: 3980 },
-    ],
-    clauses: [
-      "A clean API hides complexity behind a few clear methods.",
-      "A database query should ask only for the data you need.",
-      "Write small functions that are easy to read and to test.",
-      "Cache the result when the same request happens many times.",
-      "Use a virtual environment to isolate your project packages.",
-      "Name your variables so the next developer understands them.",
     ],
   },
 ];

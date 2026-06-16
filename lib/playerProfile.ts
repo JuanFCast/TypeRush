@@ -194,7 +194,7 @@ export type PlayEligibilityResult =
 /**
  * Consulta en Supabase si el jugador aún tiene tiro gratis en una modalidad.
  * Sin fila en player_game_modes se asume que sí (default al crear). Modalidades
- * fuera del catálogo (p. ej. code) no bloquean. Si Supabase falla, devuelve
+ * fuera del catálogo no bloquean. Si Supabase falla, devuelve
  * "unknown" para no romper la app.
  */
 export async function fetchPlayEligibility(
