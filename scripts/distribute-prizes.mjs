@@ -12,6 +12,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { Contract, JsonRpcProvider, Wallet, id, isAddress } from "ethers";
+import ws from "ws";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const file of [".env.local", ".env"]) {
@@ -52,6 +53,10 @@ async function main() {
   const supabase = createClient(
     supabaseUrl,
     requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+      realtime: { transport: ws },
+    },
   );
   const contractAddress = requireEnv("PRIZE_POOL_ADDRESS");
   const privateKey = requireEnv("PRIVATE_KEY");
