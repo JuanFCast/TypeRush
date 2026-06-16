@@ -3,6 +3,7 @@
 -- PREREQUISITOS (una sola vez):
 --   1. Database → Extensions → activar "pg_cron"
 --   2. Ejecutar la función reset_daily_free_attempts() de 0_init.sql
+--   3. Ejecutar supabase/daily_prizes.sql (premios diarios por modalidad)
 --
 -- CAMBIAR LA HORA DESPUÉS:
 --   1. Edita reset_hour_bogota abajo (0–23, hora America/Bogota)
@@ -17,7 +18,10 @@ declare
   reset_hour_bogota integer := 20;
   utc_hour integer;
   cron_expr text;
-  cron_cmd text := 'select public.reset_daily_free_attempts();';
+  -- Tras el reinicio del tiro gratis, calcula ganadores del periodo que cerró.
+  -- Requiere supabase/daily_prizes.sql aplicado antes.
+  cron_cmd text :=
+    'select public.reset_daily_free_attempts(); select public.process_daily_prizes();';
   job_name text := 'typerush-reset-free-attempts';
 begin
   if not exists (select 1 from pg_extension where extname = 'pg_cron') then
