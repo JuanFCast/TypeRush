@@ -7,9 +7,15 @@ import { ALIAS_UNVERIFIED, ensurePlayerProfile } from "@/lib/playerProfile";
 type Props = {
   onSaved: (name: string) => void;
   onClose: () => void;
+  // Enfoca el cebador de teclado dentro del gesto del tap (ver page.tsx).
+  onPrimeKeyboard?: () => void;
 };
 
-export default function AliasModal({ onSaved, onClose }: Props) {
+export default function AliasModal({
+  onSaved,
+  onClose,
+  onPrimeKeyboard,
+}: Props) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -29,6 +35,10 @@ export default function AliasModal({ onSaved, onClose }: Props) {
 
   const onSubmit = async () => {
     if (busy) return;
+    // Abre/mantiene el teclado móvil dentro del gesto del tap, ANTES del await:
+    // ensurePlayerProfile es asíncrono y rompe el gesto, así que enfocar el
+    // cebador después (en onSaved) ya no abriría el teclado para la carrera.
+    onPrimeKeyboard?.();
     if (pending) {
       onSaved(pending);
       return;

@@ -210,6 +210,7 @@ export default function Page() {
       {pendingChallenge && (
         <AliasModal
           onClose={() => setPendingChallenge(null)}
+          onPrimeKeyboard={primeKeyboard}
           onSaved={() => {
             const id = pendingChallenge;
             setPendingChallenge(null);
