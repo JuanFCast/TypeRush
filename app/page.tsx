@@ -37,7 +37,7 @@ export default function Page() {
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
 
-  const { canPlay, loading: playLoading, refresh: refreshPlayEligibility } =
+  const { canPlay, loading: playLoading, refresh: refreshPlayEligibility, resetCountdown } =
     usePlayEligibility(selectedMode);
   // Reto pendiente de jugar mientras el jugador elige alias.
   const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
@@ -120,6 +120,7 @@ export default function Page() {
                   bestByChallenge={bestByChallenge}
                   canPlay={canPlay}
                   playLoading={playLoading}
+                  resetCountdown={resetCountdown}
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
                 />

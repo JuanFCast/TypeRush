@@ -14,6 +14,7 @@ type Props = {
   bestByChallenge: Record<string, number>;
   canPlay: boolean;
   playLoading: boolean;
+  resetCountdown: string | null;
   onBack: () => void;
   onPlay: (id: ChallengeId) => void;
 };
@@ -23,6 +24,7 @@ export default function ChallengeLobby({
   bestByChallenge,
   canPlay,
   playLoading,
+  resetCountdown,
   onBack,
   onPlay,
 }: Props) {
@@ -36,6 +38,16 @@ export default function ChallengeLobby({
     if (playLoading || !canPlay || !selectedId) return;
     onPlay(selectedId);
   };
+
+  const en = modeId === "en";
+  const playLabel = en ? "▶ Play free" : "▶ Jugar gratis";
+  const checkingLabel = en ? "Checking…" : "Verificando…";
+  const calculatingLabel = en ? "Calculating…" : "Calculando…";
+  const countdownLabel = resetCountdown
+    ? en
+      ? `Next free play in ${resetCountdown}`
+      : `Próximo gratis en ${resetCountdown}`
+    : calculatingLabel;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -72,10 +84,10 @@ export default function ChallengeLobby({
           className="mt-auto h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {playLoading
-            ? "Verificando…"
+            ? checkingLabel
             : canPlay
-              ? "▶ Jugar gratis"
-              : "Sin intento gratis"}
+              ? playLabel
+              : countdownLabel}
         </button>
       </div>
     </div>

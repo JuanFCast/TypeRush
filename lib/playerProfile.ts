@@ -10,6 +10,7 @@ import {
   NAME_MIN,
   savePlayerName,
 } from "./player";
+import { isBeforeCurrentPeriod } from "./gamePeriod";
 import { supabase } from "./supabase";
 
 /** Fila de `player_profiles` en Supabase. */
@@ -193,9 +194,9 @@ export type PlayEligibilityResult =
 
 /**
  * Consulta en Supabase si el jugador aún tiene tiro gratis en una modalidad.
- * Sin fila en player_game_modes se asume que sí (default al crear). Modalidades
- * fuera del catálogo no bloquean. Si Supabase falla, devuelve
- * "unknown" para no romper la app.
+ * Sin fila en player_game_modes se asume que sí (default al crear). A las 8 p.m.
+ * (Colombia) el cron reinicia todos los tiros; si falla, se corrige al abrir la app
+ * si el consumo fue en un periodo anterior.
  */
 export async function fetchPlayEligibility(
   gameModeId: string,
@@ -226,7 +227,7 @@ export async function fetchPlayEligibility(
         .maybeSingle(),
       supabase
         .from("player_game_modes")
-        .select("has_free_attempt")
+        .select("has_free_attempt, updated_at")
         .eq("player_id", playerId)
         .eq("game_mode_id", gameModeId)
         .maybeSingle(),
@@ -234,10 +235,27 @@ export async function fetchPlayEligibility(
     if (profileRes.error || modeAttemptRes.error) return { status: "unknown" };
 
     const attemptCount = Number(profileRes.data?.attempt_count) || 0;
-    const hasFreeAttempt =
+    let hasFreeAttempt =
       modeAttemptRes.data == null
         ? true
         : modeAttemptRes.data.has_free_attempt === true;
+
+    if (
+      !hasFreeAttempt &&
+      modeAttemptRes.data?.updated_at &&
+      isBeforeCurrentPeriod(new Date(modeAttemptRes.data.updated_at))
+    ) {
+      await supabase
+        .from("player_game_modes")
+        .update({
+          has_free_attempt: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("player_id", playerId)
+        .eq("game_mode_id", gameModeId);
+      hasFreeAttempt = true;
+    }
+
     return {
       status: "ok",
       eligibility: { hasFreeAttempt, attemptCount },

@@ -65,13 +65,19 @@ export default function RankingScreen() {
         </p>
       ) : (
         <>
+          <p className="mb-4 rounded-xl border border-line bg-surface2 px-3 py-2 text-center text-[0.7rem] leading-snug text-muted">
+            Periodo actual (hora Colombia)
+            <br />
+            <span className="font-semibold text-ink/80">{data.periodLabel}</span>
+          </p>
+
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
               Top 5 · {mode?.label}
             </h3>
             {data.top5.length === 0 ? (
               <p className="rounded-2xl border border-line bg-surface2 p-4 text-sm text-muted">
-                Aún no hay partidas en este modo.
+                Aún no hay partidas en este modo en el periodo de hoy.
               </p>
             ) : (
               <div className="space-y-2">

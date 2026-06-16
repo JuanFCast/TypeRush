@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  formatResetCountdown,
+  getMsUntilNextReset,
+} from "@/lib/gamePeriod";
 import { fetchPlayEligibility } from "@/lib/playerProfile";
 import type { ModeId } from "@/lib/passages";
 
@@ -8,6 +12,7 @@ import type { ModeId } from "@/lib/passages";
 export function usePlayEligibility(modeId: ModeId | null) {
   const [resolvedModeId, setResolvedModeId] = useState<ModeId | null>(null);
   const [canPlay, setCanPlay] = useState(true);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
     if (!modeId) return true;
@@ -33,6 +38,27 @@ export function usePlayEligibility(modeId: ModeId | null) {
 
   const loading = modeId != null && resolvedModeId !== modeId;
   const playable = modeId == null || loading ? true : canPlay;
+  const waitingForReset = modeId != null && !loading && !canPlay;
 
-  return { canPlay: playable, loading, refresh };
+  useEffect(() => {
+    if (!waitingForReset) return;
+    if (getMsUntilNextReset() <= 0) {
+      window.location.reload();
+      return;
+    }
+    const id = setInterval(() => {
+      if (getMsUntilNextReset() <= 0) {
+        window.location.reload();
+        return;
+      }
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [waitingForReset]);
+
+  const resetCountdown = waitingForReset
+    ? formatResetCountdown(getMsUntilNextReset(new Date(nowMs)))
+    : null;
+
+  return { canPlay: playable, loading, refresh, resetCountdown };
 }

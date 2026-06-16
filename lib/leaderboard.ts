@@ -1,5 +1,6 @@
 // Leaderboard y resultados sobre match_results en Supabase.
 
+import { getCurrentGamePeriod } from "./gamePeriod";
 import { ModeId } from "./passages";
 import { supabase } from "./supabase";
 
@@ -17,11 +18,12 @@ export type ModeRankingResult = {
     name: string;
     score: number;
   };
+  periodLabel: string;
 };
 
 /**
- * Mejor puntaje por jugador en un modo (cualquier temática). Top 5 global +
- * posición del jugador actual. null si Supabase falla o no hay datos.
+ * Mejor puntaje por jugador en un modo (cualquier temática), solo partidas del
+ * periodo actual (8 p.m.–8 p.m. hora Colombia). Top 5 + posición del jugador.
  */
 export async function loadModeRanking(
   modeId: ModeId,
@@ -30,10 +32,13 @@ export async function loadModeRanking(
 ): Promise<ModeRankingResult | null> {
   if (!supabase) return null;
   try {
+    const period = getCurrentGamePeriod();
     const { data, error } = await supabase
       .from("match_results")
       .select("player_id, player_name, score")
-      .eq("mode_id", modeId);
+      .eq("mode_id", modeId)
+      .gte("created_at", period.start.toISOString())
+      .lt("created_at", period.end.toISOString());
     if (error || !data) return null;
 
     const bestByPlayer = new Map<string, { name: string; score: number }>();
@@ -49,6 +54,7 @@ export async function loadModeRanking(
       return {
         top5: [],
         me: { rank: null, name: playerName, score: 0 },
+        periodLabel: period.label,
       };
     }
 
@@ -68,6 +74,7 @@ export async function loadModeRanking(
         name: meEntry?.name ?? playerName,
         score: meEntry?.score ?? 0,
       },
+      periodLabel: period.label,
     };
   } catch {
     return null;

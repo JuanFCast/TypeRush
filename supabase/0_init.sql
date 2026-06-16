@@ -295,3 +295,30 @@ end
 $$;
 
 -- Sin policies de UPDATE ni DELETE a propósito en match_results.
+
+-- ---------------------------------------------------------------------------
+-- Periodo diario (8 p.m. Colombia) · reinicio de tiro gratis
+-- ---------------------------------------------------------------------------
+-- El "día" del juego va de 8:00 p.m. a 8:00 p.m. (America/Bogota).
+-- El ranking en la app filtra match_results con la misma ventana.
+--
+-- Reinicio masivo: función + cron (supabase/daily_reset.sql, hora en reset_hour_bogota).
+-- La app también corrige el tiro gratis al abrir si el consumo fue en un
+-- periodo anterior y el cron aún no corrió. Ranking usa la misma ventana
+-- (PERIOD_RESET_HOUR en lib/gamePeriod.ts, debe coincidir con el SQL).
+
+create or replace function public.reset_daily_free_attempts()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.player_game_modes
+  set has_free_attempt = true,
+      updated_at = now();
+end;
+$$;
+
+create index if not exists match_results_mode_created_idx
+  on public.match_results (mode_id, created_at desc);
