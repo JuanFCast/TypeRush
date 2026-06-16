@@ -19,6 +19,7 @@ import {
   entryAmountLabel,
   isPayToPlayConfigured,
   payEntry,
+  tokenSymbol,
 } from "@/lib/payToPlay";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
@@ -214,6 +215,7 @@ export default function Page() {
                   onPlay={onPlay}
                   payEnabled={isPayToPlayConfigured()}
                   entryLabel={entryAmountLabel()}
+                  entrySymbol={tokenSymbol()}
                   payState={payState}
                   payError={payError}
                   onPayAndPlay={onPayAndPlay}

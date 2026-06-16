@@ -20,6 +20,7 @@ type Props = {
   // Pago de entrada cuando se agota el tiro gratis.
   payEnabled: boolean;
   entryLabel: string;
+  entrySymbol: string;
   payState: "idle" | "paying" | "error";
   payError: string | null;
   onPayAndPlay: (id: ChallengeId) => void;
@@ -35,6 +36,7 @@ export default function ChallengeLobby({
   onPlay,
   payEnabled,
   entryLabel,
+  entrySymbol,
   payState,
   payError,
   onPayAndPlay,
@@ -61,8 +63,8 @@ export default function ChallengeLobby({
     : calculatingLabel;
 
   const payLabel = en
-    ? `▶ Pay ${entryLabel} cUSD & play`
-    : `▶ Pagar ${entryLabel} cUSD y jugar`;
+    ? `▶ Pay ${entryLabel} ${entrySymbol} & play`
+    : `▶ Pagar ${entryLabel} ${entrySymbol} y jugar`;
   const payingLabel = en ? "Processing payment…" : "Procesando pago…";
   const freeUsedLabel = en ? "Free play used." : "Usaste tu tiro gratis.";
 

@@ -11,8 +11,16 @@ const CONTRACT = process.env.NEXT_PUBLIC_PAY_TO_PLAY_CONTRACT_ADDRESS ?? "";
 const TOKEN = process.env.NEXT_PUBLIC_PAY_TO_PLAY_STABLECOIN_ADDRESS ?? "";
 const ENTRY = process.env.NEXT_PUBLIC_PAY_TO_PLAY_ENTRY_AMOUNT ?? "";
 
-// cUSD/USDm de Celo Sepolia tiene 18 decimales (USDC/USDT tendrían 6).
-const TOKEN_DECIMALS = 18;
+// Decimales y símbolo del token, configurables: USDC/USDT = 6, cUSD/USDm = 18.
+const TOKEN_DECIMALS = Number(
+  process.env.NEXT_PUBLIC_PAY_TO_PLAY_TOKEN_DECIMALS ?? "18",
+);
+const TOKEN_SYMBOL = process.env.NEXT_PUBLIC_PAY_TO_PLAY_TOKEN_SYMBOL ?? "cUSD";
+
+/** Símbolo del stablecoin de la entrada (p. ej. "USDC"). */
+export function tokenSymbol(): string {
+  return TOKEN_SYMBOL;
+}
 
 const CELO_SEPOLIA = {
   chainIdHex: "0xaa044c", // 11142220
@@ -130,7 +138,7 @@ export async function payEntry(modeId: string): Promise<PayResult> {
     if (balance < entry) {
       return {
         ok: false,
-        error: `No tienes suficiente cUSD de prueba (necesitas ${entryAmountLabel()}).`,
+        error: `No tienes suficiente ${TOKEN_SYMBOL} de prueba (necesitas ${entryAmountLabel()}).`,
       };
     }
 
