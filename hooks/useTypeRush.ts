@@ -84,28 +84,23 @@ export function useTypeRush() {
     setResult(final);
     setStatus("finished");
 
-    // Guarda la partida en Supabase sin bloquear la UI; si falla, queda lo local.
+    // Supabase: solo ids + stats (match_results). Nombres e isNewBest van al historial local.
     const challengeInfo = getChallenge(id);
-    const modeInfo = challengeInfo ? getMode(challengeInfo.modeId) : undefined;
     const playerId = getPlayerId();
     const playerName = getPlayerName();
     const modeId = challengeInfo?.modeId ?? "";
-    const modeName = modeInfo?.label ?? "";
-    const challengeName = challengeInfo?.title ?? "";
+
     void saveMatchResultToSupabase({
       player_id: playerId,
       player_name: playerName,
       mode_id: modeId,
       challenge_id: id,
-      mode_name: modeName,
-      challenge_name: challengeName,
       score: final.score,
       wpm: final.wpm,
       accuracy: final.accuracy,
       errors: final.errors,
       mistakes: final.mistakes,
       progress: final.progress,
-      is_new_best: record,
     });
 
     // Historial local: solo las partidas de este navegador/jugador.
@@ -119,8 +114,10 @@ export function useTypeRush() {
       playerName,
       modeId,
       challengeId: id,
-      modeName,
-      challengeName,
+      modeName: challengeInfo
+        ? (getMode(challengeInfo.modeId)?.label ?? "")
+        : "",
+      challengeName: challengeInfo?.title ?? "",
       score: final.score,
       wpm: final.wpm,
       accuracy: final.accuracy,

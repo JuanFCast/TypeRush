@@ -241,17 +241,19 @@ create table if not exists public.match_results (
   player_name     text not null,
   mode_id         text not null,
   challenge_id    text not null,
-  mode_name       text not null,
-  challenge_name  text not null,
   score           integer not null,
   wpm             integer not null,
   accuracy        double precision not null,  -- 0..1
   errors          integer not null,
   mistakes        integer not null,
   progress        double precision not null,  -- 0..1
-  is_new_best     boolean not null default false,
   created_at      timestamptz not null default now()
 );
+
+-- Migración: nombres redundantes y flag de récord (el mejor puntaje se calcula aparte).
+alter table public.match_results drop column if exists mode_name;
+alter table public.match_results drop column if exists challenge_name;
+alter table public.match_results drop column if exists is_new_best;
 
 create index if not exists match_results_challenge_score_idx
   on public.match_results (challenge_id, score desc);

@@ -114,6 +114,7 @@ export default function Page() {
             {tab === "home" &&
               (selectedMode ? (
                 <ChallengeLobby
+                  key={selectedMode}
                   modeId={selectedMode}
                   bestByChallenge={bestByChallenge}
                   canPlay={canPlay}

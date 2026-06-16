@@ -1,5 +1,5 @@
-// Historial de partidas local (sin backend todavía). Supabase sigue guardando
-// los resultados globales; esto solo recuerda las partidas de este navegador.
+// Historial de partidas local. Supabase (match_results) guarda ids + stats;
+// nombres de modo/reto e isNewBest solo viven aquí en localStorage.
 
 import { ChallengeId, ModeId } from "./passages";
 

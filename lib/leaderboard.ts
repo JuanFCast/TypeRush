@@ -10,15 +10,14 @@ export type MatchResult = {
   player_name: string;
   mode_id: string;
   challenge_id: string;
-  mode_name: string;
-  challenge_name: string;
   score: number;
   wpm: number;
   accuracy: number;
   errors: number;
   mistakes: number;
   progress: number;
-  is_new_best: boolean;
+  // Sin mode_name, challenge_name ni is_new_best: se derivan de mode_id /
+  // challenge_id o del best local.
 };
 
 /** Top 3 real de un reto, o null si Supabase falla o no está configurado. */

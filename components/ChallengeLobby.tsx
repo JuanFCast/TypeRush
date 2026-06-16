@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ChallengeId,
   getChallengesByMode,
@@ -27,6 +28,14 @@ export default function ChallengeLobby({
 }: Props) {
   const mode = getMode(modeId);
   const challenges = getChallengesByMode(modeId);
+  const [selectedId, setSelectedId] = useState<ChallengeId>(
+    () => challenges[0]?.id ?? "motivacionEs",
+  );
+
+  const onPlaySelected = () => {
+    if (playLoading || !canPlay || !selectedId) return;
+    onPlay(selectedId);
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -45,17 +54,29 @@ export default function ChallengeLobby({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex flex-1 flex-col gap-3">
         {challenges.map((c) => (
           <ChallengeCard
             key={c.id}
             challenge={c}
             best={bestByChallenge[c.id] ?? 0}
-            canPlay={canPlay}
-            playLoading={playLoading}
-            onPlay={() => onPlay(c.id)}
+            selected={c.id === selectedId}
+            onSelect={() => setSelectedId(c.id)}
           />
         ))}
+
+        <button
+          type="button"
+          onClick={onPlaySelected}
+          disabled={playLoading || !canPlay}
+          className="mt-auto h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {playLoading
+            ? "Verificando…"
+            : canPlay
+              ? "▶ Jugar gratis"
+              : "Sin intento gratis"}
+        </button>
       </div>
     </div>
   );

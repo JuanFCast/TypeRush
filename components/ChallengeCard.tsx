@@ -1,64 +1,39 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { loadLeaderboard } from "@/lib/leaderboard";
-import { Challenge, RankingEntry } from "@/lib/passages";
+import { Challenge } from "@/lib/passages";
 
 type Props = {
   challenge: Challenge;
   best: number;
-  canPlay: boolean;
-  playLoading: boolean;
-  onPlay: () => void;
+  selected: boolean;
+  onSelect: () => void;
 };
 
 export default function ChallengeCard({
   challenge,
   best,
-  canPlay,
-  playLoading,
-  onPlay,
+  selected,
+  onSelect,
 }: Props) {
-  // Ranking real desde Supabase; mientras carga (o si falla) se ve el mock.
-  const [ranking, setRanking] = useState<RankingEntry[]>(challenge.ranking);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadLeaderboard(challenge.id).then((rows) => {
-      if (!cancelled && rows) setRanking(rows);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [challenge.id]);
-
   return (
-    <div className="rounded-2xl border border-line bg-surface2 p-4 text-left shadow-sm">
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`w-full rounded-2xl border p-4 text-left shadow-sm transition active:scale-[0.99] ${
+        selected
+          ? "border-brand bg-brand/5 ring-1 ring-brand"
+          : "border-line bg-surface2"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-base font-bold text-ink">{challenge.title}</h3>
           <p className="mt-0.5 text-xs text-muted">{challenge.description}</p>
         </div>
-        <span className="shrink-0 rounded-full border border-line bg-bg px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-muted">
-          Reto de hoy
-        </span>
-      </div>
-
-      {/* Ranking: real desde Supabase, mock como fallback */}
-      <div className="mt-3 space-y-1">
-        {ranking.map((r, i) => (
-          <div key={`${r.name}-${i}`} className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-2 text-muted">
-              <span className="grid h-4 w-4 place-items-center rounded-full bg-bg text-[0.58rem] font-bold text-muted">
-                {i + 1}
-              </span>
-              <span className="text-ink/80">{r.name}</span>
-            </span>
-            <span className="font-mono text-ink/80">
-              {r.score.toLocaleString()}
-            </span>
-          </div>
-        ))}
+        {selected && (
+          <span className="shrink-0 rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-brand">
+            Elegido
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs">
@@ -71,19 +46,6 @@ export default function ChallengeCard({
           <span className="text-muted">Aún no tienes puntaje</span>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={onPlay}
-        disabled={playLoading || !canPlay}
-        className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {playLoading
-          ? "Verificando…"
-          : canPlay
-            ? "▶ Jugar gratis"
-            : "Sin intento gratis"}
-      </button>
-    </div>
+    </button>
   );
 }
