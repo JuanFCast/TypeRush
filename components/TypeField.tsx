@@ -50,7 +50,7 @@ export default function TypeField({
     >
       <div
         ref={scrollRef}
-        className="relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem]"
+        className="type-scroll relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem]"
       >
         <p className="select-none font-mono text-[1.15rem] leading-[1.9] tracking-tight break-words sm:text-[1.35rem]">
           {[...passage].map((char, i) => {
