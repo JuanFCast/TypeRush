@@ -45,7 +45,7 @@ export default function CountdownScreen({
   const filled = isGo ? 3 : step + 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start gap-6 bg-bg/95 px-6 pt-[14vh] text-center backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start gap-6 bg-bg px-6 pt-[14vh] text-center">
       {/* Contexto del reto */}
       <div className="flex flex-col items-center gap-1">
         <span className="text-xs font-semibold uppercase tracking-[0.25em] text-brand">

@@ -324,7 +324,7 @@ export default function Page() {
       )}
 
       {readyChallenge && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg/95 px-6 text-center backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg px-6 text-center">
           <span className="text-sm font-bold text-brand">✓ Pago confirmado</span>
           <p className="max-w-xs text-balance text-sm text-muted">
             Toca para empezar: el teclado se abre y arranca la cuenta regresiva.
