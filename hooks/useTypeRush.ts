@@ -20,7 +20,7 @@ import {
   getMode,
 } from "@/lib/passages";
 
-export type Status = "idle" | "racing" | "finished";
+export type Status = "idle" | "countdown" | "racing" | "finished";
 
 export function useTypeRush() {
   const [status, setStatus] = useState<Status>("idle");
@@ -127,17 +127,25 @@ export function useTypeRush() {
     });
   }, []);
 
-  const start = useCallback((next?: ChallengeId) => {
-    // El tiro gratis ya se validó/consumió antes (claimFreeAttempt en page.tsx);
-    // aquí solo se arranca la carrera.
+  // Prepara una partida y entra en "countdown": el pasaje y el campo de escritura
+  // ya quedan montados (para que iOS abra el teclado dentro del gesto y NO lo
+  // pierda durante el 3·2·1), pero el reloj aún no corre y el input se ignora.
+  const arm = useCallback((next?: ChallengeId) => {
     const challengeId = next ?? challengeRef.current;
-    const now = Date.now();
     setChallenge(challengeId);
     setPassage(buildPassage(challengeId));
     setTyped("");
     setResult(null);
     setIsNewBest(false);
     setMistakeIndices(new Set());
+    setStartedAt(0);
+    setNowMs(0);
+    setStatus("countdown");
+  }, []);
+
+  // Arranca el reloj al terminar el 3·2·1 (el tiro gratis/pago ya se validó).
+  const begin = useCallback(() => {
+    const now = Date.now();
     setStartedAt(now);
     setNowMs(now);
     setStatus("racing");
@@ -206,7 +214,8 @@ export function useTypeRush() {
     challenge,
     remaining,
     liveStats,
-    start,
+    arm,
+    begin,
     reset,
     onInput,
   };

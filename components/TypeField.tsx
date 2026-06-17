@@ -95,7 +95,7 @@ export default function TypeField({
         spellCheck={false}
         inputMode="text"
         aria-label="Campo de escritura"
-        className="absolute inset-0 h-full w-full resize-none rounded-2xl bg-transparent p-4 font-mono text-transparent caret-transparent outline-none sm:p-5"
+        className="absolute inset-0 h-full w-full resize-none rounded-2xl bg-transparent p-4 font-mono text-[1.15rem] text-transparent caret-transparent outline-none sm:p-5"
       />
     </div>
   );

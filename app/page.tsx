@@ -40,7 +40,8 @@ export default function Page() {
     remaining,
     liveStats,
     challenge,
-    start,
+    arm,
+    begin,
     reset,
     onInput,
   } = useTypeRush();
@@ -54,16 +55,15 @@ export default function Page() {
   const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
     null,
   );
-  // Reto en cuenta regresiva: la carrera real arranca al terminar el countdown.
-  const [countdownChallenge, setCountdownChallenge] =
-    useState<ChallengeId | null>(null);
+  // Reto pagado y listo: esperando el toque "empezar" (gesto que abre el teclado
+  // en iOS, ya que el pago async rompió el gesto del botón original).
+  const [readyChallenge, setReadyChallenge] = useState<ChallengeId | null>(null);
 
-  // Teclado "cebador": en móvil el teclado solo abre dentro del gesto del usuario.
-  // Como entre el tap y la carrera hay un countdown (~3.3s sin tocar nada), el
-  // foco programático del campo de escritura no abriría el teclado. Por eso, al
-  // tocar Jugar/Guardar enfocamos este textarea oculto: el teclado abre dentro
-  // del gesto y, como mover el foco entre campos de texto no cierra un teclado ya
-  // abierto, se mantiene durante el 3·2·1 y al arrancar a escribir.
+  // Teclado "cebador": en móvil iOS el teclado solo abre dentro del gesto del
+  // usuario. Al tocar Jugar/Empezar enfocamos este textarea para abrir el teclado
+  // dentro del gesto; acto seguido `arm()` monta el campo de escritura real y el
+  // foco se transfiere a él (mover el foco entre inputs no cierra el teclado). El
+  // input real queda montado durante todo el 3·2·1, así el teclado no se pierde.
   const primerRef = useRef<HTMLTextAreaElement>(null);
   const primeKeyboard = () => primerRef.current?.focus();
 
@@ -101,6 +101,16 @@ export default function Page() {
     };
   }, []);
 
+  // Durante el conteo/carrera bloquea el scroll de fondo del body: en iOS el
+  // teclado reduce el viewport y el body podía "rebotar"/desplazarse detrás.
+  useEffect(() => {
+    const playing = status === "countdown" || status === "racing";
+    document.body.style.overflow = playing ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [status]);
+
   const onTabChange = (next: Tab) => {
     setTab(next);
     // "Inicio" siempre vuelve a la pantalla de modos.
@@ -113,9 +123,10 @@ export default function Page() {
     if (playLoading || !canPlay) return;
     setAttemptError(null);
     if (hasPlayerAlias()) {
-      // Dentro del gesto del tap: abre el teclado antes del countdown.
+      // Dentro del gesto del tap: abre el teclado y monta ya la carrera (con el
+      // conteo encima), para no perder el teclado durante el 3·2·1.
       primeKeyboard();
-      setCountdownChallenge(id);
+      arm(id);
     } else {
       setPendingChallenge(id);
     }
@@ -136,38 +147,53 @@ export default function Page() {
     }
     setPayState("idle");
     paidEntryRef.current = id;
-    // El teclado abre justo al comenzar el conteo (no durante el pago, que era
-    // molesto). El conteo se muestra arriba para que el teclado no lo tape.
+    // No abrimos el teclado aquí: el pago async ya rompió el gesto del botón, así
+    // que iOS lo ignoraría. Mostramos un toque "Empezar" cuyo gesto sí lo abre.
+    setReadyChallenge(id);
+  };
+
+  // Toque posterior al pago: este SÍ es un gesto del usuario, así que abre el
+  // teclado y monta la carrera (con el conteo encima).
+  const onStartPaid = () => {
+    const id = readyChallenge;
+    if (!id) return;
+    setReadyChallenge(null);
     primeKeyboard();
-    setCountdownChallenge(id);
+    arm(id);
   };
 
   // Al terminar el countdown: valida/consume el tiro gratis de forma autoritativa
   // antes de iniciar una partida de ranking. Si Supabase no permite validar, no
   // arranca la carrera y muestra el aviso.
   const beginRace = async (id: ChallengeId) => {
-    // Entrada pagada on-chain: arranca sin tocar el tiro gratis.
+    // Entrada pagada on-chain: arranca el reloj sin tocar el tiro gratis.
     if (paidEntryRef.current === id) {
       paidEntryRef.current = null;
-      setCountdownChallenge(null);
       setAttemptError(null);
-      start(id);
+      begin();
       void refreshPlayEligibility();
       return;
     }
     const modeId = getChallenge(id)?.modeId ?? "es";
     const claim = await claimFreeAttempt(modeId);
-    setCountdownChallenge(null);
     if (claim === "claimed") {
       setAttemptError(null);
-      start(id);
+      begin();
       void refreshPlayEligibility();
       return;
     }
-    // No se inicia ranking: cierra el teclado y refresca la elegibilidad.
+    // No se inicia ranking: vuelve al lobby, cierra el teclado y avisa.
+    reset();
     primerRef.current?.blur();
     if (claim === "error") setAttemptError(ATTEMPT_VALIDATION_ERROR);
     void refreshPlayEligibility();
+  };
+
+  // Cancelar durante el 3·2·1: vuelve al lobby y suelta el teclado.
+  const onCancelCountdown = () => {
+    paidEntryRef.current = null;
+    reset();
+    primerRef.current?.blur();
   };
 
   const onBackToLobby = () => {
@@ -197,7 +223,7 @@ export default function Page() {
       </header>
 
       <div className="flex flex-1 flex-col">
-        {status === "racing" && (
+        {(status === "racing" || status === "countdown") && (
           <RaceScreen
             passage={passage}
             typed={typed}
@@ -263,7 +289,7 @@ export default function Page() {
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck={false}
-        className="pointer-events-none fixed bottom-0 left-0 h-px w-px resize-none border-0 bg-transparent p-0 opacity-0"
+        className="pointer-events-none fixed bottom-0 left-0 h-px w-px resize-none border-0 bg-transparent p-0 text-base opacity-0"
       />
 
       {attemptError && (
@@ -291,26 +317,36 @@ export default function Page() {
             // mover el foco al cebador lo mantiene abierto hacia la carrera.
             primeKeyboard();
             void refreshPlayEligibility().then((allowed) => {
-              if (allowed) setCountdownChallenge(id);
+              if (allowed) arm(id);
             });
           }}
         />
       )}
 
-      {countdownChallenge && (
+      {readyChallenge && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg/95 px-6 text-center backdrop-blur-sm">
+          <span className="text-sm font-bold text-brand">✓ Pago confirmado</span>
+          <p className="max-w-xs text-balance text-sm text-muted">
+            Toca para empezar: el teclado se abre y arranca la cuenta regresiva.
+          </p>
+          <button
+            type="button"
+            onClick={onStartPaid}
+            className="h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
+          >
+            ¡Empezar!
+          </button>
+        </div>
+      )}
+
+      {status === "countdown" && (
         <CountdownScreen
-          challengeName={getChallenge(countdownChallenge)?.title}
-          modeName={
-            getMode(getChallenge(countdownChallenge)?.modeId ?? "es")?.label
-          }
-          onCancel={() => {
-            paidEntryRef.current = null;
-            setCountdownChallenge(null);
-          }}
+          challengeName={getChallenge(challenge)?.title}
+          modeName={getMode(getChallenge(challenge)?.modeId ?? "es")?.label}
+          onCancel={onCancelCountdown}
           onDone={() => {
-            const id = countdownChallenge;
-            // beginRace cierra el countdown tras validar (mantiene "¡YA!" mientras tanto).
-            if (id) void beginRace(id);
+            // beginRace arranca el reloj tras validar (mantiene "¡YA!" mientras tanto).
+            void beginRace(challenge);
           }}
         />
       )}
