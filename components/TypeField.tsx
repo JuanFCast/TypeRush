@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 type Props = {
   passage: string;
@@ -10,7 +10,7 @@ type Props = {
   onInput: (value: string) => void;
 };
 
-export default function TypeField({
+function TypeField({
   passage,
   typed,
   active,
@@ -100,3 +100,9 @@ export default function TypeField({
     </div>
   );
 }
+
+// Memo: el reloj de la carrera re-renderiza RaceScreen cada 200ms. Sin memo, ese
+// tick re-renderiza el <textarea> controlado y, si cae mientras iOS compone un
+// acento, le reinicia el value y desplaza un carácter (marca medio texto en rojo).
+// Aquí solo re-renderizamos cuando cambia algo del propio campo.
+export default memo(TypeField);
