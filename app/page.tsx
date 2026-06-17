@@ -212,9 +212,9 @@ export default function Page() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-5">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))]">
       <header className="mb-4 flex items-center justify-between">
-        <span className="font-mono text-sm font-bold tracking-tight">
+        <span className="font-mono text-sm font-bold tracking-normal">
           type<span className="text-brand">rush</span>
         </span>
         <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">

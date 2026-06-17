@@ -35,7 +35,8 @@ body {
       rgba(0, 209, 143, 0) 60%
     ),
     var(--color-bg);
-  background-attachment: fixed;
+  /* OJO: nada de `background-attachment: fixed` — en el WebView de iOS deja un
+     remanente fantasma de la vista anterior al transicionar (tapaba el header). */
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
@@ -88,19 +89,21 @@ body {
 /* Cuadro de escritura: desvanece arriba y abajo para que la línea que entra o
    sale por el borde al hacer scroll no se corte en seco. */
 .type-scroll {
-  padding-block: 0.35rem;
+  padding-block: 0.5rem;
+  /* El fundido cubre más de una línea (~2.4rem arriba) para que la línea que
+     sale por el borde superior se desvanezca COMPLETA, no a mitad de la letra. */
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 1.4rem,
-    #000 calc(100% - 1.4rem),
+    #000 2.4rem,
+    #000 calc(100% - 1.8rem),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 1.4rem,
-    #000 calc(100% - 1.4rem),
+    #000 2.4rem,
+    #000 calc(100% - 1.8rem),
     transparent 100%
   );
 }
