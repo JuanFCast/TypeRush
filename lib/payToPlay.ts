@@ -1,65 +1,100 @@
-// Pago de entrada por partida en stablecoin (cUSD/USDm) contra TypeRushPayToPlay.
+// Pago de entrada por partida en stablecoin (USDC/cUSD) contra TypeRushPayToPlay.
 // MiniPay-friendly: cobra en stablecoin (nunca CELO), envía la tx por la wallet
 // inyectada (window.ethereum) para que MiniPay maneje la comisión de red y la
-// transacción legacy. Las lecturas van por un RPC público (sin molestar a la wallet).
+// transacción legacy. Las lecturas van por un RPC público.
+//
+// El monto de entrada, los decimales y el símbolo se leen DEL CONTRATO on-chain
+// (no de variables de entorno), así una env mal configurada no puede romper el flujo.
+// La única env necesaria es la dirección del contrato.
 
 import { Contract, Interface, JsonRpcProvider, formatUnits, id } from "ethers";
 import { getCurrentGamePeriod } from "./gamePeriod";
 import { periodIdFromStart } from "./prizePool";
 
 const CONTRACT = process.env.NEXT_PUBLIC_PAY_TO_PLAY_CONTRACT_ADDRESS ?? "";
-const TOKEN = process.env.NEXT_PUBLIC_PAY_TO_PLAY_STABLECOIN_ADDRESS ?? "";
-const ENTRY = process.env.NEXT_PUBLIC_PAY_TO_PLAY_ENTRY_AMOUNT ?? "";
-
-// Decimales y símbolo del token, configurables: USDC/USDT = 6, cUSD/USDm = 18.
-const TOKEN_DECIMALS = Number(
-  process.env.NEXT_PUBLIC_PAY_TO_PLAY_TOKEN_DECIMALS ?? "18",
-);
-const TOKEN_SYMBOL = process.env.NEXT_PUBLIC_PAY_TO_PLAY_TOKEN_SYMBOL ?? "cUSD";
-
-/** Símbolo del stablecoin de la entrada (p. ej. "USDC"). */
-export function tokenSymbol(): string {
-  return TOKEN_SYMBOL;
-}
 
 const CELO_SEPOLIA = {
   chainIdHex: "0xaa044c", // 11142220
   rpc: "https://forno.celo-sepolia.celo-testnet.org",
 } as const;
 
+const P2P_ABI = [
+  "function payToPlay(bytes32 periodId, bytes32 modeId)",
+  "function pool(bytes32 periodId, bytes32 modeId) view returns (uint256)",
+  "function token() view returns (address)",
+  "function entryAmount() view returns (uint256)",
+];
+
 const ERC20_ABI = [
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
 ];
 
-const P2P_ABI = [
-  "function payToPlay(bytes32 periodId, bytes32 modeId)",
-  "function pool(bytes32 periodId, bytes32 modeId) view returns (uint256)",
-];
-
-/** ¿Están configuradas las variables NEXT_PUBLIC del pago? */
+/** ¿Está configurada la dirección del contrato? */
 export function isPayToPlayConfigured(): boolean {
-  return Boolean(CONTRACT && TOKEN && ENTRY && /^\d+$/.test(ENTRY));
+  return /^0x[0-9a-fA-F]{40}$/.test(CONTRACT);
+}
+
+function readProvider(): JsonRpcProvider {
+  return new JsonRpcProvider(CELO_SEPOLIA.rpc);
+}
+
+export type PayConfig = {
+  token: string;
+  entry: bigint;
+  decimals: number;
+  symbol: string;
+};
+
+// Config leída del contrato (cacheada). Si falla, se reintenta en la próxima llamada.
+let configCache: Promise<PayConfig> | null = null;
+
+async function loadConfig(): Promise<PayConfig> {
+  const provider = readProvider();
+  const c = new Contract(CONTRACT, P2P_ABI, provider);
+  const [token, entry] = (await Promise.all([c.token(), c.entryAmount()])) as [
+    string,
+    bigint,
+  ];
+  const t = new Contract(token, ERC20_ABI, provider);
+  const [decimals, symbol] = (await Promise.all([t.decimals(), t.symbol()])) as [
+    bigint,
+    string,
+  ];
+  return { token, entry, decimals: Number(decimals), symbol: String(symbol) };
+}
+
+export function getConfig(): Promise<PayConfig> {
+  if (!isPayToPlayConfigured()) return Promise.reject(new Error("not configured"));
+  if (!configCache) {
+    configCache = loadConfig().catch((e) => {
+      configCache = null;
+      throw e;
+    });
+  }
+  return configCache;
 }
 
 /** Monto de entrada legible, p. ej. "0.10". */
-export function entryAmountLabel(): string {
-  if (!ENTRY) return "";
+export async function getEntryLabel(): Promise<string> {
   try {
-    return Number(formatUnits(BigInt(ENTRY), TOKEN_DECIMALS)).toFixed(2);
+    const { entry, decimals } = await getConfig();
+    return Number(formatUnits(entry, decimals)).toFixed(2);
   } catch {
     return "";
   }
 }
 
-/** Formatea un monto del token (wei → humano con 2 decimales). */
-export function formatTokenAmount(raw: bigint): string {
-  return Number(formatUnits(raw, TOKEN_DECIMALS)).toFixed(2);
-}
-
-function readProvider(): JsonRpcProvider {
-  return new JsonRpcProvider(CELO_SEPOLIA.rpc);
+/** Símbolo del stablecoin de la entrada, p. ej. "USDC". */
+export async function getTokenSymbol(): Promise<string> {
+  try {
+    return (await getConfig()).symbol;
+  } catch {
+    return "";
+  }
 }
 
 function getEthereum() {
@@ -80,7 +115,6 @@ async function ensureCeloSepolia(): Promise<void> {
         params: [{ chainId: CELO_SEPOLIA.chainIdHex }],
       });
     } catch (err: unknown) {
-      // 4902 = la red no está agregada en la wallet: la agregamos.
       if ((err as { code?: number })?.code === 4902) {
         await eth.request({
           method: "wallet_addEthereumChain",
@@ -108,7 +142,7 @@ export type PayResult =
 /**
  * Cobra la entrada de una partida en stablecoin para una modalidad (es/en/…):
  * conecta la wallet, asegura la red, hace `approve` si falta y llama `payToPlay`.
- * El contrato divide 50/50 (dev/pozo) en la misma transacción.
+ * El monto y el token se leen del contrato, no de env.
  */
 export async function payEntry(modeId: string): Promise<PayResult> {
   if (!isPayToPlayConfigured()) {
@@ -120,6 +154,9 @@ export async function payEntry(modeId: string): Promise<PayResult> {
   }
 
   try {
+    const { token, entry, decimals, symbol } = await getConfig();
+    const entryLabel = Number(formatUnits(entry, decimals)).toFixed(2);
+
     // 1. Cuenta conectada (MiniPay: sin popup; fuera de MiniPay pide permiso).
     const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
     const accounts = (await eth.request({ method })) as string[];
@@ -129,21 +166,20 @@ export async function payEntry(modeId: string): Promise<PayResult> {
     // 2. Red correcta.
     await ensureCeloSepolia();
 
-    const entry = BigInt(ENTRY);
     const provider = readProvider();
-    const token = new Contract(TOKEN, ERC20_ABI, provider);
+    const tokenContract = new Contract(token, ERC20_ABI, provider);
 
     // 3. Saldo suficiente.
-    const balance = (await token.balanceOf(from)) as bigint;
+    const balance = (await tokenContract.balanceOf(from)) as bigint;
     if (balance < entry) {
       return {
         ok: false,
-        error: `No tienes suficiente ${TOKEN_SYMBOL} de prueba (necesitas ${entryAmountLabel()}).`,
+        error: `No tienes suficiente ${symbol} de prueba (necesitas ${entryLabel}).`,
       };
     }
 
     // 4. Autorización (approve) si hace falta.
-    const allowance = (await token.allowance(from, CONTRACT)) as bigint;
+    const allowance = (await tokenContract.allowance(from, CONTRACT)) as bigint;
     if (allowance < entry) {
       const approveData = new Interface(ERC20_ABI).encodeFunctionData("approve", [
         CONTRACT,
@@ -151,17 +187,16 @@ export async function payEntry(modeId: string): Promise<PayResult> {
       ]);
       const approveTx = (await eth.request({
         method: "eth_sendTransaction",
-        params: [{ from, to: TOKEN, data: approveData }],
+        params: [{ from, to: token, data: approveData }],
       })) as string;
       await provider.waitForTransaction(approveTx);
     }
 
     // 5. Pago: payToPlay(periodId, modeId).
     const periodId = periodIdFromStart(getCurrentGamePeriod().start);
-    const modeKey = id(modeId);
     const payData = new Interface(P2P_ABI).encodeFunctionData("payToPlay", [
       periodId,
-      modeKey,
+      id(modeId),
     ]);
     const payTx = (await eth.request({
       method: "eth_sendTransaction",
@@ -183,14 +218,16 @@ export async function payEntry(modeId: string): Promise<PayResult> {
   }
 }
 
-/** Lee el pozo on-chain (en wei del token) de una modalidad para el periodo actual. */
-export async function fetchPool(modeId: string): Promise<bigint | null> {
+/** Pozo on-chain de una modalidad para el periodo actual, formateado (o null). */
+export async function fetchPoolLabel(modeId: string): Promise<string | null> {
   if (!isPayToPlayConfigured()) return null;
   try {
+    const { decimals } = await getConfig();
     const provider = readProvider();
     const c = new Contract(CONTRACT, P2P_ABI, provider);
     const periodId = periodIdFromStart(getCurrentGamePeriod().start);
-    return (await c.pool(periodId, id(modeId))) as bigint;
+    const raw = (await c.pool(periodId, id(modeId))) as bigint;
+    return Number(formatUnits(raw, decimals)).toFixed(2);
   } catch {
     return null;
   }

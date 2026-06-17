@@ -16,10 +16,10 @@ import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
 import { claimFreeAttempt } from "@/lib/playerProfile";
 import {
-  entryAmountLabel,
+  getEntryLabel,
+  getTokenSymbol,
   isPayToPlayConfigured,
   payEntry,
-  tokenSymbol,
 } from "@/lib/payToPlay";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
@@ -73,6 +73,9 @@ export default function Page() {
   // Pago de entrada (cuando se agota el tiro gratis): estado del flujo on-chain.
   const [payState, setPayState] = useState<"idle" | "paying" | "error">("idle");
   const [payError, setPayError] = useState<string | null>(null);
+  // Etiqueta del monto y símbolo del token, leídos del contrato on-chain.
+  const [entryLabel, setEntryLabel] = useState("");
+  const [entrySymbol, setEntrySymbol] = useState("");
   // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
   const paidEntryRef = useRef<ChallengeId | null>(null);
 
@@ -82,6 +85,21 @@ export default function Page() {
     setPayState("idle");
     setPayError(null);
   }, [selectedMode]);
+
+  // Carga el monto y símbolo de la entrada desde el contrato (una vez).
+  useEffect(() => {
+    if (!isPayToPlayConfigured()) return;
+    let cancelled = false;
+    void getEntryLabel().then((l) => {
+      if (!cancelled) setEntryLabel(l);
+    });
+    void getTokenSymbol().then((s) => {
+      if (!cancelled) setEntrySymbol(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onTabChange = (next: Tab) => {
     setTab(next);
@@ -214,8 +232,8 @@ export default function Page() {
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
                   payEnabled={isPayToPlayConfigured()}
-                  entryLabel={entryAmountLabel()}
-                  entrySymbol={tokenSymbol()}
+                  entryLabel={entryLabel}
+                  entrySymbol={entrySymbol}
                   payState={payState}
                   payError={payError}
                   onPayAndPlay={onPayAndPlay}

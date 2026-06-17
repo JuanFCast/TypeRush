@@ -7,7 +7,7 @@ import {
   getMode,
   ModeId,
 } from "@/lib/passages";
-import { fetchPool, formatTokenAmount } from "@/lib/payToPlay";
+import { fetchPoolLabel } from "@/lib/payToPlay";
 import ChallengeCard from "./ChallengeCard";
 
 type Props = {
@@ -54,8 +54,8 @@ export default function ChallengeLobby({
     if (!payEnabled) return;
     let cancelled = false;
     const load = () =>
-      fetchPool(modeId).then((raw) => {
-        if (!cancelled && raw !== null) setPrizePool(formatTokenAmount(raw));
+      fetchPoolLabel(modeId).then((label) => {
+        if (!cancelled && label !== null) setPrizePool(label);
       });
     void load();
     const id = setInterval(load, 8000);
