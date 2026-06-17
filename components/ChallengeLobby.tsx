@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChallengeId,
   getChallengesByMode,
   getMode,
   ModeId,
 } from "@/lib/passages";
+import { fetchPool, formatTokenAmount } from "@/lib/payToPlay";
 import ChallengeCard from "./ChallengeCard";
 
 type Props = {
@@ -47,6 +48,23 @@ export default function ChallengeLobby({
     () => challenges[0]?.id ?? "motivacionEs",
   );
 
+  // Pozo del premio (on-chain) de esta modalidad; refresca para verlo crecer.
+  const [prizePool, setPrizePool] = useState<string | null>(null);
+  useEffect(() => {
+    if (!payEnabled) return;
+    let cancelled = false;
+    const load = () =>
+      fetchPool(modeId).then((raw) => {
+        if (!cancelled && raw !== null) setPrizePool(formatTokenAmount(raw));
+      });
+    void load();
+    const id = setInterval(load, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [modeId, payEnabled]);
+
   const onPlaySelected = () => {
     if (playLoading || !canPlay || !selectedId) return;
     onPlay(selectedId);
@@ -67,6 +85,7 @@ export default function ChallengeLobby({
     : `▶ Pagar ${entryLabel} ${entrySymbol} y jugar`;
   const payingLabel = en ? "Processing payment…" : "Procesando pago…";
   const freeUsedLabel = en ? "Free play used." : "Usaste tu tiro gratis.";
+  const prizeLabel = en ? "Prize pool today" : "Premio acumulado hoy";
 
   return (
     <div className="flex flex-1 flex-col">
@@ -84,6 +103,17 @@ export default function ChallengeLobby({
           <h2 className="text-xl font-bold">{mode?.label}</h2>
         </div>
       </div>
+
+      {payEnabled && prizePool !== null && (
+        <div className="mb-3 flex items-center justify-between rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3">
+          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand">
+            🏆 {prizeLabel}
+          </span>
+          <span className="font-mono text-lg font-bold text-brand">
+            {prizePool} {entrySymbol}
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col gap-3">
         {challenges.map((c) => (
