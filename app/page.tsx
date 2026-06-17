@@ -101,14 +101,32 @@ export default function Page() {
     };
   }, []);
 
-  // Durante el conteo/carrera bloquea el scroll de fondo del body: en iOS el
-  // teclado reduce el viewport y el body podía "rebotar"/desplazarse detrás.
+  // Durante el conteo/carrera fija el body: en iOS, al abrir el teclado el
+  // documento se desplazaba hacia arriba y metía el header (el logo) bajo el
+  // notch/safe-area. Con position:fixed el body no se mueve y el logo se queda.
   useEffect(() => {
-    const playing = status === "countdown" || status === "racing";
-    document.body.style.overflow = playing ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
+    const body = document.body;
+    const reset = () => {
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
     };
+    const playing = status === "countdown" || status === "racing";
+    if (playing) {
+      body.style.position = "fixed";
+      body.style.top = "0";
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+      window.scrollTo(0, 0);
+    } else {
+      reset();
+    }
+    return reset;
   }, [status]);
 
   const onTabChange = (next: Tab) => {
@@ -230,6 +248,7 @@ export default function Page() {
             remaining={remaining}
             stats={liveStats}
             mistakeIndices={mistakeIndices}
+            started={status === "racing"}
             onInput={onInput}
           />
         )}

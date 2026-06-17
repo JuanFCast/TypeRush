@@ -10,6 +10,7 @@ type Props = {
   remaining: number;
   stats: Stats;
   mistakeIndices: Set<number>;
+  started: boolean;
   onInput: (value: string) => void;
 };
 
@@ -19,6 +20,7 @@ export default function RaceScreen({
   remaining,
   stats,
   mistakeIndices,
+  started,
   onInput,
 }: Props) {
   const urgent = remaining <= 10;
@@ -55,6 +57,7 @@ export default function RaceScreen({
         passage={passage}
         typed={typed}
         active
+        started={started}
         mistakeIndices={mistakeIndices}
         onInput={onInput}
       />

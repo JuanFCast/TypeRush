@@ -1,34 +1,46 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 type Props = {
   passage: string;
   typed: string;
-  active: boolean;
+  active: boolean; // montado y enfocable (cuenta regresiva o carrera)
+  started: boolean; // el reloj ya corre (status === "racing")
   mistakeIndices: Set<number>;
   onInput: (value: string) => void;
 };
 
-function TypeField({
+export default function TypeField({
   passage,
   typed,
   active,
+  started,
   mistakeIndices,
   onInput,
 }: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
+  // ¿Está iOS componiendo un acento/ñ? Mientras tanto NO procesamos el value.
+  const composingRef = useRef(false);
 
   // Al arrancar la carrera, enfoca para abrir el teclado en móvil.
   useEffect(() => {
     if (active) inputRef.current?.focus();
   }, [active]);
 
-  // Mantén el carácter actual siempre a la vista: la caja del pasaje tiene altura
-  // tope (para que las métricas de abajo no se salgan de pantalla), así que al
-  // avanzar centramos el cursor dentro de su propio scroll (sin mover la página).
+  // El <textarea> es NO CONTROLADO a propósito (no le pasamos `value`): así un
+  // re-render del reloj o de iOS nunca le reimpone el value ni interrumpe la
+  // composición de acentos/ñ (eso desplazaba caracteres y marcaba todo en rojo).
+  // Lo limpiamos a mano al preparar la partida (pasaje nuevo) y al arrancar el
+  // reloj, por si se tecleó algo durante el 3·2·1.
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.value = "";
+  }, [passage, started]);
+
+  // Mantén el carácter actual a la vista: centra el cursor dentro de su propio
+  // scroll al avanzar (sin mover la página).
   useEffect(() => {
     const container = scrollRef.current;
     const caret = caretRef.current;
@@ -85,9 +97,21 @@ function TypeField({
       <textarea
         id="typeInput"
         ref={inputRef}
-        value={typed}
+        defaultValue=""
         disabled={!active}
-        onChange={(e) => onInput(e.target.value)}
+        maxLength={passage.length}
+        // Durante la composición (acentos/ñ) ignoramos el value intermedio; el
+        // value definitivo se procesa en compositionEnd.
+        onChange={(e) => {
+          if (!composingRef.current) onInput(e.target.value);
+        }}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={(e) => {
+          composingRef.current = false;
+          onInput(e.currentTarget.value);
+        }}
         onPaste={(e) => e.preventDefault()}
         autoComplete="off"
         autoCorrect="off"
@@ -100,9 +124,3 @@ function TypeField({
     </div>
   );
 }
-
-// Memo: el reloj de la carrera re-renderiza RaceScreen cada 200ms. Sin memo, ese
-// tick re-renderiza el <textarea> controlado y, si cae mientras iOS compone un
-// acento, le reinicia el value y desplaza un carácter (marca medio texto en rojo).
-// Aquí solo re-renderizamos cuando cambia algo del propio campo.
-export default memo(TypeField);
