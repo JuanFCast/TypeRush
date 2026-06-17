@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [inMiniPay, setInMiniPay] = useState(false);
   const [hasProvider, setHasProvider] = useState(false);
   const [profileInDb, setProfileInDb] = useState<boolean | null>(null);
+  const [addrCopied, setAddrCopied] = useState(false);
 
   const loadWalletState = useCallback(async () => {
     setWalletLoading(true);
@@ -204,6 +205,28 @@ export default function ProfileScreen() {
                 {savedWallet ? shortWalletAddress(savedWallet) : "Sin wallet"}
               </span>
             </div>
+
+            {connectedWallet && (
+              <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-3">
+                <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
+                  Tu dirección (cópiala para recibir fondos)
+                </span>
+                <p className="mt-1 break-all font-mono text-xs text-ink">
+                  {connectedWallet}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(connectedWallet);
+                    setAddrCopied(true);
+                    setTimeout(() => setAddrCopied(false), 1500);
+                  }}
+                  className="mt-2 rounded-lg border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand transition active:scale-[0.98]"
+                >
+                  {addrCopied ? "✓ Copiada" : "Copiar dirección"}
+                </button>
+              </div>
+            )}
 
             {connectedWallet && !savedWallet && (
               <p className="mt-2 text-xs text-muted">
