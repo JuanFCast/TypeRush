@@ -70,6 +70,12 @@ contract TypeRushPayToPlay {
         address indexed winner,
         uint256 amount
     );
+    event PoolSeeded(
+        bytes32 indexed periodId,
+        bytes32 indexed modeId,
+        address indexed from,
+        uint256 amount
+    );
 
     error NotAuthorized();
     error InvalidAddress();
@@ -146,6 +152,18 @@ contract TypeRushPayToPlay {
         _safeTransferFrom(msg.sender, devWallet, devAmount);
         _safeTransferFrom(msg.sender, address(this), poolAmount);
         emit EntryPaid(periodId, modeId, msg.sender, poolAmount, devAmount);
+    }
+
+    /// @notice Aporta `amount` del stablecoin directamente al pozo de (periodId, modeId),
+    ///         p. ej. para que la "casa" garantice un premio mínimo atractivo. Cualquiera
+    ///         puede aportar; el caller debe haber hecho `approve`. No se puede aportar a un
+    ///         pozo ya distribuido. Los fondos quedan en el contrato (no en quien aporta).
+    function seedPool(bytes32 periodId, bytes32 modeId, uint256 amount) external {
+        if (amount == 0) revert InvalidEntryAmount();
+        if (distributed[periodId][modeId]) revert AlreadyDistributed();
+        pool[periodId][modeId] += amount;
+        _safeTransferFrom(msg.sender, address(this), amount);
+        emit PoolSeeded(periodId, modeId, msg.sender, amount);
     }
 
     // --------------------------------------------------------------------- //

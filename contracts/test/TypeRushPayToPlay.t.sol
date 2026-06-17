@@ -109,6 +109,52 @@ contract TypeRushPayToPlayTest is Test {
         assertEq(p2p.pool(periodId, modeEn), p2p.poolAmount());
     }
 
+    // --- seed (premio sembrado por la casa) ---
+
+    function test_seedPool_adds_to_pool() public {
+        // El "house" (aqui el player con saldo+approve) aporta 1 USDm al pozo.
+        uint256 seed = 1 ether;
+        vm.prank(player);
+        p2p.seedPool(periodId, modeEs, seed);
+
+        assertEq(p2p.pool(periodId, modeEs), seed, "el aporte entra al pozo");
+        assertEq(token.balanceOf(address(p2p)), seed, "los fondos quedan en el contrato");
+    }
+
+    function test_seedPool_then_entries_accumulate() public {
+        vm.startPrank(player);
+        p2p.seedPool(periodId, modeEs, 1 ether);
+        p2p.payToPlay(periodId, modeEs);
+        vm.stopPrank();
+        assertEq(p2p.pool(periodId, modeEs), 1 ether + p2p.poolAmount());
+    }
+
+    function test_seedPool_reverts_zero() public {
+        vm.prank(player);
+        vm.expectRevert(TypeRushPayToPlay.InvalidEntryAmount.selector);
+        p2p.seedPool(periodId, modeEs, 0);
+    }
+
+    function test_seedPool_reverts_if_distributed() public {
+        vm.prank(player);
+        p2p.payToPlay(periodId, modeEs);
+        vm.prank(distributor);
+        p2p.distribute(periodId, modeEs, winner);
+
+        vm.prank(player);
+        vm.expectRevert(TypeRushPayToPlay.AlreadyDistributed.selector);
+        p2p.seedPool(periodId, modeEs, 1 ether);
+    }
+
+    function test_seeded_pool_is_paid_to_winner() public {
+        vm.prank(player);
+        p2p.seedPool(periodId, modeEs, 1 ether);
+
+        vm.prank(distributor);
+        p2p.distribute(periodId, modeEs, winner);
+        assertEq(token.balanceOf(winner), 1 ether, "el ganador recibe el premio sembrado");
+    }
+
     // --- distribución ---
 
     function test_distribute_pays_full_pool_to_winner() public {
