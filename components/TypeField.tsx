@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   passage: string;
@@ -24,6 +24,9 @@ export default function TypeField({
   const caretRef = useRef<HTMLSpanElement>(null);
   // ¿Está iOS componiendo un acento/ñ? Mientras tanto NO procesamos el value.
   const composingRef = useRef(false);
+  // ¿El pasaje ya hizo scroll hacia arriba? Solo entonces aplicamos el fundido
+  // superior, para que la primera frase se vea nítida al arrancar.
+  const [scrolled, setScrolled] = useState(false);
 
   // Al arrancar la carrera, enfoca para abrir el teclado en móvil.
   useEffect(() => {
@@ -62,7 +65,10 @@ export default function TypeField({
     >
       <div
         ref={scrollRef}
-        className="type-scroll relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem]"
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
+        className={`type-scroll relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem] ${
+          scrolled ? "is-scrolled" : ""
+        }`}
       >
         <p className="select-none font-mono text-[1.15rem] leading-[1.9] tracking-tight break-words sm:text-[1.35rem]">
           {[...passage].map((char, i) => {

@@ -88,10 +88,25 @@ body {
 
 /* Cuadro de escritura: desvanece arriba y abajo para que la línea que entra o
    sale por el borde al hacer scroll no se corte en seco. */
+/* Por defecto solo se desvanece el borde INFERIOR: al arrancar (sin scroll) la
+   primera frase se ve 100% nítida arriba. */
 .type-scroll {
   padding-block: 0.5rem;
-  /* El fundido cubre más de una línea (~2.4rem arriba) para que la línea que
-     sale por el borde superior se desvanezca COMPLETA, no a mitad de la letra. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 1.8rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 1.8rem),
+    transparent 100%
+  );
+}
+
+/* Cuando el texto YA hizo scroll, se agrega el fundido superior (~2.4rem) para
+   que la línea que sale por arriba se desvanezca completa en vez de cortarse. */
+.type-scroll.is-scrolled {
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
