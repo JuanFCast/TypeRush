@@ -125,10 +125,6 @@ export default function Page() {
   // countdown. La partida pagada arranca sin consumir tiro gratis (beginRace).
   const onPayAndPlay = async (id: ChallengeId) => {
     if (payState === "paying") return;
-    // Dentro del gesto del tap (antes del await del pago): abre el teclado YA.
-    // En iOS, .focus() solo abre el teclado dentro del gesto; si esperáramos a
-    // que el pago resuelva, el foco caería fuera del gesto y el teclado no abriría.
-    primeKeyboard();
     setPayError(null);
     setPayState("paying");
     const modeId = getChallenge(id)?.modeId ?? "es";
@@ -136,14 +132,12 @@ export default function Page() {
     if (!res.ok) {
       setPayState("error");
       setPayError(res.error);
-      // El pago falló/se canceló: no seguimos a la carrera, suelta el teclado.
-      primerRef.current?.blur();
       return;
     }
     setPayState("idle");
     paidEntryRef.current = id;
-    // Reenfoca tras el pago: si MiniPay cerró el teclado, intenta reabrirlo
-    // (el cebado previo lo mantiene abierto bajo la hoja nativa cuando es posible).
+    // El teclado abre justo al comenzar el conteo (no durante el pago, que era
+    // molesto). El conteo se muestra arriba para que el teclado no lo tape.
     primeKeyboard();
     setCountdownChallenge(id);
   };
