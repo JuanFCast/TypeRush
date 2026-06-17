@@ -146,11 +146,14 @@ contract TypeRushPayToPlay {
     /// @notice Paga la entrada de una partida. El jugador debe haber hecho antes
     ///         `token.approve(this, entryAmount)`. Suma poolAmount al pozo (periodId, modeId)
     ///         y envía devAmount al desarrollador.
-    /// @dev Checks-Effects-Interactions: el pozo se actualiza antes de mover fondos.
+    /// @dev Un ÚNICO transferFrom del total (entryAmount) desde el jugador al contrato y
+    ///      luego el contrato reenvía devAmount al dev. Así una wallet como MiniPay muestra
+    ///      un solo cobro por el monto completo (0.10) en vez de dos de la mitad (0.05).
+    ///      Checks-Effects-Interactions: el pozo se actualiza antes de mover fondos.
     function payToPlay(bytes32 periodId, bytes32 modeId) external {
         pool[periodId][modeId] += poolAmount;
-        _safeTransferFrom(msg.sender, devWallet, devAmount);
-        _safeTransferFrom(msg.sender, address(this), poolAmount);
+        _safeTransferFrom(msg.sender, address(this), entryAmount);
+        _safeTransfer(devWallet, devAmount);
         emit EntryPaid(periodId, modeId, msg.sender, poolAmount, devAmount);
     }
 
