@@ -108,7 +108,7 @@ async function main() {
         .eq("id", row.id);
 
       console.log(
-        `  ✓ ${row.mode_id} → ${walletAddr} (0.001 CELO) tx ${receipt.hash}`,
+        `  ✓ ${row.mode_id} → ${walletAddr} (pozo USDC completo) tx ${receipt.hash}`,
       );
     } catch (err) {
       await supabase

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchWalletBalances, TokenBalance } from "@/lib/balances";
 import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
 import {
   ensurePlayerProfile,
@@ -34,6 +35,15 @@ export default function ProfileScreen() {
   const [hasProvider, setHasProvider] = useState(false);
   const [profileInDb, setProfileInDb] = useState<boolean | null>(null);
   const [addrCopied, setAddrCopied] = useState(false);
+  const [balances, setBalances] = useState<TokenBalance[] | null>(null);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+
+  const loadBalances = useCallback(async (address: string) => {
+    setBalancesLoading(true);
+    const res = await fetchWalletBalances(address);
+    setBalances(res);
+    setBalancesLoading(false);
+  }, []);
 
   const loadWalletState = useCallback(async () => {
     setWalletLoading(true);
@@ -47,7 +57,8 @@ export default function ProfileScreen() {
     setConnectedWallet(providerAddress);
     setProfileInDb(hasProfile);
     setWalletLoading(false);
-  }, []);
+    if (providerAddress) void loadBalances(providerAddress);
+  }, [loadBalances]);
 
   // Lee el perfil en un effect para no romper la hidratación (el server no
   // tiene localStorage).
@@ -97,6 +108,7 @@ export default function ProfileScreen() {
     }
 
     setConnectedWallet(conn.address);
+    void loadBalances(conn.address);
     const res = await savePlayerWallet(conn.address);
     setWalletBusy(false);
 
@@ -225,6 +237,42 @@ export default function ProfileScreen() {
                 >
                   {addrCopied ? "✓ Copiada" : "Copiar dirección"}
                 </button>
+              </div>
+            )}
+
+            {connectedWallet && (
+              <div className="mt-3 rounded-xl border border-line bg-bg px-3 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
+                    Tu saldo
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void loadBalances(connectedWallet)}
+                    disabled={balancesLoading}
+                    className="text-[0.6rem] font-semibold text-brand disabled:opacity-40"
+                  >
+                    {balancesLoading ? "Actualizando…" : "↻ Actualizar"}
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(balances ?? [
+                    { symbol: "USDC", amount: "—" },
+                    { symbol: "COPm", amount: "—" },
+                  ]).map((b) => (
+                    <div
+                      key={b.symbol}
+                      className="rounded-lg border border-line bg-surface2 px-3 py-2"
+                    >
+                      <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-muted">
+                        {b.symbol}
+                      </p>
+                      <p className="mt-0.5 font-mono text-base text-ink">
+                        {balancesLoading && !balances ? "…" : b.amount}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
