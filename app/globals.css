@@ -150,6 +150,17 @@ body {
   animation: step-pulse 1s ease-in-out infinite;
 }
 
+/* Barra que se llena mientras los botones de resultado están bloqueados, para
+   que el jugador alcance a ver su puntaje sin tocar algo por accidente. */
+@keyframes result-arm {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.result-arm {
+  width: 0%;
+  animation: result-arm 3.5s linear forwards;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

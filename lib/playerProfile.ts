@@ -348,6 +348,24 @@ export async function claimFreeAttempt(
   }
 }
 
+/**
+ * Devuelve el tiro gratis de una modalidad (vuelve a poner has_free_attempt=true).
+ * Se usa cuando se consumió el tiro al iniciar el conteo pero el jugador canceló
+ * antes de empezar la carrera. Best-effort: si falla, no rompe nada.
+ */
+export async function releaseFreeAttempt(gameModeId: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase
+      .from("player_game_modes")
+      .update({ has_free_attempt: true, updated_at: new Date().toISOString() })
+      .eq("player_id", getPlayerId())
+      .eq("game_mode_id", gameModeId);
+  } catch {
+    // best-effort
+  }
+}
+
 export async function ensurePlayerProfile(raw: string): Promise<EnsureResult> {
   const norm = normalizePlayerName(raw);
   if (!norm.ok) return { ok: false, error: norm.error };

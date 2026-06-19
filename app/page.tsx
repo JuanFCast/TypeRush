@@ -15,7 +15,11 @@ import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import PaymentOverlay from "@/components/PaymentOverlay";
 import { hasPlayerAlias } from "@/lib/player";
-import { claimFreeAttempt } from "@/lib/playerProfile";
+import {
+  AttemptClaim,
+  claimFreeAttempt,
+  releaseFreeAttempt,
+} from "@/lib/playerProfile";
 import {
   CurrencyId,
   isPayToPlayConfigured,
@@ -78,6 +82,17 @@ export default function Page() {
   const [payPhase, setPayPhase] = useState<PayPhase>("preparing");
   // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
   const paidEntryRef = useRef<ChallengeId | null>(null);
+  // Claim del tiro gratis lanzado AL INICIAR el conteo (en paralelo con el 3·2·1)
+  // para que en el "¡YA!" ya esté resuelto y la carrera arranque sin pausa.
+  const freeClaimRef = useRef<{ p: Promise<AttemptClaim>; modeId: string } | null>(
+    null,
+  );
+
+  // Lanza (sin esperar) el consumo del tiro gratis para un reto.
+  const startFreeClaim = (id: ChallengeId) => {
+    const modeId = getChallenge(id)?.modeId ?? "es";
+    freeClaimRef.current = { p: claimFreeAttempt(modeId), modeId };
+  };
 
   // Al cambiar de modalidad, limpia cualquier estado/aviso de pago anterior.
   useEffect(() => {
@@ -127,7 +142,9 @@ export default function Page() {
     setAttemptError(null);
     if (hasPlayerAlias()) {
       // Dentro del gesto del tap: abre el teclado y monta ya la carrera (con el
-      // conteo encima), para no perder el teclado durante el 3·2·1.
+      // conteo encima), para no perder el teclado durante el 3·2·1. El consumo del
+      // tiro gratis se lanza YA (corre durante el conteo) para no pausar en el "¡YA!".
+      startFreeClaim(id);
       primeKeyboard();
       arm(id);
     } else {
@@ -179,7 +196,11 @@ export default function Page() {
       return;
     }
     const modeId = getChallenge(id)?.modeId ?? "es";
-    const claim = await claimFreeAttempt(modeId);
+    // El claim ya se lanzó al iniciar el conteo: solo esperamos su resultado
+    // (normalmente ya resuelto, así que arranca al instante). Fallback por si no.
+    const pending = freeClaimRef.current;
+    freeClaimRef.current = null;
+    const claim = await (pending?.p ?? claimFreeAttempt(modeId));
     if (claim === "claimed") {
       setAttemptError(null);
       begin();
@@ -193,11 +214,21 @@ export default function Page() {
     void refreshPlayEligibility();
   };
 
-  // Cancelar durante el 3·2·1: vuelve al lobby y suelta el teclado.
+  // Cancelar durante el 3·2·1: vuelve al lobby y suelta el teclado. Si ya se
+  // había consumido el tiro gratis (claim lanzado al iniciar el conteo), se
+  // devuelve para no penalizar la cancelación.
   const onCancelCountdown = () => {
     paidEntryRef.current = null;
+    const pending = freeClaimRef.current;
+    freeClaimRef.current = null;
+    if (pending) {
+      void pending.p.then((claim) => {
+        if (claim === "claimed") void releaseFreeAttempt(pending.modeId);
+      });
+    }
     reset();
     primerRef.current?.blur();
+    void refreshPlayEligibility();
   };
 
   const onBackToLobby = () => {
@@ -324,7 +355,10 @@ export default function Page() {
             // mover el foco al cebador lo mantiene abierto hacia la carrera.
             primeKeyboard();
             void refreshPlayEligibility().then((allowed) => {
-              if (allowed) arm(id);
+              if (allowed) {
+                startFreeClaim(id);
+                arm(id);
+              }
             });
           }}
         />

@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ModeId } from "@/lib/passages";
 import { Stats } from "@/lib/game";
 import StatBlock from "./StatBlock";
+
+// Tiempo que los botones quedan bloqueados al terminar, para no tocarlos por error.
+const ARM_DELAY_MS = 3500;
 
 type Props = {
   result: Stats;
@@ -22,6 +26,14 @@ export default function ResultScreen({
   onExit,
 }: Props) {
   const en = modeId === "en";
+
+  // Botones bloqueados unos segundos: evita que el último tecleo rápido caiga
+  // sobre "Volver" justo al terminar la carrera.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setArmed(true), ARM_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
@@ -67,21 +79,36 @@ export default function ResultScreen({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onBackToLobby}
-        className="mt-8 h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
-      >
-        {en ? "Back to challenges" : "Volver a retos"}
-      </button>
+      <div className="mt-8 w-full max-w-xs">
+        {!armed && (
+          <div className="mb-3" aria-hidden>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-line">
+              <div className="result-arm h-full rounded-full bg-brand/70" />
+            </div>
+            <p className="mt-2 text-center text-xs text-muted">
+              {en ? "Take a look at your score…" : "Mira tu puntaje un momento…"}
+            </p>
+          </div>
+        )}
 
-      <button
-        type="button"
-        onClick={onExit}
-        className="mt-3 text-sm font-semibold text-muted transition active:scale-[0.98]"
-      >
-        {en ? "Back to home" : "Volver al inicio"}
-      </button>
+        <button
+          type="button"
+          onClick={onBackToLobby}
+          disabled={!armed}
+          className="h-14 w-full rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98] disabled:opacity-40"
+        >
+          {en ? "Back to challenges" : "Volver a retos"}
+        </button>
+
+        <button
+          type="button"
+          onClick={onExit}
+          disabled={!armed}
+          className="mt-3 w-full text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
+        >
+          {en ? "Back to home" : "Volver al inicio"}
+        </button>
+      </div>
     </div>
   );
 }

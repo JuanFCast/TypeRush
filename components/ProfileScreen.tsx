@@ -196,8 +196,8 @@ export default function ProfileScreen() {
         </div>
 
         <p className="mt-2 text-xs text-muted">
-          Asocia tu wallet de Celo para recibir el premio on-chain si quedas #1 del
-          día en una modalidad.
+          Es la wallet donde recibes tu premio (USDC y COPm) si quedas #1 del día.
+          En MiniPay es tu misma wallet: la vinculas una vez y listo.
         </p>
 
         {profileInDb === false && (
@@ -211,13 +211,6 @@ export default function ProfileScreen() {
           <p className="mt-3 text-xs text-muted">Cargando wallet…</p>
         ) : (
           <>
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-bg px-3 py-3">
-              <span className="text-xs text-muted">Asociada</span>
-              <span className="font-mono text-sm text-ink">
-                {savedWallet ? shortWalletAddress(savedWallet) : "Sin wallet"}
-              </span>
-            </div>
-
             {connectedWallet && (
               <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-3">
                 <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
@@ -276,51 +269,71 @@ export default function ProfileScreen() {
               </div>
             )}
 
-            {connectedWallet && !savedWallet && (
-              <p className="mt-2 text-xs text-muted">
-                Detectada:{" "}
-                <span className="font-mono text-ink/80">
-                  {shortWalletAddress(connectedWallet)}
-                </span>
-              </p>
-            )}
-
-            {walletMismatch && (
-              <p className="mt-2 text-xs text-warn">
-                La wallet conectada ({shortWalletAddress(connectedWallet!)}) no
-                coincide con la guardada. Puedes actualizarla abajo.
-              </p>
+            {/* Estado de vinculación: si ya está lista, confirmación calmada y un
+                enlace discreto para cambiarla; si no, un botón claro de acción. */}
+            {connectedWallet && savedWallet && !walletMismatch ? (
+              <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-brand">
+                    ✓ Vinculada para premios
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void onConnectAndSave()}
+                    disabled={walletBusy}
+                    className="text-[0.65rem] font-semibold text-muted transition active:scale-95 disabled:opacity-40"
+                  >
+                    {walletBusy ? "…" : "Cambiar"}
+                  </button>
+                </div>
+                <p className="mt-0.5 font-mono text-[0.7rem] text-muted">
+                  {shortWalletAddress(savedWallet)}
+                </p>
+              </div>
+            ) : (
+              <>
+                {walletMismatch && (
+                  <p className="mt-3 text-xs text-warn">
+                    La wallet conectada no coincide con la guardada para premios.
+                  </p>
+                )}
+                {connectedWallet && !savedWallet && !inMiniPay && (
+                  <p className="mt-3 text-xs text-muted">
+                    Detectada:{" "}
+                    <span className="font-mono text-ink/80">
+                      {shortWalletAddress(connectedWallet)}
+                    </span>
+                  </p>
+                )}
+                {hasProvider ? (
+                  <button
+                    type="button"
+                    onClick={() => void onConnectAndSave()}
+                    disabled={walletBusy || profileInDb === false}
+                    className="mt-3 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+                  >
+                    {walletBusy
+                      ? "Vinculando…"
+                      : walletMismatch
+                        ? "Actualizar a la wallet conectada"
+                        : inMiniPay
+                          ? "Vincular wallet para premios"
+                          : "Conectar y vincular wallet"}
+                  </button>
+                ) : (
+                  <p className="mt-3 text-xs text-muted">
+                    Abre TypeRush dentro de MiniPay (o usa una extensión web3) para
+                    vincular tu wallet y recibir premios.
+                  </p>
+                )}
+              </>
             )}
 
             {walletError ? (
               <p className="mt-2 text-xs text-danger">{walletError}</p>
             ) : walletSaved ? (
-              <p className="mt-2 text-xs text-brand">✓ Wallet guardada para premios</p>
+              <p className="mt-2 text-xs text-brand">✓ Wallet vinculada</p>
             ) : null}
-
-            <button
-              type="button"
-              onClick={() => void onConnectAndSave()}
-              disabled={walletBusy}
-              className="mt-4 h-12 w-full rounded-xl border border-brand/40 bg-brand/10 text-base font-bold text-brand transition active:scale-[0.98] disabled:opacity-40"
-            >
-              {walletBusy
-                ? "Conectando…"
-                : savedWallet
-                  ? walletMismatch
-                    ? "Actualizar wallet"
-                    : "Cambiar wallet"
-                  : inMiniPay
-                    ? "Guardar wallet de MiniPay"
-                    : "Conectar y guardar wallet"}
-            </button>
-
-            {!hasProvider && !walletLoading && (
-              <p className="mt-2 text-xs text-muted">
-                Abre TypeRush dentro de MiniPay o instala una extensión compatible
-                (MetaMask, etc.) para asociar tu dirección.
-              </p>
-            )}
           </>
         )}
       </div>
