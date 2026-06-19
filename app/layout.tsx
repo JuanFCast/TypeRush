@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "TypeRush — carrera de mecanografía",
   description:
     "Escribe contra el reloj durante 45 segundos. Mide tu WPM, precisión y supera tu récord.",
+  other: {
+    "talentapp:project_verification":
+      "f96cc2cd84974edeb9d010bfc1f7c14656b39cb6ab4adf7ea4a321c8537fdb227ede9f37e600c86c57527f91d8fdca3ca97679088e0fdf1f08233f0beaf63e11",
+  },
 };
 
 export const viewport: Viewport = {
