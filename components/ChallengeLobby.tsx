@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   ChallengeId,
   getChallengesByMode,
@@ -9,6 +9,12 @@ import {
 } from "@/lib/passages";
 import { CurrencyId, fetchPoolLabel, PAY_CURRENCIES } from "@/lib/payToPlay";
 import ChallengeCard from "./ChallengeCard";
+
+// Icono y sublabel por moneda para la tarjeta de premio.
+const CURRENCY_META: Record<CurrencyId, { icon: string; es: string; en: string }> = {
+  usdc: { icon: "💵", es: "dólares", en: "dollars" },
+  copm: { icon: "🇨🇴", es: "pesos", en: "pesos" },
+};
 
 type Props = {
   modeId: ModeId;
@@ -85,11 +91,13 @@ export default function ChallengeLobby({
 
   const payingLabel = en ? "Processing payment…" : "Procesando pago…";
   const freeUsedLabel = en ? "Free play used." : "Usaste tu tiro gratis.";
-  const prizeLabel = en ? "Prize pool today" : "Premio acumulado hoy";
+  const prizeLabel = en ? "Prize for #1" : "Premio para el #1";
+  const winBothLabel = en ? "win both" : "gana los dos";
   const payVerb = en ? "Pay" : "Pagar";
   const andPlay = en ? "& play" : "y jugar";
 
-  const hasPrize = pools.usdc !== null || pools.copm !== null;
+  const presentCurrencies = PAY_CURRENCIES.filter((c) => pools[c.id] !== null);
+  const hasPrize = presentCurrencies.length > 0;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -109,18 +117,35 @@ export default function ChallengeLobby({
       </div>
 
       {payEnabled && hasPrize && (
-        <div className="mb-3 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3">
-          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand">
-            🏆 {prizeLabel}
-          </span>
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            {PAY_CURRENCIES.map((c) =>
-              pools[c.id] !== null ? (
-                <span key={c.id} className="font-mono text-lg font-bold text-brand">
-                  {pools[c.id]} {c.symbol}
-                </span>
-              ) : null,
-            )}
+        <div className="mb-3 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/15 to-brand/5 px-4 py-3.5">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
+              🏆 {prizeLabel}
+            </span>
+            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
+              {winBothLabel}
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-center gap-2">
+            {presentCurrencies.map((c, i) => (
+              <Fragment key={c.id}>
+                {i > 0 && (
+                  <span className="shrink-0 text-xl font-black text-brand/60">+</span>
+                )}
+                <div className="flex-1 rounded-xl border border-brand/25 bg-bg/40 px-2 py-2 text-center">
+                  <div className="text-base leading-none">{CURRENCY_META[c.id].icon}</div>
+                  <div className="mt-1 font-mono text-xl font-extrabold leading-none text-brand">
+                    {pools[c.id]}
+                  </div>
+                  <div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink/80">
+                    {c.symbol}
+                  </div>
+                  <div className="text-[0.55rem] text-muted">
+                    {en ? CURRENCY_META[c.id].en : CURRENCY_META[c.id].es}
+                  </div>
+                </div>
+              </Fragment>
+            ))}
           </div>
         </div>
       )}

@@ -33,28 +33,31 @@ export default function RankingScreen() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="text-xl leading-none">🏆</span>
-        <h2 className="text-xl font-bold">Ranking</h2>
-      </div>
+      {/* Cabecera + pestañas de modo: quedan fijas arriba mientras se hace scroll. */}
+      <div className="sticky top-0 z-20 -mx-5 mb-4 bg-bg/95 px-5 pb-3 pt-1 backdrop-blur">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-xl leading-none">🏆</span>
+          <h2 className="text-xl font-bold">Ranking</h2>
+        </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1">
-        {MODES.map((m) => {
-          const on = m.id === modeId;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setModeId(m.id)}
-              aria-pressed={on}
-              className={`rounded-lg py-2 text-sm font-semibold transition ${
-                on ? "bg-surface2 text-brand" : "text-muted"
-              }`}
-            >
-              {m.icon} {m.label}
-            </button>
-          );
-        })}
+        <div className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1">
+          {MODES.map((m) => {
+            const on = m.id === modeId;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setModeId(m.id)}
+                aria-pressed={on}
+                className={`rounded-lg py-2 text-sm font-semibold transition ${
+                  on ? "bg-surface2 text-brand" : "text-muted"
+                }`}
+              >
+                {m.icon} {m.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (

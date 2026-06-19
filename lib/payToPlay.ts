@@ -126,15 +126,21 @@ export type PayResult =
   | { ok: true; txHash: string }
   | { ok: false; error: string };
 
+/** Fases del pago, para que la UI comunique el progreso (no cambia la lógica on-chain). */
+export type PayPhase = "preparing" | "approving" | "signing" | "confirming";
+
 /**
  * Cobra la entrada de una partida en la moneda elegida para una modalidad (es/en):
  * conecta la wallet, asegura la red, hace `approve` si falta y llama `payToPlay`.
- * El monto se lee del contrato (entryAmountOf), no de env.
+ * El monto se lee del contrato (entryAmountOf), no de env. `onPhase` (opcional)
+ * recibe la fase actual para que la UI muestre el progreso.
  */
 export async function payEntry(
   modeId: string,
   currencyId: CurrencyId,
+  onPhase?: (phase: PayPhase) => void,
 ): Promise<PayResult> {
+  const phase = (p: PayPhase) => onPhase?.(p);
   if (!isPayToPlayConfigured()) {
     return { ok: false, error: "Los pagos aún no están configurados." };
   }
@@ -147,6 +153,7 @@ export async function payEntry(
   }
 
   try {
+    phase("preparing");
     const provider = readProvider();
     const contract = new Contract(CONTRACT, P2P_ABI, provider);
     const entry = (await contract.entryAmountOf(currency.address)) as bigint;
@@ -181,6 +188,7 @@ export async function payEntry(
     // 4. Autorización (approve) si hace falta.
     const allowance = (await tokenContract.allowance(from, CONTRACT)) as bigint;
     if (allowance < entry) {
+      phase("approving");
       const approveData = new Interface(ERC20_ABI).encodeFunctionData("approve", [
         CONTRACT,
         entry,
@@ -193,6 +201,7 @@ export async function payEntry(
     }
 
     // 5. Pago: payToPlay(periodId, modeId, token).
+    phase("signing");
     const periodId = periodIdFromStart(getCurrentGamePeriod().start);
     const payData = new Interface(P2P_ABI).encodeFunctionData("payToPlay", [
       periodId,
@@ -204,6 +213,7 @@ export async function payEntry(
       params: [{ from, to: CONTRACT, data: payData }],
     })) as string;
 
+    phase("confirming");
     const receipt = await provider.waitForTransaction(payTx);
     if (!receipt || receipt.status !== 1) {
       return { ok: false, error: "El pago no se confirmó. Intenta de nuevo." };

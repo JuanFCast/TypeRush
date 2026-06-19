@@ -13,12 +13,14 @@ import RankingScreen from "@/components/RankingScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
+import PaymentOverlay from "@/components/PaymentOverlay";
 import { hasPlayerAlias } from "@/lib/player";
 import { claimFreeAttempt } from "@/lib/playerProfile";
 import {
   CurrencyId,
   isPayToPlayConfigured,
   payEntry,
+  PayPhase,
 } from "@/lib/payToPlay";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
@@ -72,6 +74,8 @@ export default function Page() {
   // Pago de entrada (cuando se agota el tiro gratis): estado del flujo on-chain.
   const [payState, setPayState] = useState<"idle" | "paying" | "error">("idle");
   const [payError, setPayError] = useState<string | null>(null);
+  // Fase visible del pago en curso, para el overlay de progreso.
+  const [payPhase, setPayPhase] = useState<PayPhase>("preparing");
   // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
   const paidEntryRef = useRef<ChallengeId | null>(null);
 
@@ -136,9 +140,10 @@ export default function Page() {
   const onPayAndPlay = async (id: ChallengeId, currencyId: CurrencyId) => {
     if (payState === "paying") return;
     setPayError(null);
+    setPayPhase("preparing");
     setPayState("paying");
     const modeId = getChallenge(id)?.modeId ?? "es";
-    const res = await payEntry(modeId, currencyId);
+    const res = await payEntry(modeId, currencyId, setPayPhase);
     if (!res.ok) {
       setPayState("error");
       setPayError(res.error);
@@ -211,7 +216,11 @@ export default function Page() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <main
+      className={`mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] ${
+        status === "idle" ? "pb-28" : "pb-6"
+      }`}
+    >
       <header className="mb-4 flex items-center justify-between">
         <span className="font-mono text-sm font-bold tracking-normal">
           type<span className="text-brand">rush</span>
@@ -321,21 +330,38 @@ export default function Page() {
         />
       )}
 
-      {readyChallenge && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg px-6 text-center">
-          <span className="text-sm font-bold text-brand">✓ Pago confirmado</span>
-          <p className="max-w-xs text-balance text-sm text-muted">
-            Toca para empezar: el teclado se abre y arranca la cuenta regresiva.
-          </p>
-          <button
-            type="button"
-            onClick={onStartPaid}
-            className="h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98]"
-          >
-            ¡Empezar!
-          </button>
-        </div>
+      {payState === "paying" && (
+        <PaymentOverlay phase={payPhase} en={selectedMode === "en"} />
       )}
+
+      {readyChallenge &&
+        (() => {
+          const en = getChallenge(readyChallenge)?.modeId === "en";
+          return (
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg px-8 text-center">
+              <div className="success-pop grid h-24 w-24 place-items-center rounded-full bg-brand/15 ring-4 ring-brand/30">
+                <span className="text-5xl">✅</span>
+              </div>
+              <div>
+                <p className="text-2xl font-extrabold text-brand">
+                  {en ? "Payment confirmed!" : "¡Pago confirmado!"}
+                </p>
+                <p className="mt-2 max-w-xs text-balance text-sm text-muted">
+                  {en
+                    ? "You're in the ranked round. Tap to start."
+                    : "Estás en la ronda por el premio. Toca para empezar."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onStartPaid}
+                className="h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-extrabold text-bg shadow-lg transition active:scale-[0.98]"
+              >
+                {en ? "Start! ▶" : "¡Empezar! ▶"}
+              </button>
+            </div>
+          );
+        })()}
 
       {status === "countdown" && (
         <CountdownScreen
