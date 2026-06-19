@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 130" width="470" height="130" fill="none">
+  <!-- Wordmark TypeRush · para fondos CLAROS · "type" oscuro, "rush" en verde marca -->
+  <text x="12" y="92"
+        font-family="'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace"
+        font-size="86" font-weight="700" letter-spacing="-1">
+    <tspan fill="#0a0e0c">type</tspan><tspan fill="#00b87d">rush</tspan>
+  </text>
+</svg>
