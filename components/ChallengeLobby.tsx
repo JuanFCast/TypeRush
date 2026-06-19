@@ -7,7 +7,7 @@ import {
   getMode,
   ModeId,
 } from "@/lib/passages";
-import { fetchPoolLabel } from "@/lib/payToPlay";
+import { CurrencyId, fetchPoolLabel, PAY_CURRENCIES } from "@/lib/payToPlay";
 import ChallengeCard from "./ChallengeCard";
 
 type Props = {
@@ -20,11 +20,9 @@ type Props = {
   onPlay: (id: ChallengeId) => void;
   // Pago de entrada cuando se agota el tiro gratis.
   payEnabled: boolean;
-  entryLabel: string;
-  entrySymbol: string;
   payState: "idle" | "paying" | "error";
   payError: string | null;
-  onPayAndPlay: (id: ChallengeId) => void;
+  onPayAndPlay: (id: ChallengeId, currencyId: CurrencyId) => void;
 };
 
 export default function ChallengeLobby({
@@ -36,8 +34,6 @@ export default function ChallengeLobby({
   onBack,
   onPlay,
   payEnabled,
-  entryLabel,
-  entrySymbol,
   payState,
   payError,
   onPayAndPlay,
@@ -48,16 +44,23 @@ export default function ChallengeLobby({
     () => challenges[0]?.id ?? "motivacionEs",
   );
 
-  // Pozo del premio (on-chain) de esta modalidad; refresca para verlo crecer.
-  const [prizePool, setPrizePool] = useState<string | null>(null);
+  // Pozo del premio (on-chain) por moneda; refresca para verlo crecer.
+  const [pools, setPools] = useState<Record<CurrencyId, string | null>>({
+    usdc: null,
+    copm: null,
+  });
   useEffect(() => {
     if (!payEnabled) return;
     let cancelled = false;
-    const load = () =>
-      fetchPoolLabel(modeId).then((label) => {
-        if (!cancelled && label !== null) setPrizePool(label);
-      });
-    void load();
+    const load = () => {
+      for (const c of PAY_CURRENCIES) {
+        void fetchPoolLabel(modeId, c.id).then((label) => {
+          if (!cancelled && label !== null)
+            setPools((prev) => ({ ...prev, [c.id]: label }));
+        });
+      }
+    };
+    load();
     const id = setInterval(load, 8000);
     return () => {
       cancelled = true;
@@ -80,12 +83,13 @@ export default function ChallengeLobby({
       : `Próximo gratis en ${resetCountdown}`
     : calculatingLabel;
 
-  const payLabel = en
-    ? `▶ Pay ${entryLabel} ${entrySymbol} & play`
-    : `▶ Pagar ${entryLabel} ${entrySymbol} y jugar`;
   const payingLabel = en ? "Processing payment…" : "Procesando pago…";
   const freeUsedLabel = en ? "Free play used." : "Usaste tu tiro gratis.";
   const prizeLabel = en ? "Prize pool today" : "Premio acumulado hoy";
+  const payVerb = en ? "Pay" : "Pagar";
+  const andPlay = en ? "& play" : "y jugar";
+
+  const hasPrize = pools.usdc !== null || pools.copm !== null;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -104,14 +108,20 @@ export default function ChallengeLobby({
         </div>
       </div>
 
-      {payEnabled && prizePool !== null && (
-        <div className="mb-3 flex items-center justify-between rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3">
+      {payEnabled && hasPrize && (
+        <div className="mb-3 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3">
           <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand">
             🏆 {prizeLabel}
           </span>
-          <span className="font-mono text-lg font-bold text-brand">
-            {prizePool} {entrySymbol}
-          </span>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {PAY_CURRENCIES.map((c) =>
+              pools[c.id] !== null ? (
+                <span key={c.id} className="font-mono text-lg font-bold text-brand">
+                  {pools[c.id]} {c.symbol}
+                </span>
+              ) : null,
+            )}
+          </div>
         </div>
       )}
 
@@ -138,20 +148,35 @@ export default function ChallengeLobby({
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => onPayAndPlay(selectedId)}
-                disabled={payState === "paying"}
-                className="h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {payState === "paying" ? payingLabel : payLabel}
-              </button>
+              <p className="text-center text-xs text-muted">
+                {freeUsedLabel} {en ? "Choose a currency:" : "Elige moneda:"}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {PAY_CURRENCIES.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onPayAndPlay(selectedId, c.id)}
+                    disabled={payState === "paying"}
+                    className="flex h-14 flex-col items-center justify-center rounded-xl bg-brand text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {payState === "paying" ? (
+                      <span className="text-xs font-bold">{payingLabel}</span>
+                    ) : (
+                      <>
+                        <span className="text-sm font-bold">
+                          {payVerb} {c.entryLabel} {c.symbol}
+                        </span>
+                        <span className="text-[0.6rem] opacity-80">{andPlay}</span>
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
               {payState === "error" && payError ? (
                 <p className="text-center text-xs text-danger">{payError}</p>
               ) : (
-                <p className="text-center text-xs text-muted">
-                  {freeUsedLabel} {countdownLabel}.
-                </p>
+                <p className="text-center text-xs text-muted">{countdownLabel}.</p>
               )}
             </>
           )}

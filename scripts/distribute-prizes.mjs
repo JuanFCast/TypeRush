@@ -1,16 +1,16 @@
 /**
- * Cada noche (GitHub Action, 8:10 p.m. Colombia) hace dos cosas:
- *   1. REPARTE los premios on-chain pendientes (prize_payouts.status = 'pending')
- *      al #1 de cada modalidad: paga el pozo COMPLETO en USDC del contrato activo.
- *   2. SIEMBRA el periodo nuevo: garantiza un piso de SEED_TARGET_USDC por modalidad
- *      para que el lobby siempre arranque con un premio atractivo ("ir sacando dólares").
+ * Cada noche (GitHub Action, 8:10 p.m. Colombia) hace dos cosas sobre el contrato
+ * MULTI-moneda (TypeRushPayToPlayMulti):
+ *   1. REPARTE al #1 de cada modalidad el pozo COMPLETO de CADA moneda (USDC + COPm)
+ *      en un solo tx (`distributeTokens`).
+ *   2. SIEMBRA el periodo nuevo: garantiza un piso por moneda (1 USDC y 5.000 COPm)
+ *      para que el lobby siempre arranque con premio en dólares y en pesos.
  *
  * Uso:
  *   node scripts/distribute-prizes.mjs
  *
- * Lee variables de .env.local o .env en la raíz del proyecto.
- * Firma con PRIVATE_KEY (debe ser owner o distributor del contrato para repartir;
- * para sembrar basta con tener USDC + algo de CELO para el gas).
+ * Lee variables de .env.local o .env. Firma con PRIVATE_KEY (owner o distributor para
+ * repartir; para sembrar basta tener saldo del token + algo de CELO para el gas).
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -34,24 +34,35 @@ for (const file of [".env.local", ".env"]) {
 
 const RPC = "https://forno.celo-sepolia.celo-testnet.org";
 
-// Siembra automática: piso de premio garantizado por modalidad, cada periodo.
-const SEED_TARGET_USDC = 1; // dólares (entero) por modalidad
+// Monedas aceptadas (Celo Sepolia) + piso de premio por moneda (siembra automática).
+const TOKENS = [
+  {
+    symbol: "USDC",
+    address: "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
+    decimals: 6,
+    floor: 1, // 1 USDC
+  },
+  {
+    symbol: "COPm",
+    address: "0x5F8d55c3627d2dc0a2B4afa798f877242F382F67",
+    decimals: 18,
+    floor: 5000, // 5.000 COPm
+  },
+];
+const TOKEN_ADDRESSES = TOKENS.map((t) => t.address);
 const SEED_MODES = ["es", "en"];
 
 const ABI = [
-  "function distribute(bytes32 periodId, bytes32 modeId, address winner)",
-  "function distributeBatch(bytes32 periodId, bytes32[] modeIds, address[] winners)",
-  "function token() view returns (address)",
-  "function poolOf(bytes32 periodId, bytes32 modeId) view returns (uint256)",
-  "function seedPool(bytes32 periodId, bytes32 modeId, uint256 amount)",
-  "event PrizePaid(bytes32 indexed periodId, bytes32 indexed modeId, address indexed winner, uint256 amount)",
+  "function distribute(bytes32 periodId, bytes32 modeId, address token, address winner)",
+  "function distributeTokens(bytes32 periodId, bytes32 modeId, address[] tokens, address winner)",
+  "function poolOf(bytes32 periodId, bytes32 modeId, address token) view returns (uint256)",
+  "function seedPool(bytes32 periodId, bytes32 modeId, address token, uint256 amount)",
 ];
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
 ];
 
 function periodIdFromStart(isoStart) {
@@ -61,14 +72,14 @@ function periodIdFromStart(isoStart) {
 
 /**
  * Inicio del periodo de juego actual. La frontera diaria es 8 p.m. Colombia
- * (America/Bogota, UTC−5 fijo) = 01:00 UTC. Coincide con lib/gamePeriod.ts.
+ * (UTC−5 fijo) = 01:00 UTC. Coincide con lib/gamePeriod.ts.
  */
 function currentPeriodStart(now = new Date()) {
   const boundaryToday = Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate(),
-    1, // 01:00 UTC = 8 p.m. Bogotá del día anterior
+    1,
     0,
     0,
   );
@@ -83,7 +94,7 @@ function requireEnv(name) {
   return v;
 }
 
-/** Reparte los premios on-chain pendientes en Supabase. */
+/** Reparte al #1 de cada modalidad el pozo de TODAS las monedas (USDC + COPm). */
 async function distributePending(supabase, contract) {
   const { data: rows, error } = await supabase
     .from("prize_payouts")
@@ -115,7 +126,12 @@ async function distributePending(supabase, contract) {
     const modeKey = id(row.mode_id);
 
     try {
-      const tx = await contract.distribute(periodId, modeKey, walletAddr);
+      const tx = await contract.distributeTokens(
+        periodId,
+        modeKey,
+        TOKEN_ADDRESSES,
+        walletAddr,
+      );
       const receipt = await tx.wait();
 
       await supabase
@@ -128,7 +144,7 @@ async function distributePending(supabase, contract) {
         .eq("id", row.id);
 
       console.log(
-        `  ✓ ${row.mode_id} → ${walletAddr} (pozo USDC completo) tx ${receipt.hash}`,
+        `  ✓ ${row.mode_id} → ${walletAddr} (pozos USDC + COPm) tx ${receipt.hash}`,
       );
     } catch (err) {
       await supabase
@@ -141,52 +157,51 @@ async function distributePending(supabase, contract) {
 }
 
 /**
- * Garantiza un piso de SEED_TARGET_USDC por modalidad en el periodo actual.
- * Idempotente: solo aporta lo que falte para llegar al piso (si ya está, no hace nada),
- * así una segunda corrida no duplica la siembra.
+ * Garantiza el piso de premio por moneda en el periodo actual. Idempotente: solo
+ * aporta lo que falte para llegar al piso, así una segunda corrida no duplica.
  */
 async function seedCurrentPeriod(contract, wallet) {
-  const tokenAddr = await contract.token();
-  const token = new Contract(tokenAddr, ERC20_ABI, wallet);
-  const decimals = Number(await token.decimals());
-  const target = BigInt(SEED_TARGET_USDC) * 10n ** BigInt(decimals);
   const periodId = periodIdFromStart(currentPeriodStart().toISOString());
 
-  const seeds = [];
-  for (const mode of SEED_MODES) {
-    const modeId = id(mode);
-    const pool = await contract.poolOf(periodId, modeId);
-    if (pool < target) seeds.push({ mode, modeId, amount: target - pool });
-  }
+  for (const t of TOKENS) {
+    const target = BigInt(t.floor) * 10n ** BigInt(t.decimals);
+    const token = new Contract(t.address, ERC20_ABI, wallet);
 
-  if (!seeds.length) {
-    console.log(`Siembra: pozos ya en el piso de ${SEED_TARGET_USDC} USDC.`);
-    return;
-  }
+    const seeds = [];
+    for (const mode of SEED_MODES) {
+      const pool = await contract.poolOf(periodId, id(mode), t.address);
+      if (pool < target) seeds.push({ mode, amount: target - pool });
+    }
 
-  const total = seeds.reduce((acc, s) => acc + s.amount, 0n);
-  const balance = await token.balanceOf(wallet.address);
-  if (balance < total) {
-    console.warn(
-      `Siembra OMITIDA: la wallet no tiene USDC suficiente (tiene ${balance}, necesita ${total}).`,
-    );
-    return;
-  }
+    if (!seeds.length) {
+      console.log(`Siembra ${t.symbol}: pozos ya en el piso de ${t.floor}.`);
+      continue;
+    }
 
-  const allowance = await token.allowance(wallet.address, contract.target);
-  if (allowance < total) {
-    const tx = await token.approve(contract.target, total);
-    await tx.wait();
-  }
+    const total = seeds.reduce((acc, s) => acc + s.amount, 0n);
+    const balance = await token.balanceOf(wallet.address);
+    if (balance < total) {
+      console.warn(
+        `Siembra ${t.symbol} OMITIDA: saldo insuficiente (tiene ${balance}, necesita ${total}).`,
+      );
+      continue;
+    }
 
-  console.log(`Siembra: completando ${seeds.length} pozo(s) al piso…`);
-  for (const s of seeds) {
-    try {
-      const tx = await contract.seedPool(periodId, s.modeId, s.amount);
-      const receipt = await tx.wait();
-      console.log(`  ✓ ${s.mode} +${s.amount} (unidades) tx ${receipt.hash}`);
-    } catch (err) {
-      console.error(`  ✗ siembra ${s.mode}:`, err.message ?? err);
+    const allowance = await token.allowance(wallet.address, contract.target);
+    if (allowance < total) {
+      const tx = await token.approve(contract.target, total);
+      await tx.wait();
+    }
+
+    console.log(`Siembra ${t.symbol}: completando ${seeds.length} pozo(s) al piso…`);
+    for (const s of seeds) {
+      try {
+        const tx = await contract.seedPool(periodId, id(s.mode), t.address, s.amount);
+        const receipt = await tx.wait();
+        console.log(`  ✓ ${t.symbol} ${s.mode} +${s.amount} tx ${receipt.hash}`);
+      } catch (err) {
+        console.error(`  ✗ siembra ${t.symbol} ${s.mode}:`, err.message ?? err);
+      }
     }
   }
 }
@@ -210,10 +225,7 @@ async function main() {
   const wallet = new Wallet(privateKey, provider);
   const contract = new Contract(contractAddress, ABI, wallet);
 
-  // 1. Repartir premios del periodo que cerró.
   await distributePending(supabase, contract);
-
-  // 2. Sembrar el periodo nuevo (piso garantizado).
   await seedCurrentPeriod(contract, wallet);
 }
 

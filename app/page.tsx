@@ -16,8 +16,7 @@ import CountdownScreen from "@/components/CountdownScreen";
 import { hasPlayerAlias } from "@/lib/player";
 import { claimFreeAttempt } from "@/lib/playerProfile";
 import {
-  getEntryLabel,
-  getTokenSymbol,
+  CurrencyId,
   isPayToPlayConfigured,
   payEntry,
 } from "@/lib/payToPlay";
@@ -73,9 +72,6 @@ export default function Page() {
   // Pago de entrada (cuando se agota el tiro gratis): estado del flujo on-chain.
   const [payState, setPayState] = useState<"idle" | "paying" | "error">("idle");
   const [payError, setPayError] = useState<string | null>(null);
-  // Etiqueta del monto y símbolo del token, leídos del contrato on-chain.
-  const [entryLabel, setEntryLabel] = useState("");
-  const [entrySymbol, setEntrySymbol] = useState("");
   // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
   const paidEntryRef = useRef<ChallengeId | null>(null);
 
@@ -85,21 +81,6 @@ export default function Page() {
     setPayState("idle");
     setPayError(null);
   }, [selectedMode]);
-
-  // Carga el monto y símbolo de la entrada desde el contrato (una vez).
-  useEffect(() => {
-    if (!isPayToPlayConfigured()) return;
-    let cancelled = false;
-    void getEntryLabel().then((l) => {
-      if (!cancelled) setEntryLabel(l);
-    });
-    void getTokenSymbol().then((s) => {
-      if (!cancelled) setEntrySymbol(s);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Durante el conteo/carrera fija el body: en iOS, al abrir el teclado el
   // documento se desplazaba hacia arriba y metía el header (el logo) bajo el
@@ -152,12 +133,12 @@ export default function Page() {
 
   // Tiro gratis agotado: paga la entrada en stablecoin y, si confirma, pasa al
   // countdown. La partida pagada arranca sin consumir tiro gratis (beginRace).
-  const onPayAndPlay = async (id: ChallengeId) => {
+  const onPayAndPlay = async (id: ChallengeId, currencyId: CurrencyId) => {
     if (payState === "paying") return;
     setPayError(null);
     setPayState("paying");
     const modeId = getChallenge(id)?.modeId ?? "es";
-    const res = await payEntry(modeId);
+    const res = await payEntry(modeId, currencyId);
     if (!res.ok) {
       setPayState("error");
       setPayError(res.error);
@@ -278,8 +259,6 @@ export default function Page() {
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
                   payEnabled={isPayToPlayConfigured()}
-                  entryLabel={entryLabel}
-                  entrySymbol={entrySymbol}
                   payState={payState}
                   payError={payError}
                   onPayAndPlay={onPayAndPlay}
