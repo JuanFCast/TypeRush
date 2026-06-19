@@ -176,9 +176,25 @@ export async function payEntry(
 
     const tokenContract = new Contract(currency.address, ERC20_ABI, provider);
 
-    // 3. Saldo suficiente.
-    const balance = (await tokenContract.balanceOf(from)) as bigint;
-    if (balance < entry) {
+    // 3. Saldo suficiente. Se lee por la WALLET del usuario (MiniPay), no por el
+    // RPC público: tras un depósito reciente el RPC público puede ir atrasado y
+    // reportar "insuficiente" aunque MiniPay ya muestre el saldo (bug visto en
+    // dispositivos reales). Si no se puede leer, NO se bloquea: el contrato valida
+    // al cobrar, así nunca frenamos un pago válido por una lectura desactualizada.
+    let balance: bigint | null = null;
+    try {
+      const balData = new Interface(ERC20_ABI).encodeFunctionData("balanceOf", [
+        from,
+      ]);
+      const raw = (await eth.request({
+        method: "eth_call",
+        params: [{ to: currency.address, data: balData }, "latest"],
+      })) as string;
+      balance = BigInt(raw);
+    } catch {
+      balance = null;
+    }
+    if (balance !== null && balance < entry) {
       return {
         ok: false,
         error: `No tienes suficiente ${currency.symbol} de prueba (necesitas ${entryLabel}).`,
