@@ -157,11 +157,11 @@ async function distributePending(supabase, contract) {
 }
 
 /**
- * Garantiza el piso de premio por moneda en el periodo actual. Idempotente: solo
- * aporta lo que falte para llegar al piso, así una segunda corrida no duplica.
+ * Garantiza el piso de premio por moneda en UN periodo. Idempotente: solo aporta
+ * lo que falte para llegar al piso, así una segunda corrida no duplica.
  */
-async function seedCurrentPeriod(contract, wallet) {
-  const periodId = periodIdFromStart(currentPeriodStart().toISOString());
+async function seedPeriod(contract, wallet, periodStart, label) {
+  const periodId = periodIdFromStart(periodStart.toISOString());
 
   for (const t of TOKENS) {
     const target = BigInt(t.floor) * 10n ** BigInt(t.decimals);
@@ -174,7 +174,7 @@ async function seedCurrentPeriod(contract, wallet) {
     }
 
     if (!seeds.length) {
-      console.log(`Siembra ${t.symbol}: pozos ya en el piso de ${t.floor}.`);
+      console.log(`Siembra ${t.symbol} (${label}): pozos ya en el piso de ${t.floor}.`);
       continue;
     }
 
@@ -182,7 +182,7 @@ async function seedCurrentPeriod(contract, wallet) {
     const balance = await token.balanceOf(wallet.address);
     if (balance < total) {
       console.warn(
-        `Siembra ${t.symbol} OMITIDA: saldo insuficiente (tiene ${balance}, necesita ${total}).`,
+        `Siembra ${t.symbol} (${label}) OMITIDA: saldo insuficiente (tiene ${balance}, necesita ${total}).`,
       );
       continue;
     }
@@ -193,7 +193,7 @@ async function seedCurrentPeriod(contract, wallet) {
       await tx.wait();
     }
 
-    console.log(`Siembra ${t.symbol}: completando ${seeds.length} pozo(s) al piso…`);
+    console.log(`Siembra ${t.symbol} (${label}): completando ${seeds.length} pozo(s) al piso…`);
     for (const s of seeds) {
       try {
         const tx = await contract.seedPool(periodId, id(s.mode), t.address, s.amount);
@@ -204,6 +204,21 @@ async function seedCurrentPeriod(contract, wallet) {
       }
     }
   }
+}
+
+/**
+ * Siembra el periodo actual Y el siguiente. El periodo cambia a las 8 p.m. Colombia
+ * (01:00 UTC), pero el cron de GitHub corre tarde (a veces varias horas después), así
+ * que sembrar solo el actual deja el pozo nuevo en CERO durante esa ventana. Sembrar
+ * el siguiente por adelantado garantiza que al cruzar las 8 p.m. el pozo ya tenga el
+ * piso — y nunca quede vacío. Es idempotente y no duplica: la frontera es fija (UTC−5,
+ * sin horario de verano) así que el siguiente periodo empieza exactamente 24 h después.
+ */
+async function seedCurrentAndNext(contract, wallet) {
+  const current = currentPeriodStart();
+  const next = new Date(current.getTime() + 86_400_000);
+  await seedPeriod(contract, wallet, current, "actual");
+  await seedPeriod(contract, wallet, next, "siguiente");
 }
 
 async function main() {
@@ -226,7 +241,7 @@ async function main() {
   const contract = new Contract(contractAddress, ABI, wallet);
 
   await distributePending(supabase, contract);
-  await seedCurrentPeriod(contract, wallet);
+  await seedCurrentAndNext(contract, wallet);
 }
 
 main().catch((e) => {
