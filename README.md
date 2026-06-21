@@ -131,18 +131,49 @@ Este prototipo respeta las reglas de MiniPay desde el día uno:
 
 ---
 
+## ⛓️ Contrato on-chain
+
+El **pago de la entrada, el pozo y el premio** los liquida un smart contract en **Celo Sepolia** — el split y el reparto son verificables on-chain, sin intermediarios.
+
+| Campo | Valor |
+|-------|-------|
+| Contrato | `TypeRushPayToPlayMulti` (multi-moneda) |
+| Dirección | [`0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1`](https://celo-sepolia.blockscout.com/address/0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1) · verificado |
+| Red | Celo Sepolia · chainId `11142220` |
+| Monedas | **USDC** (`0.10`) · **COPm** (`500`) — el jugador elige al pagar |
+| Split | 50 % al pozo · 50 % al desarrollador, en el mismo tx |
+| Premio | El #1 del día se lleva el pozo completo de **cada** moneda |
+
+**Flujo:** `approve` → `payToPlay(periodId, modeId, token)` envía la mitad al `devWallet` y acumula la otra mitad en `pool[periodId][modeId][token]`. Al cierre del día (8 p.m. Colombia) el distribuidor llama `distributeTokens(...)` y paga el pozo al #1. La "casa" siembra un piso garantizado (**1 USDC + 5.000 COPm** por modalidad) para que el pozo **nunca** quede vacío.
+
+> 📄 Detalle completo —funciones, roles, deploy y direcciones— en [`contracts/README.md`](contracts/README.md).
+
+### 🚀 Pasar a mainnet (lo que falta)
+
+El contrato ya es agnóstico de red; migrar es **redesplegar + reconfigurar**, no reescribir:
+
+- **Separar roles** — `owner` en una multisig; `distributor` en una wallet **sin** poder de owner (hoy en testnet ambos son la misma wallet, y el owner puede vaciar el contrato).
+- **Tokens mainnet** — cUSD `0x765DE816845861e75A25fCA122bb6898B8B1282a` (18 dec) · USDC `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` (6 dec, con su fee adapter) · COPm `0x8A567e2aE79CA692Bd748aB832081C45de4041eA` (18 dec).
+- **Deploy + verificación** en Celo Mainnet (chainId `42220`, RPC `https://forno.celo.org`).
+- **Fondear** la wallet sembradora con USDC/COPm reales + CELO (o fee abstraction) para el gas.
+- **Reconfigurar** Vercel (`NEXT_PUBLIC_PAY_TO_PLAY_CONTRACT_ADDRESS` + redeploy), `lib/payToPlay.ts` / `lib/prizePool.ts` (red y tokens), el GitHub Secret `PRIZE_POOL_ADDRESS` y el RPC del script.
+- **Probar end-to-end** en MiniPay mainnet (USDC y COPm).
+
+---
+
 ## 🗺️ Roadmap
 
-- [x] **Fase 1 — Frontend** en Next.js, tema oscuro, lógica de juego completa (estado demo en memoria).
-- [ ] **Fase 2 — Wallet real** con `viem`: balances on-chain (USDm/USDC/USDT) y pagos con fee abstraction.
-- [ ] **Fase 3 — On-chain** : entrada, prize pool y payout liquidados por smart contract.
-- [ ] **Fase 4 — Anti-cheat** robusto y leaderboard persistente por temporada.
+- [x] **Fase 1 — Frontend** en Next.js, tema oscuro, lógica de juego completa.
+- [x] **Fase 2 — Wallet real** (`ethers`): balances on-chain (USDC/COPm) y pago de entrada desde MiniPay.
+- [x] **Fase 3 — On-chain en Celo Sepolia**: entrada, pozo y premio liquidados por smart contract, con reparto diario automatizado.
+- [ ] **Fase 4 — Mainnet**: redeploy en Celo Mainnet con roles separados (ver checklist arriba).
+- [ ] **Fase 5 — Anti-cheat** robusto y leaderboard persistente por temporada.
 
 ---
 
 ## ⚠️ Estado actual
 
-Prototipo de hackathon. Todo el saldo, leaderboard y prize pool son **estado demo en memoria** (se reinician al recargar) y el payout es una **simulación**. La integración real de wallet y los pagos on-chain llegan en las siguientes fases.
+Funciona de punta a punta **dentro de MiniPay sobre Celo Sepolia** (testnet): pago de entrada en USDC/COPm, pozo creciente y reparto diario al #1, todo on-chain. El ranking y el reparto usan Supabase + una GitHub Action nocturna; el mejor puntaje por reto se guarda local. Lo que falta es el salto a **mainnet** (checklist arriba).
 
 ---
 
