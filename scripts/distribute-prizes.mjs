@@ -163,6 +163,80 @@ async function distributePending(supabase, contract) {
 }
 
 /**
+ * Reintenta los premios ADEUDADOS cuyo ganador YA asoció una wallet válida.
+ *
+ * Un premio queda `failed` cuando al cerrar el periodo el #1 no tenía wallet (o
+ * era inválida); el pozo real sigue intacto on-chain (reclaimUnwon NO lo barre
+ * mientras esté dentro de la ventana). Cuando el jugador asocia su wallet en la
+ * pestaña "Tú", aquí lo detectamos: refrescamos la wallet en la fila y la
+ * pasamos a `pending` para que `distributePending` le pague el pozo esta noche.
+ *
+ * Solo dentro de la ventana de reclamo (ROLLOVER_LOOKBACK días): pasado ese
+ * plazo el pozo ya rodó al jackpot, así que reintentar solo revertiría on-chain.
+ */
+async function requeueOwedWithWallet(supabase, activePeriodStart) {
+  const cutoff = new Date(
+    activePeriodStart.getTime() - ROLLOVER_LOOKBACK * 86_400_000,
+  ).toISOString();
+
+  const { data: rows, error } = await supabase
+    .from("prize_payouts")
+    .select("id, player_id, mode_id, wallet_address")
+    .eq("status", "failed")
+    .eq("payout_type", "on_chain")
+    .gt("period_start", cutoff);
+
+  if (error) throw error;
+  if (!rows?.length) return;
+
+  for (const row of rows) {
+    const { data: profile } = await supabase
+      .from("player_profiles")
+      .select("wallet_address")
+      .eq("player_id", row.player_id)
+      .maybeSingle();
+
+    const wallet = profile?.wallet_address?.trim();
+    if (!wallet || !isAddress(wallet)) continue;
+
+    await supabase
+      .from("prize_payouts")
+      .update({
+        wallet_address: wallet,
+        status: "pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+
+    console.log(`  ↻ ${row.mode_id}: el ganador asoció wallet ${wallet} → re-encolado.`);
+  }
+}
+
+/**
+ * Set de `${periodId}:${mode}` de premios todavía ADEUDADOS a un ganador real
+ * (pending o failed). reclaimUnwon usa esto para NO barrer esos pozos: se le
+ * siguen guardando hasta que reclame o expire la ventana.
+ */
+async function fetchOwedKeys(supabase) {
+  const { data, error } = await supabase
+    .from("prize_payouts")
+    .select("period_start, mode_id")
+    .in("status", ["pending", "failed"])
+    .eq("payout_type", "on_chain");
+
+  if (error) {
+    console.error("No se pudieron leer premios adeudados (se asume ninguno):", error.message ?? error);
+    return new Set();
+  }
+
+  const set = new Set();
+  for (const row of data ?? []) {
+    set.add(`${periodIdFromStart(row.period_start)}:${row.mode_id}`);
+  }
+  return set;
+}
+
+/**
  * Jackpot acumulativo. Recorre los últimos ROLLOVER_LOOKBACK periodos YA
  * terminados; por cada (modalidad, moneda) cuyo pozo quedó SIN distribuir —
  * nadie ganó: o no jugó nadie, o el #1 no llegó a pagarse— lo reclama a la
@@ -178,14 +252,21 @@ async function distributePending(supabase, contract) {
  *
  * Asume que `distributePending` corrió antes en esta misma ejecución, así que
  * los pozos CON ganador ya están repartidos (distributed = true) y se saltan.
+ * Además respeta los premios ADEUDADOS (failed/pending, ganador sin wallet aún):
+ * dentro de la ventana NO los barre, para guardárselos hasta que reclame. El
+ * último día de la ventana (back === ROLLOVER_LOOKBACK) expiran y sí ruedan al
+ * jackpot, para que el dinero nunca quede varado para siempre.
  */
-async function reclaimUnwon(contract, wallet, activePeriodStart) {
+async function reclaimUnwon(supabase, contract, wallet, activePeriodStart) {
+  const owed = await fetchOwedKeys(supabase);
   const bonus = {}; // bonus[modeId][tokenAddress] = bigint reclamado
   for (let back = 1; back <= ROLLOVER_LOOKBACK; back++) {
     const start = new Date(activePeriodStart.getTime() - back * 86_400_000);
     const periodId = periodIdFromStart(start.toISOString());
     for (const t of TOKENS) {
       for (const mode of SEED_MODES) {
+        // Adeudado a un ganador real y aún dentro de la ventana: no barrer.
+        if (back < ROLLOVER_LOOKBACK && owed.has(`${periodId}:${mode}`)) continue;
         try {
           if (await contract.distributed(periodId, id(mode), t.address)) continue;
           const pool = await contract.poolOf(periodId, id(mode), t.address);
@@ -326,6 +407,14 @@ async function main() {
   const wallet = new Wallet(privateKey, provider);
   const contract = new Contract(contractAddress, ABI, wallet);
 
+  // Reintenta primero los premios adeudados cuyo ganador ya asoció wallet: pasan
+  // a `pending` para que el reparto de abajo los pague en esta misma corrida.
+  try {
+    await requeueOwedWithWallet(supabase, currentPeriodStart());
+  } catch (err) {
+    console.error("Re-encolado de adeudados abortado (se sigue):", err.message ?? err);
+  }
+
   // El reparto NUNCA debe bloquear la siembra: si Supabase o un pago fallan, el
   // pozo del periodo siguiente tiene que quedar sembrado igual.
   try {
@@ -339,7 +428,7 @@ async function main() {
   // así no queda dinero varado y el premio se acumula. No debe bloquear la siembra.
   let bonus = {};
   try {
-    bonus = await reclaimUnwon(contract, wallet, currentPeriodStart());
+    bonus = await reclaimUnwon(supabase, contract, wallet, currentPeriodStart());
   } catch (err) {
     console.error("Rollover abortado (se sigue con la siembra):", err.message ?? err);
   }

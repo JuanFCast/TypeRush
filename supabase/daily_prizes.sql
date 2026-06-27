@@ -101,8 +101,16 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- process_daily_prizes · #1 por modalidad; wallet → cola on-chain, sin wallet → centavos
+-- process_daily_prizes · #1 por modalidad → fila on-chain (con o sin wallet)
 -- ---------------------------------------------------------------------------
+-- Siempre encola un premio `on_chain` `pending` para el #1, tenga wallet o no.
+-- El pozo real (USDC + COPm) vive en el contrato y es el escrow del premio:
+--   · con wallet válida  → scripts/distribute-prizes.mjs lo paga (status sent).
+--   · sin wallet / inválida → el script lo marca `failed`; el pozo se RESERVA
+--     on-chain (reclaimUnwon no lo barre dentro de la ventana de reclamo) y se
+--     paga cuando el jugador asocie su wallet en la pestaña "Tú". Si no reclama
+--     en ROLLOVER_LOOKBACK días, expira y rueda al jackpot (nunca queda varado).
+-- Ya NO se acreditan centavos simbólicos: el premio es el pozo on-chain completo.
 
 create or replace function public.process_daily_prizes()
 returns void
@@ -113,8 +121,6 @@ as $$
 declare
   p_start           timestamptz;
   p_end             timestamptz;
-  prize_wei         bigint := 1000000000000000;  -- 0.001 CELO
-  prize_cents       integer := 1;                -- USD cents si no hay wallet (testnet)
   mode_rec          record;
   win_player_id     text;
   win_player_name   text;
@@ -168,60 +174,33 @@ begin
     from public.player_profiles pp
     where pp.player_id = win_player_id;
 
-    if win_wallet is not null and length(trim(win_wallet)) > 0 then
-      insert into public.prize_payouts (
-        period_start,
-        period_end,
-        mode_id,
-        player_id,
-        player_name,
-        score,
-        wallet_address,
-        payout_type,
-        status,
-        amount_wei
-      ) values (
-        p_start,
-        p_end,
-        mode_rec.mode_id,
-        win_player_id,
-        win_player_name,
-        win_score,
-        trim(win_wallet),
-        'on_chain',
-        'pending',
-        prize_wei
-      );
-    else
-      update public.player_profiles
-      set unclaimed_balance_cents = unclaimed_balance_cents + prize_cents,
-          updated_at = now()
-      where player_id = win_player_id;
-
-      insert into public.prize_payouts (
-        period_start,
-        period_end,
-        mode_id,
-        player_id,
-        player_name,
-        score,
-        wallet_address,
-        payout_type,
-        status,
-        unclaimed_cents_added
-      ) values (
-        p_start,
-        p_end,
-        mode_rec.mode_id,
-        win_player_id,
-        win_player_name,
-        win_score,
-        null,
-        'unclaimed_cents',
-        'completed',
-        prize_cents
-      );
-    end if;
+    -- Siempre on-chain: el pozo es el premio. Con wallet → se paga; sin wallet →
+    -- el script lo marca failed y se reserva hasta que el jugador la asocie.
+    insert into public.prize_payouts (
+      period_start,
+      period_end,
+      mode_id,
+      player_id,
+      player_name,
+      score,
+      wallet_address,
+      payout_type,
+      status
+    ) values (
+      p_start,
+      p_end,
+      mode_rec.mode_id,
+      win_player_id,
+      win_player_name,
+      win_score,
+      case
+        when win_wallet is not null and length(trim(win_wallet)) > 0
+        then trim(win_wallet)
+        else null
+      end,
+      'on_chain',
+      'pending'
+    );
   end loop;
 end;
 $$;
