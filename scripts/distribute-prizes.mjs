@@ -56,8 +56,14 @@ const ABI = [
   "function distribute(bytes32 periodId, bytes32 modeId, address token, address winner)",
   "function distributeTokens(bytes32 periodId, bytes32 modeId, address[] tokens, address winner)",
   "function poolOf(bytes32 periodId, bytes32 modeId, address token) view returns (uint256)",
+  "function distributed(bytes32 periodId, bytes32 modeId, address token) view returns (bool)",
   "function seedPool(bytes32 periodId, bytes32 modeId, address token, uint256 amount)",
 ];
+
+// Cuántos periodos YA terminados barre el jackpot acumulativo hacia atrás. Da
+// auto-sanación si una noche el job no corrió; reclamar un periodo ya reclamado
+// es un no-op idempotente (su pozo quedó marcado `distributed`).
+const ROLLOVER_LOOKBACK = 7;
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -157,32 +163,88 @@ async function distributePending(supabase, contract) {
 }
 
 /**
+ * Jackpot acumulativo. Recorre los últimos ROLLOVER_LOOKBACK periodos YA
+ * terminados; por cada (modalidad, moneda) cuyo pozo quedó SIN distribuir —
+ * nadie ganó: o no jugó nadie, o el #1 no llegó a pagarse— lo reclama a la
+ * wallet de la casa con `distribute(winner = casa)`. Eso VACÍA el pozo y lo
+ * marca `distributed` on-chain, así una segunda corrida (o el run manual) no lo
+ * reclama dos veces ni drena pozos activos. Devuelve cuánto se reclamó por
+ * (modalidad, dirección de token) para sumarlo ENCIMA del piso del periodo
+ * activo en la siembra.
+ *
+ * Se usa `distribute` y no `ownerWithdraw` a propósito: `ownerWithdraw` retira
+ * del saldo global sin tocar el pozo (no es idempotente y una segunda corrida
+ * volvería a retirar). `distribute` reclama el monto exacto y se auto-marca.
+ *
+ * Asume que `distributePending` corrió antes en esta misma ejecución, así que
+ * los pozos CON ganador ya están repartidos (distributed = true) y se saltan.
+ */
+async function reclaimUnwon(contract, wallet, activePeriodStart) {
+  const bonus = {}; // bonus[modeId][tokenAddress] = bigint reclamado
+  for (let back = 1; back <= ROLLOVER_LOOKBACK; back++) {
+    const start = new Date(activePeriodStart.getTime() - back * 86_400_000);
+    const periodId = periodIdFromStart(start.toISOString());
+    for (const t of TOKENS) {
+      for (const mode of SEED_MODES) {
+        try {
+          if (await contract.distributed(periodId, id(mode), t.address)) continue;
+          const pool = await contract.poolOf(periodId, id(mode), t.address);
+          if (pool === 0n) continue;
+          const tx = await contract.distribute(
+            periodId,
+            id(mode),
+            t.address,
+            wallet.address,
+          );
+          await tx.wait();
+          if (!bonus[mode]) bonus[mode] = {};
+          bonus[mode][t.address] = (bonus[mode][t.address] ?? 0n) + pool;
+          console.log(
+            `Rollover ${t.symbol} ${mode} (−${back}d): reclamado ${pool} sin ganador → pozo activo.`,
+          );
+        } catch (err) {
+          console.error(`✗ rollover ${t.symbol} ${mode} (−${back}d):`, err.message ?? err);
+        }
+      }
+    }
+  }
+  return bonus;
+}
+
+/**
  * Garantiza el piso de premio por moneda en UN periodo. Idempotente: solo aporta
- * lo que falte para llegar al piso, así una segunda corrida no duplica.
+ * lo que falte para llegar al piso (o al piso + rollover acumulado), así una
+ * segunda corrida no duplica.
  *
  * Cada moneda se siembra de forma AISLADA (su propio try/catch): si COPm falla
  * —incluido su `approve`— USDC y el periodo siguiente se siembran igual. Antes un
  * fallo de una moneda tumbaba toda la corrida y dejaba pozos (y el periodo
  * siguiente) en cero.
  */
-async function seedPeriod(contract, wallet, periodStart, label) {
+async function seedPeriod(contract, wallet, periodStart, label, bonus = {}) {
   const periodId = periodIdFromStart(periodStart.toISOString());
   for (const t of TOKENS) {
     try {
-      await seedToken(contract, wallet, periodId, t, label);
+      await seedToken(contract, wallet, periodId, t, label, bonus);
     } catch (err) {
       console.error(`✗ Siembra ${t.symbol} (${label}) abortada:`, err.message ?? err);
     }
   }
 }
 
-/** Siembra UNA moneda hasta su piso en todas las modalidades de un periodo. */
-async function seedToken(contract, wallet, periodId, t, label) {
-  const target = BigInt(t.floor) * 10n ** BigInt(t.decimals);
+/**
+ * Siembra UNA moneda hasta su piso (+ rollover acumulado por modalidad) en todas
+ * las modalidades de un periodo. `bonus[modeId][tokenAddress]` eleva el objetivo
+ * de esa modalidad por encima del piso (jackpot acumulativo).
+ */
+async function seedToken(contract, wallet, periodId, t, label, bonus = {}) {
+  const floor = BigInt(t.floor) * 10n ** BigInt(t.decimals);
   const token = new Contract(t.address, ERC20_ABI, wallet);
 
   const seeds = [];
   for (const mode of SEED_MODES) {
+    const extra = bonus[mode]?.[t.address] ?? 0n; // rollover sin ganador acumulado
+    const target = floor + extra;
     const pool = await contract.poolOf(periodId, id(mode), t.address);
     if (pool < target) seeds.push({ mode, amount: target - pool });
   }
@@ -227,13 +289,18 @@ async function seedToken(contract, wallet, periodId, t, label) {
  * piso — y nunca quede vacío. Es idempotente y no duplica: la frontera es fija (UTC−5,
  * sin horario de verano) así que el siguiente periodo empieza exactamente 24 h después.
  */
-async function seedCurrentAndNext(contract, wallet) {
+async function seedCurrentAndNext(contract, wallet, bonus = {}) {
   const current = currentPeriodStart();
   const next = new Date(current.getTime() + 86_400_000);
+  // El rollover sin ganador se suma SOLO al periodo activo (current), que es el
+  // que la gente está jugando; el siguiente arranca con el piso normal.
   // Aislados: si el periodo actual falla, el siguiente se siembra igual.
-  for (const [start, label] of [[current, "actual"], [next, "siguiente"]]) {
+  for (const [start, label, b] of [
+    [current, "actual", bonus],
+    [next, "siguiente", {}],
+  ]) {
     try {
-      await seedPeriod(contract, wallet, start, label);
+      await seedPeriod(contract, wallet, start, label, b);
     } catch (err) {
       console.error(`✗ Siembra del periodo ${label} abortada:`, err.message ?? err);
     }
@@ -266,7 +333,18 @@ async function main() {
   } catch (err) {
     console.error("Reparto abortado (se sigue con la siembra):", err.message ?? err);
   }
-  await seedCurrentAndNext(contract, wallet);
+
+  // Jackpot acumulativo: reclama los pozos sin ganador de periodos ya terminados
+  // (a la wallet de la casa) para sumarlos encima del piso del periodo activo,
+  // así no queda dinero varado y el premio se acumula. No debe bloquear la siembra.
+  let bonus = {};
+  try {
+    bonus = await reclaimUnwon(contract, wallet, currentPeriodStart());
+  } catch (err) {
+    console.error("Rollover abortado (se sigue con la siembra):", err.message ?? err);
+  }
+
+  await seedCurrentAndNext(contract, wallet, bonus);
 }
 
 main().catch((e) => {
