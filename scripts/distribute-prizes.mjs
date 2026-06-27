@@ -159,49 +159,62 @@ async function distributePending(supabase, contract) {
 /**
  * Garantiza el piso de premio por moneda en UN periodo. Idempotente: solo aporta
  * lo que falte para llegar al piso, así una segunda corrida no duplica.
+ *
+ * Cada moneda se siembra de forma AISLADA (su propio try/catch): si COPm falla
+ * —incluido su `approve`— USDC y el periodo siguiente se siembran igual. Antes un
+ * fallo de una moneda tumbaba toda la corrida y dejaba pozos (y el periodo
+ * siguiente) en cero.
  */
 async function seedPeriod(contract, wallet, periodStart, label) {
   const periodId = periodIdFromStart(periodStart.toISOString());
-
   for (const t of TOKENS) {
-    const target = BigInt(t.floor) * 10n ** BigInt(t.decimals);
-    const token = new Contract(t.address, ERC20_ABI, wallet);
-
-    const seeds = [];
-    for (const mode of SEED_MODES) {
-      const pool = await contract.poolOf(periodId, id(mode), t.address);
-      if (pool < target) seeds.push({ mode, amount: target - pool });
+    try {
+      await seedToken(contract, wallet, periodId, t, label);
+    } catch (err) {
+      console.error(`✗ Siembra ${t.symbol} (${label}) abortada:`, err.message ?? err);
     }
+  }
+}
 
-    if (!seeds.length) {
-      console.log(`Siembra ${t.symbol} (${label}): pozos ya en el piso de ${t.floor}.`);
-      continue;
-    }
+/** Siembra UNA moneda hasta su piso en todas las modalidades de un periodo. */
+async function seedToken(contract, wallet, periodId, t, label) {
+  const target = BigInt(t.floor) * 10n ** BigInt(t.decimals);
+  const token = new Contract(t.address, ERC20_ABI, wallet);
 
-    const total = seeds.reduce((acc, s) => acc + s.amount, 0n);
-    const balance = await token.balanceOf(wallet.address);
-    if (balance < total) {
-      console.warn(
-        `Siembra ${t.symbol} (${label}) OMITIDA: saldo insuficiente (tiene ${balance}, necesita ${total}).`,
-      );
-      continue;
-    }
+  const seeds = [];
+  for (const mode of SEED_MODES) {
+    const pool = await contract.poolOf(periodId, id(mode), t.address);
+    if (pool < target) seeds.push({ mode, amount: target - pool });
+  }
 
-    const allowance = await token.allowance(wallet.address, contract.target);
-    if (allowance < total) {
-      const tx = await token.approve(contract.target, total);
-      await tx.wait();
-    }
+  if (!seeds.length) {
+    console.log(`Siembra ${t.symbol} (${label}): pozos ya en el piso de ${t.floor}.`);
+    return;
+  }
 
-    console.log(`Siembra ${t.symbol} (${label}): completando ${seeds.length} pozo(s) al piso…`);
-    for (const s of seeds) {
-      try {
-        const tx = await contract.seedPool(periodId, id(s.mode), t.address, s.amount);
-        const receipt = await tx.wait();
-        console.log(`  ✓ ${t.symbol} ${s.mode} +${s.amount} tx ${receipt.hash}`);
-      } catch (err) {
-        console.error(`  ✗ siembra ${t.symbol} ${s.mode}:`, err.message ?? err);
-      }
+  const total = seeds.reduce((acc, s) => acc + s.amount, 0n);
+  const balance = await token.balanceOf(wallet.address);
+  if (balance < total) {
+    console.warn(
+      `Siembra ${t.symbol} (${label}) OMITIDA: saldo insuficiente (tiene ${balance}, necesita ${total}).`,
+    );
+    return;
+  }
+
+  const allowance = await token.allowance(wallet.address, contract.target);
+  if (allowance < total) {
+    const tx = await token.approve(contract.target, total);
+    await tx.wait();
+  }
+
+  console.log(`Siembra ${t.symbol} (${label}): completando ${seeds.length} pozo(s) al piso…`);
+  for (const s of seeds) {
+    try {
+      const tx = await contract.seedPool(periodId, id(s.mode), t.address, s.amount);
+      const receipt = await tx.wait();
+      console.log(`  ✓ ${t.symbol} ${s.mode} +${s.amount} tx ${receipt.hash}`);
+    } catch (err) {
+      console.error(`  ✗ siembra ${t.symbol} ${s.mode}:`, err.message ?? err);
     }
   }
 }
@@ -217,8 +230,14 @@ async function seedPeriod(contract, wallet, periodStart, label) {
 async function seedCurrentAndNext(contract, wallet) {
   const current = currentPeriodStart();
   const next = new Date(current.getTime() + 86_400_000);
-  await seedPeriod(contract, wallet, current, "actual");
-  await seedPeriod(contract, wallet, next, "siguiente");
+  // Aislados: si el periodo actual falla, el siguiente se siembra igual.
+  for (const [start, label] of [[current, "actual"], [next, "siguiente"]]) {
+    try {
+      await seedPeriod(contract, wallet, start, label);
+    } catch (err) {
+      console.error(`✗ Siembra del periodo ${label} abortada:`, err.message ?? err);
+    }
+  }
 }
 
 async function main() {
@@ -240,7 +259,13 @@ async function main() {
   const wallet = new Wallet(privateKey, provider);
   const contract = new Contract(contractAddress, ABI, wallet);
 
-  await distributePending(supabase, contract);
+  // El reparto NUNCA debe bloquear la siembra: si Supabase o un pago fallan, el
+  // pozo del periodo siguiente tiene que quedar sembrado igual.
+  try {
+    await distributePending(supabase, contract);
+  } catch (err) {
+    console.error("Reparto abortado (se sigue con la siembra):", err.message ?? err);
+  }
   await seedCurrentAndNext(contract, wallet);
 }
 
