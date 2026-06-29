@@ -2,108 +2,146 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Sync note:** keep this file matching reality. It was badly stale once (it described a
+> typing-only game with "Celo/wallet/Supabase intentionally cut" — the OPPOSITE of the truth).
+> If the architecture changes, update this file in the same commit.
+
 ## What This Is
 
-TypeRush is a casual **mobile typing game** built with Next.js, styled after games like
-Nerdos.fun / Freaking Grammar. From a home **lobby** the player picks a mode and a challenge,
-then types a passage against a 45-second timer. The app measures **WPM, accuracy, active errors,
-corrections and score**, shows a runner advancing along a track as you type, and saves a **best
-score per challenge locally**.
+**TypeRush Mini** is a casual **mobile typing game with real stablecoin prizes**, living inside
+**MiniPay** (Opera's wallet) on **Celo Sepolia (testnet)**. Styled after daily-reward games like
+Nerdos.fun. From a home **lobby** the player picks a mode (`es` / `en`) and a challenge, then types a
+passage against a 45-second timer. The app measures **WPM, accuracy, errors, corrections and score**.
 
-> Scope note: earlier iterations included Celo/MiniPay wallet, stablecoin entry fees, prize pools
-> and leaderboards. That was intentionally **cut**; the Celo work lives in git history and `legacy/`,
-> and the celopedia-skill under `.agents/` remains for future phases. The app is being grown back
-> toward a richer game (lobby, modes, challenges, rankings) **by small single-purpose commits**.
-> Supabase, login/auth, wallet/MiniPay, real payments, Farcaster, real Historial and a real profile
-> (Tú) are **deferred** — do not add them until explicitly asked. Historial and Tú are placeholders.
+There are two ways to play a challenge:
+- **Gratis:** one free ranked attempt per mode per day.
+- **Pagado:** once the free attempt is used, pay the entry — **0.10 USDC** *or* **500 COPm** (the player
+  chooses the currency) — which splits 50/50 (half to the dev wallet, half into a growing **prize pool**).
+- The **#1 by score** at the daily close (8 p.m. Colombia) wins the **whole pool of each currency**.
+
+This is **live and working end-to-end inside MiniPay on Celo Sepolia**: real payments, growing pools,
+daily payout to the winner, all on-chain. The leap to **mainnet** is the main pending work (see below).
 
 ## Running Locally
 
 ```powershell
 npm install   # first time only
-npm run dev
+npm run dev    # http://localhost:3000
 ```
 
-Open `http://localhost:3000/`. Build / type-check: `npm run build`. Lint: `npm run lint`.
-Run `npm run lint` then `npm run build` before every commit; commit only when both pass.
+Build / type-check: `npm run build`. Lint: `npm run lint`.
+**Run `npm run lint` then `npm run build` before every commit; commit only when both pass.**
+Commit messages in English, explained to the user in Spanish; always add the Claude co-author trailer.
+
+Test inside MiniPay: needs HTTPS + a real device (`npx ngrok http 3000`), MiniPay Developer Mode +
+Use Testnet → Load Test Page with the HTTPS URL. MiniPay testnet = Celo Sepolia (chainId 11142220).
 
 ## Stack
 
-- **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4**
+- **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4** (dark theme)
 - Fonts: **Space Grotesk** (UI) + **JetBrains Mono** (typing text), via `next/font`.
-- Single brand color (Celo green `#00d18f`) over dark neutrals. The strong green is reserved for the
-  primary button and the active state; red signals an active error, amber a corrected one.
+- Wallet via **ethers v6** + the injected `window.ethereum` (MiniPay). No SDK; no message signing.
+- **Supabase** (publishable key in the client; service-role only in scripts/CI) for profiles, ranking
+  and prize bookkeeping.
+- Single brand color (Celo green `#00d18f`) over dark neutrals.
 
 ## Architecture
 
 ```
 app/
-  layout.tsx   — fonts + metadata + viewport (mobile, maximumScale 1)
-  page.tsx     — "use client"; navigation shell: home/lobby tabs + race/result by game status
-  globals.css  — Tailwind import + @theme tokens + per-char highlight classes
+  layout.tsx   — fonts + metadata + viewport (mobile)
+  page.tsx     — "use client"; navigation shell + game status (idle → countdown → racing → finished)
+  globals.css  — Tailwind + @theme tokens + per-char highlight classes
 components/
-  ModeHome       — title + the three modes (es/en/code) as big cards
-  ChallengeLobby — back button + list of ChallengeCard for the chosen mode
-  ChallengeCard  — title, description, local ranking, my best score, "▶ Jugar gratis"
-  BottomNav      — Inicio / Historial / Tú tabs (text only; last two are placeholders)
-  RaceScreen     — timer bar, Track, TypeField, live WPM/accuracy/errors/corrections
-  ResultScreen   — hero WPM + accuracy/errors/corrections/score + best, replay + "Volver"
-  TypeField      — mono passage with per-char highlight + transparent overlay <textarea>
-  Track          — runner SVG that advances with passage progress
-  StatBlock      — small reusable stat tile
+  ModeHome · ChallengeLobby · ChallengeCard  — lobby: modes (es/en), challenges, pools, pay buttons
+  CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
+  ResultScreen · RankingScreen · HistoryScreen · ProfileScreen — results, rankings, Historial, Tú
+  PaymentOverlay · AliasModal · BottomNav
 hooks/
-  useTypeRush.ts — game state machine: idle → racing → finished
+  useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
+  usePlayEligibility.ts — free-attempt / pay gating per mode
 lib/
   game.ts        — pure logic: computeStats + per-challenge localStorage best score
-  passages.ts    — modes (es/en/code), challenges, ranking data, buildPassage
-legacy/          — original static prototype (reference)
-.agents/         — celopedia-skill (Celo/MiniPay knowledge, for future phases)
+  passages.ts    — modes (es/en) + challenges + clauses + buildPassage
+  payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
+  prizePool.ts    — read pool/period helpers (periodId from period start)
+  gamePeriod.ts   — daily window (8 p.m. Bogota, PERIOD_RESET_HOUR=20, UTC−5 fixed)
+  leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
+  player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
+scripts/
+  distribute-prizes.mjs — nightly: pay winners, rolling jackpot, seed the floor (see below)
+contracts/      — Foundry: TypeRushPayToPlayMulti.sol (live) + legacy contracts + README
+supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
+  functions/distribute-prizes — Edge Function: instant on-chain payout at period close (pg_net-fired)
+legacy/         — original static prototype (reference)
+.agents/        — celopedia-skill (Celo/MiniPay knowledge)
 ```
-
-### Navigation & state machine
-
-`app/page.tsx` holds the UI navigation: a `tab` (`home | history | you`) and a `selectedMode`.
-When `status === "idle"` it renders the shell — `ModeHome` (no mode picked) or `ChallengeLobby`
-(mode picked) plus the `BottomNav`; "Inicio" always returns to the modes.
-
-`hooks/useTypeRush.ts` owns the game `status`: `idle | racing | finished`. `start(challengeId?)`
-builds a fresh passage for that challenge and begins (replay reuses the last challenge); a 200ms
-interval updates the clock and calls `finish()` at 45s; typing the whole passage finishes early;
-`reset()` returns to the lobby. Refs (`statusRef`, `typedRef`, `challengeRef`, …) are synced in an
-effect so `finish()` reads fresh values from inside the interval.
-
-### Passages (`lib/passages.ts`)
-
-Texts are grouped by **mode** (`es | en | code`) and, within each mode, by **challenge**
-(e.g. `motivacionEs`, `noticiasEs`, `cryptoEs`, `motivationEn`, `dailyEn`, `javascript`, `python`).
-Each challenge has a title, description, a local **ranking** (temporary sample data, no backend) and
-its own `clauses`. Spanish/English clauses use full, correct orthography (tildes, ñ, punctuation).
-`buildPassage(challengeId)` shuffles that challenge's clauses and joins them past ~280 chars to fill
-the 45s. The default is `motivacionEs`.
 
 ### Scoring (`lib/game.ts`)
 
 ```ts
-mistakePenalty = Math.max(0.7, 1 - mistakeCount * 0.03)        // soft penalty, up to -30%
-score = Math.round(wpm * accuracy * progress * mistakePenalty * 100)  // wpm = (correctChars/5)/min
-errors   = typed.length - correctChars   // active red mismatches (current)
-mistakes = mistakeCount                  // every position mistyped ever, incl. corrected (amber)
+mistakePenalty = Math.max(0.7, 1 - mistakeCount * 0.03)              // soft, up to −30%
+score = Math.round(wpm * accuracy * progress * mistakePenalty * 100) // wpm = (correctChars/5)/min
 ```
+Best score is stored **per challenge** in `localStorage` (`typerush.best.v3.<challengeId>`). Finished
+ranked races are also saved to Supabase `match_results` for the daily leaderboard.
 
-Best score is stored **per challenge** in `localStorage` under `typerush.best.v3.<challengeId>`
-(`loadBestScore`, `loadAllBestScores`, `saveBestScore`). `useTypeRush` loads all bests on mount into
-`bestByChallenge` and updates the entry for the current challenge on a new record.
+### Daily period & the on-chain prize (the money flow)
 
-### Typing input pattern (`components/TypeField.tsx`)
+- The game "day" runs **8 p.m. → 8 p.m. Colombia** (`lib/gamePeriod.ts`, `PERIOD_RESET_HOUR=20`; must
+  match `supabase/daily_reset.sql` and the script). `periodId` = the unix start, hex-padded.
+- **Contract:** `TypeRushPayToPlayMulti` @ `0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1` (Celo Sepolia,
+  verified). `payToPlay(periodId, modeId, token)` splits the entry 50/50 (dev half out instantly, pool
+  half accumulates in `pool[periodId][modeId][token]`). Owner = distributor = devWallet = `0x46d5…`
+  (on testnet they're the SAME wallet — mainnet must separate them).
+- **`supabase/daily_prizes.sql` → `process_daily_prizes()`** (Supabase pg_cron at 01:00 UTC): finds the
+  #1 per mode in the closed period and inserts a `prize_payouts` row (`payout_type='on_chain'`,
+  `status='pending'`), with the winner's `wallet_address` or null.
+- **`scripts/distribute-prizes.mjs`** (GitHub Action `Distribute prizes`, nightly): (1) re-queues owed
+  prizes whose winner has since added a wallet; (2) pays `pending` rows the full pool via
+  `distributeTokens(...)`; (3) **rolling jackpot** — sweeps un-won pools of past periods into the active
+  jackpot; (4) seeds the floor (1 USDC + 5000 COPm) for the current + next period so the pool is never
+  empty.
 
-The passage is rendered as mono `<span>`s. Each char is classed by `typed` vs `mistakeIndices`:
-active mismatch → red (`ch-wrong`); correct but mistyped earlier → amber (`ch-fixed`); a deleted
-position that once had an error → amber; current position → caret. `mistakeIndices` (a `Set` in the
-hook) records every mistyped position and is **never cleared on correction/backspace**. A transparent
-`<textarea>` overlays the text to capture keystrokes (text + caret transparent); paste is blocked.
+### Unpaid-winner claim (added 2026-06-27)
 
-## Current Limitations (by design)
+If the #1 has no/invalid wallet, the script marks the payout `failed` and the **pool stays reserved
+on-chain** (the rolling jackpot skips it). When the player associates a wallet in the **Tú** tab, the
+next nightly run pays them. After a **7-day window** (`ROLLOVER_LOOKBACK`) an unclaimed prize expires
+into the jackpot, so money is never stuck. (Replaced the old symbolic-1-cent `unclaimed_cents` path.)
 
-- Local only: best scores per challenge in `localStorage`, rankings are temporary sample data.
-- No accounts, backend, wallet, payments, tournaments or live leaderboards.
-- Historial and Tú tabs are placeholders ("Próximamente").
+### Supabase
+
+Schema lives in `supabase/*.sql` and is applied **by hand** in the Supabase SQL editor (re-runnable).
+Tables: `game_modes`, `player_profiles`, `player_game_modes` (free attempt per mode), `match_results`
+(leaderboard), `prize_payouts`. Client uses the publishable key; the **service-role key is only in
+`.env.local` and the GitHub Action secrets — never in the client / Vercel**. After editing a `*.sql`
+function, you must re-run it in the SQL editor for it to take effect.
+
+## What's Left / Pending
+
+- [~] **Instant 8 p.m. payout** — *code done, pending deploy.* The Supabase **Edge Function
+      `distribute-prizes`** (`supabase/functions/distribute-prizes/index.ts`) signs `distributeTokens`
+      for every `pending` row and is fired by the SAME pg_cron (01:00 UTC), via **pg_net**, right after
+      `process_daily_prizes()` — so the winner is paid seconds after close instead of ~5h late. The
+      GitHub Action stays for the non-urgent rollover + seeding (and re-queuing owed winners). **To go
+      live:** (1) enable the `pg_net` extension; (2) deploy the function in the dashboard with `Verify
+      JWT` OFF; (3) set its secrets `PRIVATE_KEY`, `PRIZE_POOL_ADDRESS`, `CRON_SECRET` (+ optional
+      `CELO_RPC`); (4) fill `edge_url` + `cron_secret` at the top of `supabase/daily_reset.sql` and
+      re-run it. The Edge Function authorizes callers by the `x-cron-secret` header.
+- [ ] **Fase 4 — Mainnet** — redeploy + reconfigure (the contract is network-agnostic): **separate
+      owner (multisig) from distributor (non-owner)**, mainnet token addrs (cUSD/USDC+adapter/COPm),
+      verify on chainId 42220, fund the seeder, rewire Vercel env + `lib/*` + the `PRIZE_POOL_ADDRESS`
+      secret + the script RPC, e2e test in MiniPay mainnet. Full checklist in `README.md` / `contracts/README.md`.
+- [ ] **Fase 5 — Anti-cheat** — ⚠️ `match_results` has a **public INSERT RLS policy**, so any client can
+      post a fake score and win real money. Must be closed before mainnet (server-side validation /
+      signed runs / Edge Function) + a persistent per-season leaderboard.
+
+## Wallets / addresses (Celo Sepolia testnet)
+
+- Operator `0x46d5F9fE98461928DbAd7a22B95BADE5Fa178C18` = owner + distributor + devWallet + seeder. Its
+  private key is in `.env.local` and the GitHub secret. `0xC990…` is retired.
+- USDC `0x01C5C0122039549AD1493B8220cABEdD739BC44E` (6 dec) · COPm `0x5F8d55c3627d2dc0a2B4afa798f877242F382F67` (18 dec).
+- Live URL: `https://type-rush-orpin.vercel.app` (Vercel auto-deploys on push to `main`; `NEXT_PUBLIC_*`
+  is baked at build → after changing a Vercel env you MUST redeploy).
+- Genuinely deferred (don't add until asked): login/auth, Farcaster, real Historial (placeholder).
