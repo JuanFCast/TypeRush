@@ -120,15 +120,16 @@ function, you must re-run it in the SQL editor for it to take effect.
 
 ## What's Left / Pending
 
-- [~] **Instant 8 p.m. payout** — *code done, pending deploy.* The Supabase **Edge Function
-      `distribute-prizes`** (`supabase/functions/distribute-prizes/index.ts`) signs `distributeTokens`
-      for every `pending` row and is fired by the SAME pg_cron (01:00 UTC), via **pg_net**, right after
-      `process_daily_prizes()` — so the winner is paid seconds after close instead of ~5h late. The
-      GitHub Action stays for the non-urgent rollover + seeding (and re-queuing owed winners). **To go
-      live:** (1) enable the `pg_net` extension; (2) deploy the function in the dashboard with `Verify
-      JWT` OFF; (3) set its secrets `PRIVATE_KEY`, `PRIZE_POOL_ADDRESS`, `CRON_SECRET` (+ optional
-      `CELO_RPC`); (4) fill `edge_url` + `cron_secret` at the top of `supabase/daily_reset.sql` and
-      re-run it. The Edge Function authorizes callers by the `x-cron-secret` header.
+- [x] **Instant 8 p.m. payout** — *DONE + deployed + verified live (2026-06-29, commit `c228fd3`).*
+      The Supabase **Edge Function `distribute-prizes`** (`supabase/functions/distribute-prizes/index.ts`)
+      signs `distributeTokens` for every `pending` row and is fired by the SAME pg_cron (01:00 UTC), via
+      **pg_net**, right after `process_daily_prizes()` — so the winner is paid seconds after close instead
+      of ~5h late. The GitHub Action stays for the non-urgent rollover + seeding (and re-queuing owed
+      winners). Already deployed in this Supabase project (ref `ksavmwvpgczmxrbpsqst`): `pg_net` enabled,
+      function live with `Verify JWT` OFF + secrets (`PRIVATE_KEY`, `PRIZE_POOL_ADDRESS`, `CRON_SECRET`),
+      and `edge_url`/`cron_secret` filled in `supabase/daily_reset.sql` (the `cron.job` command ends with
+      the `net.http_post(...)`). Verified: 403 without the secret, 200 `{"processed":0}` with it. Auth is
+      the `x-cron-secret` header. ⚠️ If you ever redeploy to a new Supabase project, re-do those 4 steps.
 - [ ] **Fase 4 — Mainnet** — redeploy + reconfigure (the contract is network-agnostic): **separate
       owner (multisig) from distributor (non-owner)**, mainnet token addrs (cUSD/USDC+adapter/COPm),
       verify on chainId 42220, fund the seeder, rewire Vercel env + `lib/*` + the `PRIZE_POOL_ADDRESS`
