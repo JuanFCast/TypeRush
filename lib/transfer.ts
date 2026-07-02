@@ -10,7 +10,14 @@
 // tx por la wallet inyectada (window.ethereum) para que MiniPay maneje la comisión
 // y la tx legacy; las lecturas van por RPC público.
 
-import { Interface, JsonRpcProvider, isAddress, getAddress, parseUnits } from "ethers";
+import {
+  Contract,
+  Interface,
+  JsonRpcProvider,
+  isAddress,
+  getAddress,
+  parseUnits,
+} from "ethers";
 
 const CELO_SEPOLIA = {
   chainIdHex: "0xaa044c", // 11142220
@@ -46,7 +53,24 @@ export const TRANSFER_TOKENS: TransferToken[] = [
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
 ];
+
+/**
+ * Confirma los decimales del token leyéndolos on-chain (fuente de verdad), con
+ * respaldo en el valor conocido si el RPC falla. Evita parsear el monto con un
+ * número de decimales equivocado.
+ */
+async function resolveDecimals(token: TransferToken): Promise<number> {
+  try {
+    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+    const c = new Contract(token.address, ERC20_ABI, provider);
+    const d = (await c.decimals()) as bigint;
+    return Number(d);
+  } catch {
+    return token.decimals;
+  }
+}
 
 export function getTransferToken(id: TransferTokenId): TransferToken | undefined {
   return TRANSFER_TOKENS.find((t) => t.id === id);
@@ -119,23 +143,25 @@ export async function sendTokenTransfer(
   }
   const dest = getAddress(trimmedTo);
 
-  // 2. Monto > 0 y parseable a las unidades del token.
-  let value: bigint;
-  try {
-    value = parseUnits(amount.trim(), token.decimals);
-  } catch {
-    return { ok: false, error: "El monto no es válido." };
-  }
-  if (value <= 0n) {
-    return { ok: false, error: "El monto debe ser mayor a 0." };
-  }
-
   const eth = getEthereum();
   if (!eth) {
     return { ok: false, error: "Abre la app en MiniPay para enviar fondos." };
   }
 
   try {
+    // 2. Monto > 0 y parseable a las unidades del token, con los decimales
+    // CONFIRMADOS on-chain (no un valor hardcodeado que pueda estar mal).
+    const decimals = await resolveDecimals(token);
+    let value: bigint;
+    try {
+      value = parseUnits(amount.trim(), decimals);
+    } catch {
+      return { ok: false, error: "El monto no es válido." };
+    }
+    if (value <= 0n) {
+      return { ok: false, error: "El monto debe ser mayor a 0." };
+    }
+
     // 3. Cuenta conectada (MiniPay: sin popup; fuera de MiniPay pide permiso).
     const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
     const accounts = (await eth.request({ method })) as string[];
@@ -166,14 +192,18 @@ export async function sendTokenTransfer(
       // Lectura fallida → no bloqueamos; la red rechazará si de verdad falta.
     }
 
-    // 6. transfer(to, amount) por la wallet inyectada.
+    // 6. ERC20 transfer(to, amount) por la wallet inyectada.
+    //    IMPORTANTE (evita el bug del "monto como native value"):
+    //    - `to` = contrato del TOKEN (no la wallet destino).
+    //    - la dirección destino y el monto viajan SOLO dentro de `data`.
+    //    - `value` = 0x0: nunca se manda valor nativo (CELO).
     const data = new Interface(ERC20_ABI).encodeFunctionData("transfer", [
       dest,
       value,
     ]);
     const txHash = (await eth.request({
       method: "eth_sendTransaction",
-      params: [{ from, to: token.address, data }],
+      params: [{ from, to: token.address, value: "0x0", data }],
     })) as string;
 
     // 7. Espera confirmación por RPC público.

@@ -11,7 +11,8 @@ import {
   TRANSFER_TOKENS,
   TransferTokenId,
 } from "@/lib/transfer";
-import { isAddress } from "ethers";
+import { shortWalletAddress } from "@/lib/wallet";
+import { getAddress, isAddress } from "ethers";
 
 type Status =
   | { kind: "idle" }
@@ -24,15 +25,24 @@ export default function DevTransferTool() {
   const [tokenId, setTokenId] = useState<TransferTokenId>("copm");
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  const symbol = TRANSFER_TOKENS.find((t) => t.id === tokenId)?.symbol ?? "";
   const addressValid = isAddress(to.trim());
   const amountValid = Number(amount.trim()) > 0;
-  const canSend =
+  const canReview =
     addressValid && amountValid && status.kind !== "sending";
 
-  const onSend = async () => {
-    if (!canSend) return;
+  // Muestra el resumen "Enviar X a 0x…" antes de firmar.
+  const onReview = () => {
+    if (!canReview) return;
+    setConfirming(true);
+  };
+
+  // Confirmado por el usuario → firma en MiniPay.
+  const onConfirm = async () => {
+    setConfirming(false);
     setStatus({ kind: "sending" });
     const res = await sendTokenTransfer(tokenId, to, amount);
     if (res.ok) {
@@ -43,6 +53,7 @@ export default function DevTransferTool() {
   };
 
   const resetStatus = () => {
+    setConfirming(false);
     if (status.kind !== "idle") setStatus({ kind: "idle" });
   };
 
@@ -124,7 +135,7 @@ export default function DevTransferTool() {
             htmlFor="devAmount"
             className="mt-3 block text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
           >
-            Monto ({TRANSFER_TOKENS.find((t) => t.id === tokenId)?.symbol})
+            Monto ({symbol})
           </label>
           <input
             id="devAmount"
@@ -146,14 +157,51 @@ export default function DevTransferTool() {
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={() => void onSend()}
-            disabled={!canSend}
-            className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
-          >
-            {status.kind === "sending" ? "Enviando…" : "Enviar"}
-          </button>
+          {/* Resumen de confirmación: monto legible + destino, ANTES de firmar.
+              En MiniPay el token mock COPm puede verse en unidades base; este
+              resumen muestra el monto real que vas a enviar. */}
+          {confirming ? (
+            <div className="mt-4 rounded-xl border border-warn/40 bg-warn/5 px-3 py-3">
+              <p className="text-sm text-ink">
+                Enviar{" "}
+                <span className="font-mono font-bold text-brand">
+                  {amount.trim()} {symbol}
+                </span>{" "}
+                a{" "}
+                <span className="font-mono text-ink">
+                  {addressValid ? shortWalletAddress(getAddress(to.trim())) : to.trim()}
+                </span>
+              </p>
+              <p className="mt-1 break-all font-mono text-[0.65rem] text-muted">
+                {addressValid ? getAddress(to.trim()) : to.trim()}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="h-11 rounded-xl border border-line bg-bg text-sm font-semibold text-muted transition active:scale-[0.98]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onConfirm()}
+                  className="h-11 rounded-xl bg-brand text-sm font-bold text-bg shadow-sm transition active:scale-[0.98]"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onReview}
+              disabled={!canReview}
+              className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+            >
+              {status.kind === "sending" ? "Enviando…" : "Enviar"}
+            </button>
+          )}
 
           {/* Estado */}
           {status.kind === "sent" && (
