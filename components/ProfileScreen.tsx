@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import DevTransferTool from "@/components/DevTransferTool";
 import { fetchWalletBalances, TokenBalance } from "@/lib/balances";
 import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
 import {
@@ -344,6 +345,8 @@ export default function ProfileScreen() {
           {playerId ? `id ${playerId.slice(0, 8)}` : "—"}
         </span>
       </div>
+
+      <DevTransferTool />
     </div>
   );
 }
