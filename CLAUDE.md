@@ -65,6 +65,7 @@ lib/
   passages.ts    — modes (es/en) + challenges + clauses + buildPassage
   payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
   prizePool.ts    — read pool/period helpers (periodId from period start)
+  runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
   gamePeriod.ts   — daily window (8 p.m. Bogota, PERIOD_RESET_HOUR=20, UTC−5 fixed)
   leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
@@ -72,7 +73,9 @@ scripts/
   distribute-prizes.mjs — nightly: pay winners, rolling jackpot, seed the floor (see below)
 contracts/      — Foundry: TypeRushPayToPlayMulti.sol (live) + legacy contracts + README
 supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
+  anti_cheat.sql — `runs` table (server-issued passages) + drops the public INSERT on match_results
   functions/distribute-prizes — Edge Function: instant on-chain payout at period close (pg_net-fired)
+  functions/start-run · functions/submit-run — anti-cheat: issue passage / recompute score server-side
 legacy/         — original static prototype (reference)
 .agents/        — celopedia-skill (Celo/MiniPay knowledge)
 ```
@@ -134,9 +137,20 @@ function, you must re-run it in the SQL editor for it to take effect.
       owner (multisig) from distributor (non-owner)**, mainnet token addrs (cUSD/USDC+adapter/COPm),
       verify on chainId 42220, fund the seeder, rewire Vercel env + `lib/*` + the `PRIZE_POOL_ADDRESS`
       secret + the script RPC, e2e test in MiniPay mainnet. Full checklist in `README.md` / `contracts/README.md`.
-- [ ] **Fase 5 — Anti-cheat** — ⚠️ `match_results` has a **public INSERT RLS policy**, so any client can
-      post a fake score and win real money. Must be closed before mainnet (server-side validation /
-      signed runs / Edge Function) + a persistent per-season leaderboard.
+- [~] **Fase 5a — Anti-cheat (server-authoritative scoring)** — *CODE DONE (2026-07-01); manual deploy
+      pending.* Closes the critical hole: `match_results` no longer has a public INSERT. Ranked scores
+      are now server-recomputed. Flow: **`start-run`** Edge Function issues the canonical passage +
+      opens a `runs` row → client races it → **`submit-run`** recomputes the score against the STORED
+      passage (with plausibility clamps: WPM ceiling, `typed.length ≤ passage.length`, elapsed ≤ 45s,
+      run expires in 2 min, single-use anti-replay) and inserts with the service role. Client wiring
+      mirrors the free-claim: `startRun` fires in parallel during the 3·2·1 and is awaited in
+      `beginRace` (`lib/runs.ts`, `hooks/useTypeRush.ts` `setServerRun`, `app/page.tsx`). ⚠️ **To deploy:**
+      (1) run `supabase/anti_cheat.sql` in the SQL editor; (2) create Edge Functions `start-run` +
+      `submit-run` (paste each `index.ts`), **Verify JWT OFF** (players are anonymous). No new secrets.
+      Offline / no-Supabase still plays locally (just not ranked). Residual → 5b.
+- [ ] **Fase 5b — Anti-cheat (entry binding + anti-bot)** — tie each `runs` row to a verified free/paid
+      entry (so a bot can't farm runs), plus a persistent per-season leaderboard. Residual after 5a: a
+      bot typing perfectly within the WPM ceiling can still post a high (but bounded) legit score.
 
 ## Wallets / addresses (Celo Sepolia testnet)
 

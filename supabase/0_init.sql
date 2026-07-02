@@ -296,23 +296,9 @@ begin
 end
 $$;
 
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'match_results'
-      and policyname = 'match_results_insert_public'
-  ) then
-    create policy "match_results_insert_public"
-      on public.match_results
-      for insert
-      with check (true);
-  end if;
-end
-$$;
-
+-- INSERT: sin policy pública a propósito (anti-cheat Fase 5a). El score se
+-- recalcula server-side e inserta SOLO el service role vía la Edge Function
+-- submit-run. Ver supabase/anti_cheat.sql (crea `runs` y cierra este hueco).
 -- Sin policies de UPDATE ni DELETE a propósito en match_results.
 
 -- ---------------------------------------------------------------------------

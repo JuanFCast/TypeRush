@@ -81,29 +81,6 @@ export async function loadModeRanking(
   }
 }
 
-export type MatchResult = {
-  player_id: string;
-  player_name: string;
-  mode_id: string;
-  challenge_id: string;
-  score: number;
-  wpm: number;
-  accuracy: number;
-  errors: number;
-  mistakes: number;
-  progress: number;
-  // Sin mode_name, challenge_name ni is_new_best: se derivan de mode_id /
-  // challenge_id o del best local.
-};
-
-/** Guarda una partida terminada. Nunca lanza: si falla, solo queda lo local. */
-export async function saveMatchResultToSupabase(
-  match: MatchResult,
-): Promise<void> {
-  if (!supabase) return;
-  try {
-    await supabase.from("match_results").insert(match);
-  } catch {
-    // Sin conexión o sin permisos: el juego sigue con datos locales.
-  }
-}
+// El guardado de partidas rankeadas ya NO se hace desde el cliente: el score se
+// recalcula server-side (anti-cheat Fase 5a). Ver lib/runs.ts + las Edge
+// Functions start-run / submit-run. Aquí solo se LEE el ranking.

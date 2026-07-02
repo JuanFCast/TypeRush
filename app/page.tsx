@@ -14,7 +14,8 @@ import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import PaymentOverlay from "@/components/PaymentOverlay";
-import { hasPlayerAlias } from "@/lib/player";
+import { getPlayerId, getPlayerName, hasPlayerAlias } from "@/lib/player";
+import { isStartRunOk, startRun, StartRunResult } from "@/lib/runs";
 import {
   AttemptClaim,
   claimFreeAttempt,
@@ -46,6 +47,7 @@ export default function Page() {
     liveStats,
     challenge,
     arm,
+    setServerRun,
     begin,
     reset,
     onInput,
@@ -87,11 +89,37 @@ export default function Page() {
   const freeClaimRef = useRef<{ p: Promise<AttemptClaim>; modeId: string } | null>(
     null,
   );
+  // Run rankeado emitido por el servidor, lanzado en paralelo al 3·2·1 (como el
+  // free-claim) para que su pasaje canónico esté listo antes del "¡YA!".
+  const runPromiseRef = useRef<Promise<StartRunResult> | null>(null);
 
   // Lanza (sin esperar) el consumo del tiro gratis para un reto.
   const startFreeClaim = (id: ChallengeId) => {
     const modeId = getChallenge(id)?.modeId ?? "es";
     freeClaimRef.current = { p: claimFreeAttempt(modeId), modeId };
+  };
+
+  // Lanza (sin esperar) la emisión del run rankeado server-side para un reto.
+  const startRunFor = (id: ChallengeId) => {
+    const modeId = getChallenge(id)?.modeId ?? "es";
+    runPromiseRef.current = startRun({
+      playerId: getPlayerId(),
+      playerName: getPlayerName(),
+      modeId,
+      challengeId: id,
+    });
+  };
+
+  // Espera el run del servidor (si lo hay), fija su pasaje canónico y arranca el
+  // reloj. Sin run (offline / start-run falló) juega con el pasaje local, sin ranking.
+  const applyRunAndBegin = async () => {
+    const pending = runPromiseRef.current;
+    runPromiseRef.current = null;
+    if (pending) {
+      const run = await pending;
+      if (isStartRunOk(run)) setServerRun(run.runId, run.passage);
+    }
+    begin();
   };
 
   // Al cambiar de modalidad, limpia cualquier estado/aviso de pago anterior.
@@ -145,6 +173,7 @@ export default function Page() {
       // conteo encima), para no perder el teclado durante el 3·2·1. El consumo del
       // tiro gratis se lanza YA (corre durante el conteo) para no pausar en el "¡YA!".
       startFreeClaim(id);
+      startRunFor(id);
       primeKeyboard();
       arm(id);
     } else {
@@ -179,6 +208,7 @@ export default function Page() {
     const id = readyChallenge;
     if (!id) return;
     setReadyChallenge(null);
+    startRunFor(id);
     primeKeyboard();
     arm(id);
   };
@@ -191,7 +221,7 @@ export default function Page() {
     if (paidEntryRef.current === id) {
       paidEntryRef.current = null;
       setAttemptError(null);
-      begin();
+      await applyRunAndBegin();
       void refreshPlayEligibility();
       return;
     }
@@ -203,11 +233,13 @@ export default function Page() {
     const claim = await (pending?.p ?? claimFreeAttempt(modeId));
     if (claim === "claimed") {
       setAttemptError(null);
-      begin();
+      await applyRunAndBegin();
       void refreshPlayEligibility();
       return;
     }
-    // No se inicia ranking: vuelve al lobby, cierra el teclado y avisa.
+    // No se inicia ranking: vuelve al lobby, cierra el teclado y avisa. El run
+    // emitido (si lo hubo) queda huérfano y caduca solo en el servidor.
+    runPromiseRef.current = null;
     reset();
     primerRef.current?.blur();
     if (claim === "error") setAttemptError(ATTEMPT_VALIDATION_ERROR);
@@ -219,6 +251,7 @@ export default function Page() {
   // devuelve para no penalizar la cancelación.
   const onCancelCountdown = () => {
     paidEntryRef.current = null;
+    runPromiseRef.current = null;
     const pending = freeClaimRef.current;
     freeClaimRef.current = null;
     if (pending) {
@@ -357,6 +390,7 @@ export default function Page() {
             void refreshPlayEligibility().then((allowed) => {
               if (allowed) {
                 startFreeClaim(id);
+                startRunFor(id);
                 arm(id);
               }
             });

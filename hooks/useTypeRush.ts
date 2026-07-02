@@ -8,7 +8,7 @@ import {
   saveBestScore,
   Stats,
 } from "@/lib/game";
-import { saveMatchResultToSupabase } from "@/lib/leaderboard";
+import { submitRun } from "@/lib/runs";
 import { saveMatchHistoryItem } from "@/lib/history";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
@@ -33,6 +33,8 @@ export function useTypeRush() {
   // Posiciones donde el jugador se equivocó alguna vez (no se borran al corregir).
   const [mistakeIndices, setMistakeIndices] = useState<Set<number>>(new Set());
   const [challenge, setChallenge] = useState<ChallengeId>(DEFAULT_CHALLENGE);
+  // Id del run rankeado emitido por el servidor (null = partida solo local).
+  const [runId, setRunId] = useState<string | null>(null);
   // Mejor puntaje local por reto: challengeId -> score.
   const [bestByChallenge, setBestByChallenge] = useState<Record<string, number>>(
     {},
@@ -46,6 +48,7 @@ export function useTypeRush() {
   const mistakeIndicesRef = useRef(mistakeIndices);
   const challengeRef = useRef(challenge);
   const bestByChallengeRef = useRef(bestByChallenge);
+  const runIdRef = useRef(runId);
   useEffect(() => {
     statusRef.current = status;
     typedRef.current = typed;
@@ -54,6 +57,7 @@ export function useTypeRush() {
     mistakeIndicesRef.current = mistakeIndices;
     challengeRef.current = challenge;
     bestByChallengeRef.current = bestByChallenge;
+    runIdRef.current = runId;
   });
 
   // Carga los mejores puntajes al montar. Va en un effect (no en el initializer
@@ -83,24 +87,22 @@ export function useTypeRush() {
     setResult(final);
     setStatus("finished");
 
-    // Supabase: solo ids + stats (match_results). Nombres e isNewBest van al historial local.
+    // Ranking: el servidor recalcula el score contra su pasaje canónico. Si no
+    // hay run emitido (offline / start-run falló), la partida queda solo local.
     const challengeInfo = getChallenge(id);
     const playerId = getPlayerId();
     const playerName = getPlayerName();
     const modeId = challengeInfo?.modeId ?? "";
 
-    void saveMatchResultToSupabase({
-      player_id: playerId,
-      player_name: playerName,
-      mode_id: modeId,
-      challenge_id: id,
-      score: final.score,
-      wpm: final.wpm,
-      accuracy: final.accuracy,
-      errors: final.errors,
-      mistakes: final.mistakes,
-      progress: final.progress,
-    });
+    const submitRunId = runIdRef.current;
+    if (submitRunId) {
+      void submitRun({
+        runId: submitRunId,
+        typed: typedRef.current,
+        elapsedMs: elapsed,
+        mistakes: mistakeIndicesRef.current.size,
+      });
+    }
 
     // Historial local: solo las partidas de este navegador/jugador.
     saveMatchHistoryItem({
@@ -133,7 +135,11 @@ export function useTypeRush() {
   const arm = useCallback((next?: ChallengeId) => {
     const challengeId = next ?? challengeRef.current;
     setChallenge(challengeId);
+    // Pasaje local de arranque (para el 3·2·1); si hay run del servidor se
+    // reemplaza por el canónico vía setServerRun antes de que empiece la carrera.
     setPassage(buildPassage(challengeId));
+    setRunId(null);
+    runIdRef.current = null;
     setTyped("");
     setResult(null);
     setIsNewBest(false);
@@ -141,6 +147,15 @@ export function useTypeRush() {
     setStartedAt(0);
     setNowMs(0);
     setStatus("countdown");
+  }, []);
+
+  // Aplica el run rankeado emitido por el servidor: fija el pasaje canónico (el
+  // que se puntuará) y el runId. Se llama tras resolver start-run, antes de begin().
+  const setServerRun = useCallback((id: string, serverPassage: string) => {
+    passageRef.current = serverPassage;
+    runIdRef.current = id;
+    setPassage(serverPassage);
+    setRunId(id);
   }, []);
 
   // Arranca el reloj al terminar el 3·2·1 (el tiro gratis/pago ya se validó).
@@ -215,6 +230,7 @@ export function useTypeRush() {
     remaining,
     liveStats,
     arm,
+    setServerRun,
     begin,
     reset,
     onInput,
