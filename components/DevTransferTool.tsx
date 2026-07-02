@@ -7,6 +7,7 @@
 import { useState } from "react";
 import {
   explorerTxUrl,
+  normalizeAmount,
   sendTokenTransfer,
   TRANSFER_TOKENS,
   TransferTokenId,
@@ -30,7 +31,8 @@ export default function DevTransferTool() {
 
   const symbol = TRANSFER_TOKENS.find((t) => t.id === tokenId)?.symbol ?? "";
   const addressValid = isAddress(to.trim());
-  const amountValid = Number(amount.trim()) > 0;
+  // Acepta coma o punto decimal (teclado iOS/MiniPay muestra coma).
+  const amountValid = Number(normalizeAmount(amount)) > 0;
   const canReview =
     addressValid && amountValid && status.kind !== "sending";
 

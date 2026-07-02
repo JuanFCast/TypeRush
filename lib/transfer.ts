@@ -76,6 +76,15 @@ export function getTransferToken(id: TransferTokenId): TransferToken | undefined
   return TRANSFER_TOKENS.find((t) => t.id === id);
 }
 
+/**
+ * Normaliza el monto escrito para aceptar coma O punto decimal. En iPhone dentro
+ * de MiniPay el teclado numérico muestra coma, así que "0,01" debe valer igual
+ * que "0.01". La UI puede seguir mostrando lo que el usuario escribió.
+ */
+export function normalizeAmount(raw: string): string {
+  return raw.trim().replace(",", ".");
+}
+
 /** Link al explorer para una tx de Celo Sepolia. */
 export function explorerTxUrl(txHash: string): string {
   return `${CELO_SEPOLIA.explorerTx}${txHash}`;
@@ -154,7 +163,7 @@ export async function sendTokenTransfer(
     const decimals = await resolveDecimals(token);
     let value: bigint;
     try {
-      value = parseUnits(amount.trim(), decimals);
+      value = parseUnits(normalizeAmount(amount), decimals);
     } catch {
       return { ok: false, error: "El monto no es válido." };
     }
@@ -196,32 +205,61 @@ export async function sendTokenTransfer(
     //    IMPORTANTE (evita el bug del "monto como native value"):
     //    - `to` = contrato del TOKEN (no la wallet destino).
     //    - la dirección destino y el monto viajan SOLO dentro de `data`.
-    //    - `value` = 0x0: nunca se manda valor nativo (CELO).
+    //    - `value` se OMITE (= 0): mismo patrón que lib/payToPlay.ts, que
+    //      funciona en MiniPay. Mandar `value: "0x0"` explícito coincidió con que
+    //      MiniPay empezara a rechazar la tx, así que no lo enviamos.
     const data = new Interface(ERC20_ABI).encodeFunctionData("transfer", [
       dest,
       value,
     ]);
+    const tx: { from: string; to: string; data: string } = {
+      from,
+      to: token.address,
+      data,
+    };
+
+    // Logging de dev para inspeccionar EXACTAMENTE lo que se firma. Comprueba que
+    // `to` es el contrato del token, `value` es 0x0 y el monto va dentro de `data`.
+    console.log("[DevTransfer] tx a firmar", {
+      tokenAddress: token.address,
+      destination: dest,
+      amountInput: amount.trim(),
+      decimals,
+      amountUnits: value.toString(),
+      "tx.to": tx.to,
+      "tx.value": "(omitido = 0, sin valor nativo)",
+      "tx.data": tx.data,
+    });
+
     const txHash = (await eth.request({
       method: "eth_sendTransaction",
-      params: [{ from, to: token.address, value: "0x0", data }],
+      params: [tx],
     })) as string;
+    console.log("[DevTransfer] txHash", txHash);
 
-    // 7. Espera confirmación por RPC público.
-    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
-    const receipt = await provider.waitForTransaction(txHash);
-    if (!receipt || receipt.status !== 1) {
-      return { ok: false, error: "La transferencia no se confirmó." };
+    // 7. Espera confirmación por RPC público. Si esta lectura falla (RPC atrasado)
+    // pero la tx ya se envió, NO la marcamos como error: devolvemos el hash para
+    // verificar en el explorer.
+    try {
+      const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+      const receipt = await provider.waitForTransaction(txHash, 1, 60_000);
+      if (receipt && receipt.status === 0) {
+        return { ok: false, error: "La transferencia revirtió on-chain." };
+      }
+    } catch (waitErr) {
+      console.warn("[DevTransfer] waitForTransaction falló", waitErr);
     }
     return { ok: true, txHash };
   } catch (err: unknown) {
-    const e = err as { code?: number; message?: string };
+    const e = err as { code?: number; message?: string; data?: unknown };
+    console.error("[DevTransfer] error al enviar", e);
     const cancelled =
       e?.code === 4001 || /reject|denied|cancel/i.test(e?.message ?? "");
-    return {
-      ok: false,
-      error: cancelled
-        ? "Cancelaste la transferencia."
-        : "No se pudo completar la transferencia.",
-    };
+    if (cancelled) {
+      return { ok: false, error: "Cancelaste la transferencia." };
+    }
+    // Herramienta de dev: mostramos el error crudo para diagnosticar.
+    const detail = e?.message ? `: ${e.message}` : "";
+    return { ok: false, error: `No se pudo completar la transferencia${detail}` };
   }
 }
