@@ -17,6 +17,7 @@ import {
   isAddress,
   getAddress,
   parseUnits,
+  formatUnits,
 } from "ethers";
 
 const CELO_SEPOLIA = {
@@ -53,24 +54,12 @@ export const TRANSFER_TOKENS: TransferToken[] = [
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
 ];
 
-/**
- * Confirma los decimales del token leyéndolos on-chain (fuente de verdad), con
- * respaldo en el valor conocido si el RPC falla. Evita parsear el monto con un
- * número de decimales equivocado.
- */
-async function resolveDecimals(token: TransferToken): Promise<number> {
-  try {
-    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
-    const c = new Contract(token.address, ERC20_ABI, provider);
-    const d = (await c.decimals()) as bigint;
-    return Number(d);
-  } catch {
-    return token.decimals;
-  }
-}
+// Gas fijo para un ERC20 transfer con feeCurrency en Celo. El requerido real
+// ronda ~72k; 150000 lo cubre de sobra. Fijarlo (en vez de estimar por RPC)
+// evita una llamada lenta al RPC público ANTES de abrir el modal de MiniPay.
+const TRANSFER_GAS_LIMIT = 150000n;
 
 export function getTransferToken(id: TransferTokenId): TransferToken | undefined {
   return TRANSFER_TOKENS.find((t) => t.id === id);
@@ -88,6 +77,28 @@ export function normalizeAmount(raw: string): string {
 /** Link al explorer para una tx de Celo Sepolia. */
 export function explorerTxUrl(txHash: string): string {
   return `${CELO_SEPOLIA.explorerTx}${txHash}`;
+}
+
+/**
+ * Saldo del token en formato "de máquina" (punto SIEMPRE decimal, sin separador
+ * de miles) para mostrarlo junto al input de monto sin la ambigüedad del punto
+ * de miles que usa el saldo con locale es-CO. Devuelve null si falla la lectura.
+ */
+export async function fetchTokenBalancePlain(
+  tokenId: TransferTokenId,
+  address: string,
+): Promise<string | null> {
+  const token = getTransferToken(tokenId);
+  if (!token) return null;
+  try {
+    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+    const c = new Contract(token.address, ERC20_ABI, provider);
+    const raw = (await c.balanceOf(address)) as bigint;
+    const s = formatUnits(raw, token.decimals); // p. ej. "5000.0" | "0.01"
+    return s.endsWith(".0") ? s.slice(0, -2) : s;
+  } catch {
+    return null;
+  }
 }
 
 function getEthereum() {
@@ -159,9 +170,9 @@ export async function sendTokenTransfer(
   }
 
   try {
-    // 2. Monto > 0 y parseable a las unidades del token, con los decimales
-    // CONFIRMADOS on-chain (no un valor hardcodeado que pueda estar mal).
-    const decimals = await resolveDecimals(token);
+    // 2. Monto > 0 y parseable a las unidades del token (decimales conocidos y
+    // verificados: USDC 6, COPm 18; no hace falta leerlos on-chain).
+    const decimals = token.decimals;
     let value: bigint;
     try {
       value = parseUnits(normalizeAmount(amount), decimals);
@@ -214,25 +225,11 @@ export async function sendTokenTransfer(
       value,
     ]);
 
-    // Gas explícito: en Celo, pagar el gas en stablecoin (feeCurrency) añade un
-    // gas intrínseco extra que MiniPay no estima bien ("intrinsic gas too low").
-    // Estimamos por RPC público, aplicamos 1.5x y un mínimo de 120000; si la
-    // estimación falla usamos 150000. El campo JSON-RPC `gas` va en hex.
-    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
-    let gasLimit = 150000n;
-    try {
-      const estimated = await provider.estimateGas({
-        from,
-        to: token.address,
-        data,
-      });
-      gasLimit = (estimated * 150n) / 100n;
-      if (gasLimit < 120000n) gasLimit = 120000n;
-    } catch (gasErr) {
-      console.warn("[DevTransfer] estimateGas falló, usando fallback 150000", gasErr);
-      gasLimit = 150000n;
-    }
-    const gasHex = "0x" + gasLimit.toString(16);
+    // Gas explícito y FIJO: en Celo, pagar el gas en stablecoin (feeCurrency)
+    // añade un gas intrínseco extra que MiniPay no estima bien ("intrinsic gas
+    // too low"). Usamos un límite fijo generoso en vez de estimar por RPC (una
+    // llamada lenta que retrasaba la apertura del modal). El campo `gas` va en hex.
+    const gasHex = "0x" + TRANSFER_GAS_LIMIT.toString(16);
 
     const tx: { from: string; to: string; data: string; gas: string } = {
       from,
@@ -251,7 +248,7 @@ export async function sendTokenTransfer(
       amountUnits: value.toString(),
       "tx.to": tx.to,
       "tx.value": "(omitido = 0, sin valor nativo)",
-      "tx.gas": `${gasHex} (${gasLimit.toString()})`,
+      "tx.gas": `${gasHex} (${TRANSFER_GAS_LIMIT.toString()})`,
       "tx.data": tx.data,
     });
 
@@ -268,6 +265,7 @@ export async function sendTokenTransfer(
     // pero la tx ya se envió, NO la marcamos como error: devolvemos el hash para
     // verificar en el explorer.
     try {
+      const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
       const receipt = await provider.waitForTransaction(txHash, 1, 60_000);
       if (receipt && receipt.status === 0) {
         return { ok: false, error: "La transferencia revirtió on-chain." };

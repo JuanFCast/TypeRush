@@ -4,15 +4,16 @@
 // wallet conectada a cualquier 0x. Sirve para reenviar a mano los premios que
 // gano probando en MiniPay. Va colapsada al final de la pestaña "Tú".
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   explorerTxUrl,
+  fetchTokenBalancePlain,
   normalizeAmount,
   sendTokenTransfer,
   TRANSFER_TOKENS,
   TransferTokenId,
 } from "@/lib/transfer";
-import { shortWalletAddress } from "@/lib/wallet";
+import { getConnectedWallet, shortWalletAddress } from "@/lib/wallet";
 import { getAddress, isAddress } from "ethers";
 
 type Status =
@@ -29,8 +30,30 @@ export default function DevTransferTool() {
   const [amount, setAmount] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [balance, setBalance] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const symbol = TRANSFER_TOKENS.find((t) => t.id === tokenId)?.symbol ?? "";
+
+  // Saldo del token seleccionado, en formato consistente con el input (punto =
+  // decimal, sin separador de miles) para que "." y "," no confundan.
+  const loadBalance = useCallback(async (id: TransferTokenId) => {
+    const address = await getConnectedWallet();
+    if (!address) {
+      setBalance(null);
+      return;
+    }
+    setBalanceLoading(true);
+    const b = await fetchTokenBalancePlain(id, address);
+    setBalance(b);
+    setBalanceLoading(false);
+  }, []);
+
+  // Carga el saldo al abrir la herramienta y cada vez que cambia el token.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open) void loadBalance(tokenId);
+  }, [open, tokenId, loadBalance]);
   const addressValid = isAddress(to.trim());
   // Acepta coma o punto decimal (teclado iOS/MiniPay muestra coma): 1 · 0,01 ·
   // 0.01 · 1,5 · 1.5. Debe tener al menos un dígito; 0 y 0,0 no pasan.
@@ -55,6 +78,7 @@ export default function DevTransferTool() {
     });
     if (res.ok) {
       setStatus({ kind: "sent", txHash: res.txHash });
+      void loadBalance(tokenId); // el saldo cambió
     } else {
       setStatus({ kind: "error", message: res.error });
     }
@@ -139,12 +163,23 @@ export default function DevTransferTool() {
           )}
 
           {/* Monto */}
-          <label
-            htmlFor="devAmount"
-            className="mt-3 block text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
-          >
-            Monto ({symbol})
-          </label>
+          <div className="mt-3 flex items-baseline justify-between gap-2">
+            <label
+              htmlFor="devAmount"
+              className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
+            >
+              Monto ({symbol})
+            </label>
+            {/* Saldo en formato de máquina (punto = decimal), consistente con lo
+                que se teclea, para que "." y "," no confundan. */}
+            <span className="font-mono text-[0.7rem] text-muted">
+              {balanceLoading
+                ? "saldo…"
+                : balance !== null
+                  ? `saldo: ${balance} ${symbol}`
+                  : ""}
+            </span>
+          </div>
           <input
             id="devAmount"
             type="text"
@@ -155,9 +190,12 @@ export default function DevTransferTool() {
               setAmount(e.target.value);
               resetStatus();
             }}
-            placeholder="0,01"
+            placeholder="0.01"
             className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
           />
+          <p className="mt-1 text-[0.7rem] text-muted">
+            Usa punto o coma para decimales (0.01 = 0,01).
+          </p>
           {amount.trim().length > 0 && !amountValid && (
             <p className="mt-1 text-xs text-danger">
               El monto debe ser mayor a 0.
