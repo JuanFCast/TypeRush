@@ -18,6 +18,7 @@ import { getAddress, isAddress } from "ethers";
 type Status =
   | { kind: "idle" }
   | { kind: "sending" }
+  | { kind: "confirming"; txHash: string }
   | { kind: "sent"; txHash: string }
   | { kind: "error"; message: string };
 
@@ -48,7 +49,10 @@ export default function DevTransferTool() {
   const onConfirm = async () => {
     setConfirming(false);
     setStatus({ kind: "sending" });
-    const res = await sendTokenTransfer(tokenId, to, amount);
+    const res = await sendTokenTransfer(tokenId, to, amount, (txHash) => {
+      // Ya tenemos el hash: mostramos "enviada, confirmando…" sin bloquear.
+      setStatus({ kind: "confirming", txHash });
+    });
     if (res.ok) {
       setStatus({ kind: "sent", txHash: res.txHash });
     } else {
@@ -202,11 +206,39 @@ export default function DevTransferTool() {
               disabled={!canReview}
               className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
             >
-              {status.kind === "sending" ? "Enviando…" : "Enviar"}
+              {status.kind === "sending"
+                ? "Enviando…"
+                : status.kind === "confirming"
+                  ? "Confirmando…"
+                  : "Enviar"}
             </button>
           )}
 
+          {/* El gas lo paga la wallet del usuario (feeCurrency de Celo). */}
+          <p className="mt-2 text-[0.7rem] leading-snug text-muted">
+            El gas lo paga tu wallet conectada. En Celo puede cobrarse en CELO o
+            en una stable soportada por MiniPay, como USDC.
+          </p>
+
           {/* Estado */}
+          {status.kind === "confirming" && (
+            <div className="mt-3 rounded-xl border border-line bg-bg px-3 py-3">
+              <p className="text-xs font-semibold text-ink">
+                Transacción enviada, confirmando…
+              </p>
+              <p className="mt-1 break-all font-mono text-[0.7rem] text-muted">
+                {status.txHash}
+              </p>
+              <a
+                href={explorerTxUrl(status.txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block text-xs font-semibold text-brand underline"
+              >
+                Ver en el explorer ↗
+              </a>
+            </div>
+          )}
           {status.kind === "sent" && (
             <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-3">
               <p className="text-xs font-semibold text-brand">✓ Enviado</p>

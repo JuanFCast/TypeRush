@@ -141,6 +141,7 @@ export async function sendTokenTransfer(
   tokenId: TransferTokenId,
   to: string,
   amount: string,
+  onHash?: (txHash: string) => void,
 ): Promise<TransferResult> {
   const token = getTransferToken(tokenId);
   if (!token) return { ok: false, error: "Token no soportado." };
@@ -259,6 +260,9 @@ export async function sendTokenTransfer(
       params: [tx],
     })) as string;
     console.log("[DevTransfer] txHash", txHash);
+    // Avisamos el hash ya: la UI puede mostrar "enviada, confirmando…" y el
+    // enlace al explorer sin esperar a que se mine.
+    onHash?.(txHash);
 
     // 7. Espera confirmación por RPC público. Si esta lectura falla (RPC atrasado)
     // pero la tx ya se envió, NO la marcamos como error: devolvemos el hash para
