@@ -31,8 +31,10 @@ export default function DevTransferTool() {
 
   const symbol = TRANSFER_TOKENS.find((t) => t.id === tokenId)?.symbol ?? "";
   const addressValid = isAddress(to.trim());
-  // Acepta coma o punto decimal (teclado iOS/MiniPay muestra coma).
-  const amountValid = Number(normalizeAmount(amount)) > 0;
+  // Acepta coma o punto decimal (teclado iOS/MiniPay muestra coma): 1 · 0,01 ·
+  // 0.01 · 1,5 · 1.5. Debe tener al menos un dígito; 0 y 0,0 no pasan.
+  const amountDecimalOk = /^\d+([.,]\d+)?$/.test(amount.trim());
+  const amountValid = amountDecimalOk && Number(normalizeAmount(amount)) > 0;
   const canReview =
     addressValid && amountValid && status.kind !== "sending";
 
@@ -141,16 +143,15 @@ export default function DevTransferTool() {
           </label>
           <input
             id="devAmount"
-            type="number"
+            type="text"
             inputMode="decimal"
-            min="0"
-            step="any"
+            autoComplete="off"
             value={amount}
             onChange={(e) => {
               setAmount(e.target.value);
               resetStatus();
             }}
-            placeholder="0.0"
+            placeholder="0,01"
             className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
           />
           {amount.trim().length > 0 && !amountValid && (

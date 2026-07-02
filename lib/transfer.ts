@@ -212,14 +212,36 @@ export async function sendTokenTransfer(
       dest,
       value,
     ]);
-    const tx: { from: string; to: string; data: string } = {
+
+    // Gas explícito: en Celo, pagar el gas en stablecoin (feeCurrency) añade un
+    // gas intrínseco extra que MiniPay no estima bien ("intrinsic gas too low").
+    // Estimamos por RPC público, aplicamos 1.5x y un mínimo de 120000; si la
+    // estimación falla usamos 150000. El campo JSON-RPC `gas` va en hex.
+    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+    let gasLimit = 150000n;
+    try {
+      const estimated = await provider.estimateGas({
+        from,
+        to: token.address,
+        data,
+      });
+      gasLimit = (estimated * 150n) / 100n;
+      if (gasLimit < 120000n) gasLimit = 120000n;
+    } catch (gasErr) {
+      console.warn("[DevTransfer] estimateGas falló, usando fallback 150000", gasErr);
+      gasLimit = 150000n;
+    }
+    const gasHex = "0x" + gasLimit.toString(16);
+
+    const tx: { from: string; to: string; data: string; gas: string } = {
       from,
       to: token.address,
       data,
+      gas: gasHex,
     };
 
     // Logging de dev para inspeccionar EXACTAMENTE lo que se firma. Comprueba que
-    // `to` es el contrato del token, `value` es 0x0 y el monto va dentro de `data`.
+    // `to` es el contrato del token, `value` va omitido y el monto va en `data`.
     console.log("[DevTransfer] tx a firmar", {
       tokenAddress: token.address,
       destination: dest,
@@ -228,6 +250,7 @@ export async function sendTokenTransfer(
       amountUnits: value.toString(),
       "tx.to": tx.to,
       "tx.value": "(omitido = 0, sin valor nativo)",
+      "tx.gas": `${gasHex} (${gasLimit.toString()})`,
       "tx.data": tx.data,
     });
 
@@ -241,7 +264,6 @@ export async function sendTokenTransfer(
     // pero la tx ya se envió, NO la marcamos como error: devolvemos el hash para
     // verificar en el explorer.
     try {
-      const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
       const receipt = await provider.waitForTransaction(txHash, 1, 60_000);
       if (receipt && receipt.status === 0) {
         return { ok: false, error: "La transferencia revirtió on-chain." };
