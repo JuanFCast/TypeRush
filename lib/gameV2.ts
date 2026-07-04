@@ -26,6 +26,8 @@ export const CELO_MAINNET = {
 /** Frontera diaria del contrato: 8 p.m. Colombia = 01:00 UTC (DAY_OFFSET = 3600 s). */
 const DAY_OFFSET = 3600;
 const DAY_SECONDS = 86_400;
+/** Cuántos días cerrados hacia atrás escanea el banner de reclamo. */
+const CLAIM_SCAN_DAYS = 7;
 
 export type CurrencyId = "usdt" | "copm";
 
@@ -344,4 +346,69 @@ export async function fetchWinner(day: number, modeId: string): Promise<string |
   } catch {
     return null;
   }
+}
+
+export type ClaimablePrize = {
+  day: number;
+  modeId: string;
+  usdt: bigint;
+  copm: bigint;
+  /** Montos ya formateados para la UI. */
+  usdtLabel: string;
+  copmLabel: string;
+};
+
+/** Wallet conectada (sin popup en MiniPay), o null si no hay ninguna. */
+export async function fetchConnectedAddress(): Promise<string | null> {
+  const eth = getEthereum();
+  if (!eth) return null;
+  try {
+    const accounts = (await eth.request({ method: "eth_accounts" })) as string[];
+    return accounts?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Escanea los últimos CLAIM_SCAN_DAYS días cerrados (es/en) y devuelve los premios
+ * donde `address` es el ganador registrado y el pozo sigue > 0 (aún sin reclamar).
+ */
+export async function findClaimablePrizes(address: string): Promise<ClaimablePrize[]> {
+  if (!isConfigured() || !/^0x[0-9a-fA-F]{40}$/.test(address)) return [];
+  const usdt = PAY_CURRENCIES.find((c) => c.id === "usdt");
+  const copm = PAY_CURRENCIES.find((c) => c.id === "copm");
+  if (!usdt || !copm) return [];
+
+  const provider = readProvider();
+  const contract = new Contract(CONTRACT, GAME_ABI, provider);
+  const today = currentDayIndex();
+  const target = address.toLowerCase();
+  const out: ClaimablePrize[] = [];
+
+  for (let day = today - 1; day >= today - CLAIM_SCAN_DAYS; day--) {
+    for (const mode of ["es", "en"]) {
+      try {
+        const winner = (await contract.winnerOf(day, id(mode))) as string;
+        if (winner.toLowerCase() !== target) continue;
+        const [pu, pc] = (await Promise.all([
+          contract.poolOf(day, id(mode), usdt.address),
+          contract.poolOf(day, id(mode), copm.address),
+        ])) as [bigint, bigint];
+        if (pu > 0n || pc > 0n) {
+          out.push({
+            day,
+            modeId: mode,
+            usdt: pu,
+            copm: pc,
+            usdtLabel: formatPool(pu, usdt),
+            copmLabel: formatPool(pc, copm),
+          });
+        }
+      } catch {
+        // Un día que falle no bloquea el resto.
+      }
+    }
+  }
+  return out;
 }

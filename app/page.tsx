@@ -28,6 +28,7 @@ import {
   PayPhase,
 } from "@/lib/gameV2";
 import NeedFundsModal from "@/components/NeedFundsModal";
+import ClaimBanner from "@/components/ClaimBanner";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
 // Mensaje cuando no se puede validar el tiro contra Supabase (no inicia ranking).
@@ -336,6 +337,7 @@ export default function Page() {
 
         {status === "idle" && (
           <>
+            {tab === "home" && <ClaimBanner />}
             {tab === "home" &&
               (selectedMode ? (
                 <ChallengeLobby
