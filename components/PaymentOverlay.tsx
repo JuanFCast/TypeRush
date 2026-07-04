@@ -1,6 +1,6 @@
 "use client";
 
-import { PayPhase } from "@/lib/payToPlay";
+import { PayPhase } from "@/lib/gameV2";
 
 type Props = {
   phase: PayPhase;

@@ -23,10 +23,11 @@ import {
 } from "@/lib/playerProfile";
 import {
   CurrencyId,
-  isPayToPlayConfigured,
+  isConfigured as isGameV2Configured,
   payEntry,
   PayPhase,
-} from "@/lib/payToPlay";
+} from "@/lib/gameV2";
+import NeedFundsModal from "@/components/NeedFundsModal";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
 // Mensaje cuando no se puede validar el tiro contra Supabase (no inicia ranking).
@@ -82,6 +83,10 @@ export default function Page() {
   const [payError, setPayError] = useState<string | null>(null);
   // Fase visible del pago en curso, para el overlay de progreso.
   const [payPhase, setPayPhase] = useState<PayPhase>("preparing");
+  // Datos para el modal de fondos insuficientes (null = cerrado).
+  const [needFunds, setNeedFunds] = useState<
+    { symbol: string; needed: string; address: string } | null
+  >(null);
   // Reto con entrada ya pagada: beginRace lo arranca sin consumir el tiro gratis.
   const paidEntryRef = useRef<ChallengeId | null>(null);
   // Claim del tiro gratis lanzado AL INICIAR el conteo (en paralelo con el 3·2·1)
@@ -127,6 +132,7 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPayState("idle");
     setPayError(null);
+    setNeedFunds(null);
   }, [selectedMode]);
 
   // Durante el conteo/carrera fija el body: en iOS, al abrir el teclado el
@@ -191,6 +197,16 @@ export default function Page() {
     const modeId = getChallenge(id)?.modeId ?? "es";
     const res = await payEntry(modeId, currencyId, setPayPhase);
     if (!res.ok) {
+      // Sin saldo: no es un error del pago, abrimos el modal de fondos.
+      if (res.insufficient) {
+        setPayState("idle");
+        setNeedFunds({
+          symbol: res.symbol ?? "",
+          needed: res.needed ?? "",
+          address: res.walletAddress ?? "",
+        });
+        return;
+      }
       setPayState("error");
       setPayError(res.error);
       return;
@@ -331,7 +347,7 @@ export default function Page() {
                   resetCountdown={resetCountdown}
                   onBack={() => setSelectedMode(null)}
                   onPlay={onPlay}
-                  payEnabled={isPayToPlayConfigured()}
+                  payEnabled={isGameV2Configured()}
                   payState={payState}
                   payError={payError}
                   onPayAndPlay={onPayAndPlay}
@@ -400,6 +416,16 @@ export default function Page() {
 
       {payState === "paying" && (
         <PaymentOverlay phase={payPhase} en={selectedMode === "en"} />
+      )}
+
+      {needFunds && (
+        <NeedFundsModal
+          symbol={needFunds.symbol}
+          needed={needFunds.needed}
+          address={needFunds.address}
+          en={selectedMode === "en"}
+          onClose={() => setNeedFunds(null)}
+        />
       )}
 
       {readyChallenge &&

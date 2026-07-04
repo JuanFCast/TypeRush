@@ -7,18 +7,12 @@ import {
   getMode,
   ModeId,
 } from "@/lib/passages";
-import { CurrencyId, PAY_CURRENCIES } from "@/lib/payToPlay";
-// Paso 1 (conexión v2): la TARJETA DE PREMIO ya lee del contrato nuevo (mainnet, USDT/COPm).
-// Los botones de pago siguen usando el flujo viejo (payToPlay) hasta el paso 2 — transitorio.
-import {
-  CurrencyId as PrizeCurrencyId,
-  PAY_CURRENCIES as PRIZE_CURRENCIES,
-  fetchPoolLabel as fetchPrizePool,
-} from "@/lib/gameV2";
+// Paso 2 (conexión v2): premio Y pago usan el contrato nuevo (mainnet, USDT/COPm).
+import { CurrencyId, PAY_CURRENCIES, fetchPoolLabel } from "@/lib/gameV2";
 import ChallengeCard from "./ChallengeCard";
 
 // Icono y sublabel por moneda para la tarjeta de premio (monedas del contrato nuevo).
-const CURRENCY_META: Record<PrizeCurrencyId, { icon: string; es: string; en: string }> = {
+const CURRENCY_META: Record<CurrencyId, { icon: string; es: string; en: string }> = {
   usdt: { icon: "💵", es: "dólares", en: "dollars" },
   copm: { icon: "🇨🇴", es: "pesos", en: "pesos" },
 };
@@ -58,7 +52,7 @@ export default function ChallengeLobby({
   );
 
   // Pozo del premio (on-chain, contrato nuevo mainnet) por moneda; refresca para verlo crecer.
-  const [pools, setPools] = useState<Record<PrizeCurrencyId, string | null>>({
+  const [pools, setPools] = useState<Record<CurrencyId, string | null>>({
     usdt: null,
     copm: null,
   });
@@ -66,8 +60,8 @@ export default function ChallengeLobby({
     if (!payEnabled) return;
     let cancelled = false;
     const load = () => {
-      for (const c of PRIZE_CURRENCIES) {
-        void fetchPrizePool(modeId, c.id).then((label) => {
+      for (const c of PAY_CURRENCIES) {
+        void fetchPoolLabel(modeId, c.id).then((label) => {
           if (!cancelled && label !== null)
             setPools((prev) => ({ ...prev, [c.id]: label }));
         });
@@ -103,7 +97,7 @@ export default function ChallengeLobby({
   const payVerb = en ? "Pay" : "Pagar";
   const andPlay = en ? "& play" : "y jugar";
 
-  const presentCurrencies = PRIZE_CURRENCIES.filter((c) => pools[c.id] !== null);
+  const presentCurrencies = PAY_CURRENCIES.filter((c) => pools[c.id] !== null);
   const hasPrize = presentCurrencies.length > 0;
 
   return (
@@ -183,6 +177,11 @@ export default function ChallengeLobby({
               <p className="text-center text-xs text-muted">
                 {freeUsedLabel} {en ? "Choose a currency:" : "Elige moneda:"}
               </p>
+              <div className="flex justify-center">
+                <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">
+                  🟢 Celo Mainnet
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {PAY_CURRENCIES.map((c) => (
                   <button

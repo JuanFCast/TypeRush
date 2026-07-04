@@ -150,7 +150,19 @@ async function ensureCeloMainnet(): Promise<void> {
   }
 }
 
-export type PayResult = { ok: true; txHash: string } | { ok: false; error: string };
+export type PayResult =
+  | { ok: true; txHash: string }
+  | {
+      ok: false;
+      error: string;
+      /** true si el pago se frenó por saldo insuficiente (para abrir NeedFundsModal). */
+      insufficient?: boolean;
+      symbol?: string;
+      /** Monto necesario ya formateado (p. ej. "0.10"). */
+      needed?: string;
+      /** Wallet conectada, para mostrar dónde depositar. */
+      walletAddress?: string;
+    };
 export type PayPhase = "preparing" | "approving" | "signing" | "confirming";
 
 /**
@@ -189,6 +201,34 @@ export async function payEntry(
     await ensureCeloMainnet();
 
     const tokenContract = new Contract(currency.address, ERC20_ABI, provider);
+
+    // Saldo suficiente. Se lee por la WALLET del usuario (no por el RPC público, que
+    // tras un depósito reciente puede ir atrasado). Si no se puede leer, NO se bloquea:
+    // el contrato valida al cobrar. Si falta, se devuelve `insufficient` para el modal.
+    let balance: bigint | null = null;
+    try {
+      const balData = new Interface(ERC20_ABI).encodeFunctionData("balanceOf", [from]);
+      const raw = (await eth.request({
+        method: "eth_call",
+        params: [{ to: currency.address, data: balData }, "latest"],
+      })) as string;
+      balance = BigInt(raw);
+    } catch {
+      balance = null;
+    }
+    if (balance !== null && balance < entry) {
+      const needed = Number(formatUnits(entry, currency.decimals)).toLocaleString("es-CO", {
+        maximumFractionDigits: currency.displayDecimals,
+      });
+      return {
+        ok: false,
+        error: `No tienes suficiente ${currency.symbol}.`,
+        insufficient: true,
+        symbol: currency.symbol,
+        needed,
+        walletAddress: from,
+      };
+    }
 
     // Approve si hace falta.
     const allowance = (await tokenContract.allowance(from, CONTRACT)) as bigint;
