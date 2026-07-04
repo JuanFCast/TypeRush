@@ -218,6 +218,7 @@ export async function payEntry(
     }
     if (balance !== null && balance < entry) {
       const needed = Number(formatUnits(entry, currency.decimals)).toLocaleString("es-CO", {
+        minimumFractionDigits: currency.displayDecimals,
         maximumFractionDigits: currency.displayDecimals,
       });
       return {
