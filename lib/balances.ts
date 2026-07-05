@@ -1,57 +1,35 @@
 // Saldos de stablecoins de la wallet conectada (perfil "Tú").
-// Lecturas por RPC público de Celo Sepolia. Direcciones verificadas on-chain
-// (symbol/decimals comprobados): USDC 6 dec, COPm 18 dec.
+// Lee por RPC público de Celo MAINNET, usando las MISMAS monedas del contrato v2
+// (USDT 6 dec, COPm 18 dec) — una sola fuente de verdad en lib/gameV2.ts.
 
 import { Contract, JsonRpcProvider, formatUnits } from "ethers";
-
-const RPC = "https://forno.celo-sepolia.celo-testnet.org";
+import { CELO_MAINNET, PAY_CURRENCIES } from "./gameV2";
 
 const ERC20_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
-type TokenInfo = {
-  symbol: "USDC" | "COPm";
-  address: string;
-  decimals: number;
-  /** Decimales a mostrar (USDC con centavos; COPm como peso entero). */
-  display: number;
-};
-
-const TOKENS: TokenInfo[] = [
-  {
-    symbol: "USDC",
-    address: "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
-    decimals: 6,
-    display: 2,
-  },
-  {
-    symbol: "COPm",
-    address: "0x5F8d55c3627d2dc0a2B4afa798f877242F382F67",
-    decimals: 18,
-    display: 0,
-  },
-];
-
 export type TokenBalance = { symbol: string; amount: string };
 
-function formatAmount(raw: bigint, t: TokenInfo): string {
-  const n = Number(formatUnits(raw, t.decimals));
-  return n.toLocaleString("es-CO", {
-    minimumFractionDigits: t.display,
-    maximumFractionDigits: t.display,
-  });
-}
-
-/** Saldo de USDC y COPm de una dirección. Nunca lanza: en error devuelve "—". */
+/** Saldo de cada stablecoin de una dirección. Nunca lanza: en error devuelve "—". */
 export async function fetchWalletBalances(
   address: string,
 ): Promise<TokenBalance[]> {
-  const provider = new JsonRpcProvider(RPC);
+  const provider = new JsonRpcProvider(CELO_MAINNET.rpc);
   return Promise.all(
-    TOKENS.map(async (t) => {
+    PAY_CURRENCIES.map(async (t) => {
+      if (!/^0x[0-9a-fA-F]{40}$/.test(t.address)) {
+        return { symbol: t.symbol, amount: "—" };
+      }
       try {
         const c = new Contract(t.address, ERC20_ABI, provider);
         const raw = (await c.balanceOf(address)) as bigint;
-        return { symbol: t.symbol, amount: formatAmount(raw, t) };
+        const n = Number(formatUnits(raw, t.decimals));
+        return {
+          symbol: t.symbol,
+          amount: n.toLocaleString("es-CO", {
+            minimumFractionDigits: t.displayDecimals,
+            maximumFractionDigits: t.displayDecimals,
+          }),
+        };
       } catch {
         return { symbol: t.symbol, amount: "—" };
       }
