@@ -9,6 +9,8 @@
  *   - Si NADIE jugó / no hay ganador con wallet → `rollDay(day, mode, 0x0, [USDT, COPm])`:
  *     el pozo del día rueda al pozo del día activo (jackpot acumulativo).
  *   - Idempotente: si el (día, modalidad) ya fue cerrado (`rolled`), lo salta.
+ *   - Actualiza Supabase: prize_payouts.status → 'registered' (con ganador) o 'rollover' (sin).
+ *   - Detección de claim: marca 'claimed' las filas 'registered' cuyo pozo on-chain ya está en 0.
  *
  * Este script SOLO cierra el día. NO siembra premios (eso es un job aparte) ni paga: en el
  * modelo v2 el ganador cobra él mismo. Firma con OPERATOR_KEY (Operator Bot), que solo puede
@@ -52,6 +54,7 @@ const ABI = [
   "function rolled(uint256 day, bytes32 modeId) view returns (bool)",
   "function currentDay() view returns (uint256)",
   "function winnerOf(uint256 day, bytes32 modeId) view returns (address)",
+  "function poolOf(uint256 day, bytes32 modeId, address token) view returns (uint256)",
 ];
 
 /**
@@ -71,32 +74,62 @@ function dayIndexFromPeriodStart(periodStart) {
 }
 
 /**
- * Ganadores del periodo que cerró, por modalidad: { es: wallet|null, en: wallet|null }.
- *
- * Fuente: la tabla `prize_payouts` que puebla `process_daily_prizes()` en Supabase (el #1
- * por modalidad del periodo, con su wallet). Reutiliza el mismo mecanismo que el flujo viejo.
- * Si una modalidad no tiene fila o la wallet es inválida → null (se hace rollover sin ganador).
+ * Filas de premio del periodo que cerró (id, modalidad, wallet, status). Las puebla
+ * `process_daily_prizes()` en Supabase (el #1 por modalidad, con su wallet o null).
  *
  * ⚠️ PUNTO DE INTEGRACIÓN: si prefieres calcular el #1 directamente desde `match_results`
  * en vez de `prize_payouts`, cámbialo aquí. El resto del script no depende de la fuente.
  */
-async function resolveWinners(supabase, closingPeriodStart) {
-  const winners = { es: null, en: null };
-  const { data: rows, error } = await supabase
+async function fetchClosingRows(supabase, closingPeriodStart) {
+  const { data, error } = await supabase
     .from("prize_payouts")
-    .select("mode_id, wallet_address, period_start")
+    .select("id, mode_id, wallet_address, status")
     .eq("payout_type", "on_chain")
     .eq("period_start", closingPeriodStart.toISOString());
 
   if (error) {
-    console.error("No se pudieron leer ganadores (se asume sin ganador):", error.message ?? error);
-    return winners;
+    console.error("No se pudieron leer premios (se asume sin ganador):", error.message ?? error);
+    return [];
   }
-  for (const row of rows ?? []) {
-    const w = row.wallet_address?.trim();
-    if (MODES.includes(row.mode_id) && w && isAddress(w)) winners[row.mode_id] = w;
+  return data ?? [];
+}
+
+/**
+ * Detección de claim (job nocturno): recorre las filas `registered` y, si el pozo on-chain
+ * de ese (día, modalidad) ya está en 0 (el ganador reclamó con claim()), las marca `claimed`.
+ */
+async function settleClaimed(supabase, contract, tokens) {
+  const { data: rows, error } = await supabase
+    .from("prize_payouts")
+    .select("id, mode_id, onchain_day")
+    .eq("status", "registered");
+  if (error) {
+    console.error("Detección de claim omitida (no se pudo leer):", error.message ?? error);
+    return;
   }
-  return winners;
+  for (const r of rows ?? []) {
+    if (r.onchain_day == null) continue;
+    try {
+      const modeKey = id(r.mode_id);
+      const [pu, pc] = await Promise.all([
+        contract.poolOf(r.onchain_day, modeKey, tokens[0]),
+        contract.poolOf(r.onchain_day, modeKey, tokens[1]),
+      ]);
+      if (pu === 0n && pc === 0n) {
+        await supabase
+          .from("prize_payouts")
+          .update({
+            status: "claimed",
+            claimed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", r.id);
+        console.log(`  ✓ ${r.mode_id} (día ${r.onchain_day}): premio reclamado → claimed.`);
+      }
+    } catch (err) {
+      console.error(`  ✗ claim-check ${r.mode_id} (día ${r.onchain_day}):`, err.message ?? err);
+    }
+  }
 }
 
 async function main() {
@@ -124,11 +157,13 @@ async function main() {
     return;
   }
 
-  const winners = await resolveWinners(supabase, closingStart);
   const tokens = [
     requireEnv("NEXT_PUBLIC_GAMEV2_USDT_ADDRESS"),
     requireEnv("NEXT_PUBLIC_GAMEV2_COPM_ADDRESS"),
   ];
+  const rows = await fetchClosingRows(supabase, closingStart);
+  const rowByMode = Object.fromEntries(rows.map((r) => [r.mode_id, r]));
+  const now = () => new Date().toISOString();
 
   for (const mode of MODES) {
     const modeKey = id(mode);
@@ -137,18 +172,37 @@ async function main() {
         console.log(`  = ${mode}: ya estaba cerrado, se salta.`);
         continue;
       }
-      const winner = winners[mode] ?? ZeroAddress;
-      const tx = await contract.rollDay(day, modeKey, winner, tokens);
-      const receipt = await tx.wait();
-      if (winner === ZeroAddress) {
-        console.log(`  ↻ ${mode}: sin ganador → pozo rodó al día activo. tx ${receipt.hash}`);
+      const row = rowByMode[mode];
+      const wallet = row?.wallet_address?.trim();
+      // Regla: para ganar premio real hay que tener wallet válida; si no, rollover.
+      const hasWallet = wallet && isAddress(wallet);
+      const winner = hasWallet ? wallet : ZeroAddress;
+
+      const receipt = await (await contract.rollDay(day, modeKey, winner, tokens)).wait();
+
+      if (winner !== ZeroAddress && row) {
+        await supabase
+          .from("prize_payouts")
+          .update({ status: "registered", rolled_tx: receipt.hash, onchain_day: day, updated_at: now() })
+          .eq("id", row.id);
+        console.log(`  ✓ ${mode}: ganador ${winner} REGISTRADO (cobra con claim). tx ${receipt.hash}`);
       } else {
-        console.log(`  ✓ ${mode}: ganador ${winner} registrado (cobra con claim). tx ${receipt.hash}`);
+        // Sin ganador o #1 sin wallet: el pozo rodó al día activo.
+        if (row) {
+          await supabase
+            .from("prize_payouts")
+            .update({ status: "rollover", rolled_tx: receipt.hash, onchain_day: day, updated_at: now() })
+            .eq("id", row.id);
+        }
+        console.log(`  ↻ ${mode}: rollover (sin ganador o sin wallet). tx ${receipt.hash}`);
       }
     } catch (err) {
       console.error(`  ✗ ${mode}:`, err.message ?? err);
     }
   }
+
+  // Detección de claim: marca 'claimed' las filas 'registered' cuyo pozo ya está en 0.
+  await settleClaimed(supabase, contract, tokens);
 }
 
 main().catch((e) => {
