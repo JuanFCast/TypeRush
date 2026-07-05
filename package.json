@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "prizes:distribute": "node scripts/distribute-prizes.mjs",
-    "prizes:test": "node scripts/test-prize-payment.mjs"
+    "prizes:test": "node scripts/test-prize-payment.mjs",
+    "close-day": "node scripts/close-day-v2.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",

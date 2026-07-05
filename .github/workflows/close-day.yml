@@ -1,0 +1,54 @@
+# Cierre diario de TypeRush GameV2 (Celo Mainnet). Lo corre el OPERATOR BOT:
+# registra al ganador del día con rollDay() y detecta claims. NO paga — el ganador
+# reclama él mismo con claim().
+#
+# ⚠️ APAGADO por ahora: solo se puede lanzar A MANO (Actions → Close day → Run workflow).
+# Para PRENDER el cierre automático de las 8:05 p.m. Colombia, descomenta el bloque
+# `schedule` de abajo (y ten los secrets configurados).
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   GAMEV2_CONTRACT_ADDRESS
+#   OPERATOR_KEY                      (clave del Operator Bot; solo cierra días, no maneja fondos)
+#   NEXT_PUBLIC_SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   NEXT_PUBLIC_GAMEV2_USDT_ADDRESS
+#   NEXT_PUBLIC_GAMEV2_COPM_ADDRESS
+
+name: Close day (GameV2)
+
+on:
+  workflow_dispatch:
+  # Para prender el cierre automático, descomenta estas 2 líneas:
+  # schedule:
+  #   - cron: "5 1 * * *"   # 01:05 UTC = 8:05 p.m. Colombia
+
+concurrency:
+  group: close-day
+  cancel-in-progress: false
+
+jobs:
+  close-day:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Close day (register winner on-chain)
+        run: npm run close-day
+        env:
+          GAMEV2_CONTRACT_ADDRESS: ${{ secrets.GAMEV2_CONTRACT_ADDRESS }}
+          OPERATOR_KEY: ${{ secrets.OPERATOR_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_GAMEV2_USDT_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_USDT_ADDRESS }}
+          NEXT_PUBLIC_GAMEV2_COPM_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_COPM_ADDRESS }}
