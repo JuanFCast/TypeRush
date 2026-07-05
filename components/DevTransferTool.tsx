@@ -1,8 +1,8 @@
 "use client";
 
-// Herramienta de DEV (no es feature del juego): enviar COPm o USDC desde la
-// wallet conectada a cualquier 0x. Sirve para reenviar a mano los premios que
-// gano probando en MiniPay. Va colapsada al final de la pestaña "Tú".
+// Herramienta de DEV (no es feature del juego): enviar COPm o USDT desde la
+// wallet conectada a cualquier 0x (Celo Mainnet). Sirve para reenviar a mano los
+// premios que gano probando en MiniPay. Va colapsada al final de la pestaña "Tú".
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -110,8 +110,8 @@ export default function DevTransferTool() {
       {open && (
         <div className="mt-4">
           <p className="text-xs text-muted">
-            Envía COPm o USDC desde tu wallet conectada a cualquier dirección
-            (Celo Sepolia). Confirmas en MiniPay. Herramienta de testing.
+            Envía COPm o USDT desde tu wallet conectada a cualquier dirección
+            (Celo Mainnet). Confirmas en MiniPay. Herramienta de testing.
           </p>
 
           {/* Selector de token */}
@@ -203,8 +203,8 @@ export default function DevTransferTool() {
           )}
 
           {/* Resumen de confirmación: monto legible + destino, ANTES de firmar.
-              En MiniPay el token mock COPm puede verse en unidades base; este
-              resumen muestra el monto real que vas a enviar. */}
+              En MiniPay el token COPm puede verse en unidades base; este resumen
+              muestra el monto real que vas a enviar. */}
           {confirming ? (
             <div className="mt-4 rounded-xl border border-warn/40 bg-warn/5 px-3 py-3">
               <p className="text-sm text-ink">
@@ -255,7 +255,7 @@ export default function DevTransferTool() {
           {/* El gas lo paga la wallet del usuario (feeCurrency de Celo). */}
           <p className="mt-2 text-[0.7rem] leading-snug text-muted">
             El gas lo paga tu wallet conectada. En Celo puede cobrarse en CELO o
-            en una stable soportada por MiniPay, como USDC.
+            en una stable soportada por MiniPay, como USDT.
           </p>
 
           {/* Estado */}

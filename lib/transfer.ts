@@ -1,14 +1,13 @@
-// Herramienta de DEV: transferencia manual de un stablecoin (USDC/COPm) desde la
-// wallet conectada en MiniPay hacia cualquier dirección 0x. NO usa servidor ni
-// private keys: la tx sale de la wallet del usuario, que la confirma en MiniPay.
+// Herramienta de DEV: transferencia manual de un stablecoin (USDT/COPm) desde la
+// wallet conectada en MiniPay hacia cualquier dirección 0x, en Celo MAINNET. NO usa
+// servidor ni private keys: la tx sale de la wallet del usuario, que la confirma en MiniPay.
 //
 // Uso previsto: cuando pruebo TypeRush y gano los premios (casi nadie juega),
-// poder reenviar esos fondos a otra wallet a mano. Es utilería de testing, no
-// una feature del juego.
+// poder reenviar esos fondos a otra wallet a mano. Es utilería de testing.
 //
-// Mismo enfoque que lib/payToPlay.ts: cobra en stablecoin (nunca CELO), envía la
-// tx por la wallet inyectada (window.ethereum) para que MiniPay maneje la comisión
-// y la tx legacy; las lecturas van por RPC público.
+// Mismo enfoque que lib/gameV2.ts: cobra en stablecoin (nunca CELO), envía la tx por
+// la wallet inyectada (window.ethereum) para que MiniPay maneje la comisión y la tx
+// legacy; las lecturas van por RPC público. Monedas y red desde lib/gameV2.ts.
 
 import {
   Contract,
@@ -19,14 +18,9 @@ import {
   parseUnits,
   formatUnits,
 } from "ethers";
+import { CELO_MAINNET, PAY_CURRENCIES, type CurrencyId } from "./gameV2";
 
-const CELO_SEPOLIA = {
-  chainIdHex: "0xaa044c", // 11142220
-  rpc: "https://forno.celo-sepolia.celo-testnet.org",
-  explorerTx: "https://celo-sepolia.blockscout.com/tx/",
-} as const;
-
-export type TransferTokenId = "usdc" | "copm";
+export type TransferTokenId = CurrencyId;
 
 export type TransferToken = {
   id: TransferTokenId;
@@ -35,21 +29,13 @@ export type TransferToken = {
   decimals: number;
 };
 
-// Mismas direcciones verificadas on-chain que usan lib/balances.ts y payToPlay.ts.
-export const TRANSFER_TOKENS: TransferToken[] = [
-  {
-    id: "usdc",
-    address: "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
-    symbol: "USDC",
-    decimals: 6,
-  },
-  {
-    id: "copm",
-    address: "0x5F8d55c3627d2dc0a2B4afa798f877242F382F67",
-    symbol: "COPm",
-    decimals: 18,
-  },
-];
+// Mismas monedas del contrato v2 (mainnet): USDT 6 dec, COPm 18 dec.
+export const TRANSFER_TOKENS: TransferToken[] = PAY_CURRENCIES.map((c) => ({
+  id: c.id,
+  address: c.address,
+  symbol: c.symbol,
+  decimals: c.decimals,
+}));
 
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -74,9 +60,9 @@ export function normalizeAmount(raw: string): string {
   return raw.trim().replace(",", ".");
 }
 
-/** Link al explorer para una tx de Celo Sepolia. */
+/** Link al explorer para una tx de Celo Mainnet. */
 export function explorerTxUrl(txHash: string): string {
-  return `${CELO_SEPOLIA.explorerTx}${txHash}`;
+  return `${CELO_MAINNET.explorer}/tx/${txHash}`;
 }
 
 /**
@@ -91,7 +77,7 @@ export async function fetchTokenBalancePlain(
   const token = getTransferToken(tokenId);
   if (!token) return null;
   try {
-    const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+    const provider = new JsonRpcProvider(CELO_MAINNET.rpc);
     const c = new Contract(token.address, ERC20_ABI, provider);
     const raw = (await c.balanceOf(address)) as bigint;
     const s = formatUnits(raw, token.decimals); // p. ej. "5000.0" | "0.01"
@@ -106,17 +92,17 @@ function getEthereum() {
   return window.ethereum;
 }
 
-/** Asegura que la wallet esté en Celo Sepolia (en MiniPay testnet ya lo está). */
-async function ensureCeloSepolia(): Promise<void> {
+/** Asegura que la wallet esté en Celo Mainnet (en MiniPay mainnet ya lo está). */
+async function ensureCeloMainnet(): Promise<void> {
   const eth = getEthereum();
   if (!eth) return;
   try {
     const current = (await eth.request({ method: "eth_chainId" })) as string;
-    if (current?.toLowerCase() === CELO_SEPOLIA.chainIdHex) return;
+    if (current?.toLowerCase() === CELO_MAINNET.chainIdHex) return;
     try {
       await eth.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: CELO_SEPOLIA.chainIdHex }],
+        params: [{ chainId: CELO_MAINNET.chainIdHex }],
       });
     } catch (err: unknown) {
       if ((err as { code?: number })?.code === 4902) {
@@ -124,18 +110,18 @@ async function ensureCeloSepolia(): Promise<void> {
           method: "wallet_addEthereumChain",
           params: [
             {
-              chainId: CELO_SEPOLIA.chainIdHex,
-              chainName: "Celo Sepolia",
+              chainId: CELO_MAINNET.chainIdHex,
+              chainName: "Celo",
               nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
-              rpcUrls: [CELO_SEPOLIA.rpc],
-              blockExplorerUrls: ["https://celo-sepolia.blockscout.com"],
+              rpcUrls: [CELO_MAINNET.rpc],
+              blockExplorerUrls: [CELO_MAINNET.explorer],
             },
           ],
         });
       }
     }
   } catch {
-    // MiniPay puede no soportar el cambio de red; ya corre en Sepolia.
+    // MiniPay puede no soportar el cambio de red; ya corre en mainnet.
   }
 }
 
@@ -170,8 +156,7 @@ export async function sendTokenTransfer(
   }
 
   try {
-    // 2. Monto > 0 y parseable a las unidades del token (decimales conocidos y
-    // verificados: USDC 6, COPm 18; no hace falta leerlos on-chain).
+    // 2. Monto > 0 y parseable a las unidades del token (USDT 6, COPm 18).
     const decimals = token.decimals;
     let value: bigint;
     try {
@@ -190,7 +175,7 @@ export async function sendTokenTransfer(
     if (!from) return { ok: false, error: "No pudimos leer tu wallet." };
 
     // 4. Red correcta.
-    await ensureCeloSepolia();
+    await ensureCeloMainnet();
 
     // 5. Saldo suficiente. Se lee por la WALLET del usuario (MiniPay), no por el
     // RPC público, que puede ir atrasado tras un depósito reciente. Si no se
@@ -217,9 +202,9 @@ export async function sendTokenTransfer(
     //    IMPORTANTE (evita el bug del "monto como native value"):
     //    - `to` = contrato del TOKEN (no la wallet destino).
     //    - la dirección destino y el monto viajan SOLO dentro de `data`.
-    //    - `value` se OMITE (= 0): mismo patrón que lib/payToPlay.ts, que
-    //      funciona en MiniPay. Mandar `value: "0x0"` explícito coincidió con que
-    //      MiniPay empezara a rechazar la tx, así que no lo enviamos.
+    //    - `value` se OMITE (= 0): mismo patrón que lib/gameV2.ts, que funciona en
+    //      MiniPay. Mandar `value: "0x0"` explícito coincidió con que MiniPay
+    //      empezara a rechazar la tx, así que no lo enviamos.
     const data = new Interface(ERC20_ABI).encodeFunctionData("transfer", [
       dest,
       value,
@@ -227,8 +212,8 @@ export async function sendTokenTransfer(
 
     // Gas explícito y FIJO: en Celo, pagar el gas en stablecoin (feeCurrency)
     // añade un gas intrínseco extra que MiniPay no estima bien ("intrinsic gas
-    // too low"). Usamos un límite fijo generoso en vez de estimar por RPC (una
-    // llamada lenta que retrasaba la apertura del modal). El campo `gas` va en hex.
+    // too low"). Usamos un límite fijo generoso en vez de estimar por RPC. El
+    // campo `gas` va en hex.
     const gasHex = "0x" + TRANSFER_GAS_LIMIT.toString(16);
 
     const tx: { from: string; to: string; data: string; gas: string } = {
@@ -238,25 +223,10 @@ export async function sendTokenTransfer(
       gas: gasHex,
     };
 
-    // Logging de dev para inspeccionar EXACTAMENTE lo que se firma. Comprueba que
-    // `to` es el contrato del token, `value` va omitido y el monto va en `data`.
-    console.log("[DevTransfer] tx a firmar", {
-      tokenAddress: token.address,
-      destination: dest,
-      amountInput: amount.trim(),
-      decimals,
-      amountUnits: value.toString(),
-      "tx.to": tx.to,
-      "tx.value": "(omitido = 0, sin valor nativo)",
-      "tx.gas": `${gasHex} (${TRANSFER_GAS_LIMIT.toString()})`,
-      "tx.data": tx.data,
-    });
-
     const txHash = (await eth.request({
       method: "eth_sendTransaction",
       params: [tx],
     })) as string;
-    console.log("[DevTransfer] txHash", txHash);
     // Avisamos el hash ya: la UI puede mostrar "enviada, confirmando…" y el
     // enlace al explorer sin esperar a que se mine.
     onHash?.(txHash);
@@ -265,7 +235,7 @@ export async function sendTokenTransfer(
     // pero la tx ya se envió, NO la marcamos como error: devolvemos el hash para
     // verificar en el explorer.
     try {
-      const provider = new JsonRpcProvider(CELO_SEPOLIA.rpc);
+      const provider = new JsonRpcProvider(CELO_MAINNET.rpc);
       const receipt = await provider.waitForTransaction(txHash, 1, 60_000);
       if (receipt && receipt.status === 0) {
         return { ok: false, error: "La transferencia revirtió on-chain." };
@@ -282,7 +252,6 @@ export async function sendTokenTransfer(
     if (cancelled) {
       return { ok: false, error: "Cancelaste la transferencia." };
     }
-    // Herramienta de dev: mostramos el error crudo para diagnosticar.
     const detail = e?.message ? `: ${e.message}` : "";
     return { ok: false, error: `No se pudo completar la transferencia${detail}` };
   }
