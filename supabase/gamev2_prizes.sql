@@ -17,16 +17,20 @@
 -- NO dispare esa Edge Function (edge_url/cron_secret vacíos).
 
 -- ---------------------------------------------------------------------------
--- 1) Nuevos estados. Migra filas viejas ya pagadas (sent/completed) a 'claimed'.
+-- 1) Nuevos estados (PURAMENTE ADITIVO: no modifica ni borra filas existentes).
+--    Se AMPLÍA el CHECK para permitir los estados v2 SIN quitar los viejos
+--    (sent/completed/failed) — así ninguna fila existente queda inválida.
+--    v2 usa: registered / claimed / rollover. Los viejos quedan de legado.
 -- ---------------------------------------------------------------------------
 
 alter table public.prize_payouts drop constraint if exists prize_payouts_status_check;
 
-update public.prize_payouts set status = 'claimed' where status in ('sent', 'completed');
-
 alter table public.prize_payouts
   add constraint prize_payouts_status_check
-  check (status in ('pending', 'registered', 'claimed', 'rollover', 'failed'));
+  check (status in (
+    'pending', 'registered', 'claimed', 'rollover', 'failed',  -- v2
+    'sent', 'completed'                                         -- legado (auto-pago viejo)
+  ));
 
 -- ---------------------------------------------------------------------------
 -- 2) Referencia on-chain: para registrar el cierre y detectar el claim.
