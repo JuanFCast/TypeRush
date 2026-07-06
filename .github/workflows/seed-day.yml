@@ -1,0 +1,50 @@
+# Siembra del premio diario de TypeRush GameV2 (Celo Mainnet). Lo corre el FUNDER:
+# completa el piso de premio del día activo (1 USDT + 1.500 COPm por modo es/en).
+# Idempotente (solo aporta lo que falte).
+#
+# ⚠️ APAGADO por ahora: solo se puede lanzar A MANO (Actions → Seed day → Run workflow).
+# Para PRENDER la siembra automática, descomenta el bloque `schedule` de abajo.
+# Debe correr ANTES que Close day (el premio del nuevo día se pone al abrir el día).
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   GAMEV2_CONTRACT_ADDRESS
+#   PRIVATE_KEY                       (clave de Funder Rewards; wallet con USDT/COPm + CELO)
+#   NEXT_PUBLIC_GAMEV2_USDT_ADDRESS
+#   NEXT_PUBLIC_GAMEV2_COPM_ADDRESS
+
+name: Seed day (GameV2)
+
+on:
+  workflow_dispatch:
+  # Para prender la siembra automática, descomenta estas 2 líneas:
+  # schedule:
+  #   - cron: "2 1 * * *"   # 01:02 UTC = 8:02 p.m. Colombia (antes del cierre)
+
+concurrency:
+  group: seed-day
+  cancel-in-progress: false
+
+jobs:
+  seed-day:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Seed today's prize floor
+        run: npm run seed-day
+        env:
+          GAMEV2_CONTRACT_ADDRESS: ${{ secrets.GAMEV2_CONTRACT_ADDRESS }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          NEXT_PUBLIC_GAMEV2_USDT_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_USDT_ADDRESS }}
+          NEXT_PUBLIC_GAMEV2_COPM_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_COPM_ADDRESS }}

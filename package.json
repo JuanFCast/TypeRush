@@ -9,7 +9,8 @@
     "lint": "eslint",
     "prizes:distribute": "node scripts/distribute-prizes.mjs",
     "prizes:test": "node scripts/test-prize-payment.mjs",
-    "close-day": "node scripts/close-day-v2.mjs"
+    "close-day": "node scripts/close-day-v2.mjs",
+    "seed-day": "node scripts/seed-day-v2.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
