@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import DevTransferTool from "@/components/DevTransferTool";
+import ClaimBanner from "@/components/ClaimBanner";
 import { fetchWalletBalances, TokenBalance } from "@/lib/balances";
 import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
 import {
@@ -135,6 +136,10 @@ export default function ProfileScreen() {
         <h2 className="text-xl font-bold">Tú</h2>
       </div>
 
+      {/* Premio por reclamar (si esta wallet es ganadora registrada). Siempre
+          visible aquí, no solo como banner en Inicio. */}
+      <ClaimBanner />
+
       <div className="rounded-2xl border border-line bg-surface2 p-4">
         <label
           htmlFor="playerName"
@@ -197,7 +202,7 @@ export default function ProfileScreen() {
         </div>
 
         <p className="mt-2 text-xs text-muted">
-          Es la wallet donde recibes tu premio (USDC y COPm) si quedas #1 del día.
+          Es la wallet donde recibes tu premio (USDT y COPm) si quedas #1 del día.
           En MiniPay es tu misma wallet: la vinculas una vez y listo.
         </p>
 
@@ -251,7 +256,7 @@ export default function ProfileScreen() {
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(balances ?? [
-                    { symbol: "USDC", amount: "—" },
+                    { symbol: "USDT", amount: "—" },
                     { symbol: "COPm", amount: "—" },
                   ]).map((b) => (
                     <div

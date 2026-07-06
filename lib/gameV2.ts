@@ -13,6 +13,7 @@
 
 import { Contract, Interface, JsonRpcProvider, formatUnits, id } from "ethers";
 import { getCurrentGamePeriod } from "./gamePeriod";
+import { supabase } from "./supabase";
 
 const CONTRACT = process.env.NEXT_PUBLIC_GAMEV2_CONTRACT_ADDRESS ?? "";
 
@@ -371,8 +372,12 @@ export async function fetchConnectedAddress(): Promise<string | null> {
 }
 
 /**
- * Escanea los últimos CLAIM_SCAN_DAYS días cerrados (es/en) y devuelve los premios
- * donde `address` es el ganador registrado y el pozo sigue > 0 (aún sin reclamar).
+ * Premios que `address` puede reclamar. Detección ROBUSTA: pregunta a Supabase
+ * (`prize_payouts` status='registered' con esa wallet), que es rápido y confiable,
+ * en vez de escanear la blockchain decenas de veces. Solo confirma UNA lectura
+ * on-chain por premio (el pozo, para mostrar el monto y descartar los ya reclamados).
+ *
+ * Si Supabase no está disponible, cae al escaneo on-chain como respaldo.
  */
 export async function findClaimablePrizes(address: string): Promise<ClaimablePrize[]> {
   if (!isConfigured() || !/^0x[0-9a-fA-F]{40}$/.test(address)) return [];
@@ -382,32 +387,57 @@ export async function findClaimablePrizes(address: string): Promise<ClaimablePri
 
   const provider = readProvider();
   const contract = new Contract(CONTRACT, GAME_ABI, provider);
-  const today = currentDayIndex();
-  const target = address.toLowerCase();
-  const out: ClaimablePrize[] = [];
 
-  for (let day = today - 1; day >= today - CLAIM_SCAN_DAYS; day--) {
-    for (const mode of ["es", "en"]) {
-      try {
-        const winner = (await contract.winnerOf(day, id(mode))) as string;
-        if (winner.toLowerCase() !== target) continue;
-        const [pu, pc] = (await Promise.all([
-          contract.poolOf(day, id(mode), usdt.address),
-          contract.poolOf(day, id(mode), copm.address),
-        ])) as [bigint, bigint];
-        if (pu > 0n || pc > 0n) {
-          out.push({
-            day,
-            modeId: mode,
-            usdt: pu,
-            copm: pc,
-            usdtLabel: formatPool(pu, usdt),
-            copmLabel: formatPool(pc, copm),
-          });
+  // Candidatos: (día, modalidad) donde esta wallet quedó registrada como ganadora.
+  let candidates: { day: number; modeId: string }[] = [];
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("prize_payouts")
+      .select("mode_id, onchain_day, wallet_address, status")
+      .eq("status", "registered")
+      .ilike("wallet_address", address);
+    if (!error && data) {
+      candidates = data
+        .filter((r) => r.onchain_day != null)
+        .map((r) => ({ day: Number(r.onchain_day), modeId: r.mode_id as string }));
+    }
+  }
+  // Respaldo si no hubo Supabase: escaneo on-chain de los últimos días.
+  if (candidates.length === 0 && !supabase) {
+    const today = currentDayIndex();
+    const target = address.toLowerCase();
+    for (let day = today - 1; day >= today - CLAIM_SCAN_DAYS; day--) {
+      for (const mode of ["es", "en"]) {
+        try {
+          const winner = (await contract.winnerOf(day, id(mode))) as string;
+          if (winner.toLowerCase() === target) candidates.push({ day, modeId: mode });
+        } catch {
+          // sigue
         }
-      } catch {
-        // Un día que falle no bloquea el resto.
       }
+    }
+  }
+
+  // Confirma el pozo on-chain (1 lectura por token) y descarta los ya reclamados.
+  const out: ClaimablePrize[] = [];
+  for (const { day, modeId } of candidates) {
+    try {
+      const [pu, pc] = (await Promise.all([
+        contract.poolOf(day, id(modeId), usdt.address),
+        contract.poolOf(day, id(modeId), copm.address),
+      ])) as [bigint, bigint];
+      if (pu > 0n || pc > 0n) {
+        out.push({
+          day,
+          modeId,
+          usdt: pu,
+          copm: pc,
+          usdtLabel: formatPool(pu, usdt),
+          copmLabel: formatPool(pc, copm),
+        });
+      }
+    } catch {
+      // Un premio que falle su lectura no bloquea el resto.
     }
   }
   return out;
