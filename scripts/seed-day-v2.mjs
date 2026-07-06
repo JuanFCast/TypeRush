@@ -33,8 +33,6 @@ for (const file of [".env.local", ".env"]) {
 }
 
 const RPC = "https://forno.celo.org";
-const DAY_OFFSET = 3600; // 8 p.m. Colombia = 01:00 UTC
-const DAY_SECONDS = 86_400;
 const MODES = ["es", "en"];
 
 function requireEnv(name) {
