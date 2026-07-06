@@ -2,9 +2,8 @@
 # completa el piso de premio del día activo (1 USDT + 1.500 COPm por modo es/en).
 # Idempotente (solo aporta lo que falte).
 #
-# ⚠️ APAGADO por ahora: solo se puede lanzar A MANO (Actions → Seed day → Run workflow).
-# Para PRENDER la siembra automática, descomenta el bloque `schedule` de abajo.
-# Debe correr ANTES que Close day (el premio del nuevo día se pone al abrir el día).
+# AUTOMÁTICO: corre cada noche a las 8:02 p.m. Colombia (antes que Close day, 8:05).
+# También se puede lanzar a mano (Actions → Seed day → Run workflow).
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
 #   GAMEV2_CONTRACT_ADDRESS
@@ -16,9 +15,8 @@ name: Seed day (GameV2)
 
 on:
   workflow_dispatch:
-  # Para prender la siembra automática, descomenta estas 2 líneas:
-  # schedule:
-  #   - cron: "2 1 * * *"   # 01:02 UTC = 8:02 p.m. Colombia (antes del cierre)
+  schedule:
+    - cron: "2 1 * * *"   # 01:02 UTC = 8:02 p.m. Colombia (antes del cierre)
 
 concurrency:
   group: seed-day

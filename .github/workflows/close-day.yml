@@ -2,9 +2,8 @@
 # registra al ganador del día con rollDay() y detecta claims. NO paga — el ganador
 # reclama él mismo con claim().
 #
-# ⚠️ APAGADO por ahora: solo se puede lanzar A MANO (Actions → Close day → Run workflow).
-# Para PRENDER el cierre automático de las 8:05 p.m. Colombia, descomenta el bloque
-# `schedule` de abajo (y ten los secrets configurados).
+# AUTOMÁTICO: corre cada noche a las 8:05 p.m. Colombia (después de Seed day, 8:02).
+# También se puede lanzar a mano (Actions → Close day → Run workflow).
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
 #   GAMEV2_CONTRACT_ADDRESS
@@ -18,9 +17,8 @@ name: Close day (GameV2)
 
 on:
   workflow_dispatch:
-  # Para prender el cierre automático, descomenta estas 2 líneas:
-  # schedule:
-  #   - cron: "5 1 * * *"   # 01:05 UTC = 8:05 p.m. Colombia
+  schedule:
+    - cron: "5 1 * * *"   # 01:05 UTC = 8:05 p.m. Colombia
 
 concurrency:
   group: close-day
