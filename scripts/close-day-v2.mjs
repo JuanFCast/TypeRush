@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { Contract, JsonRpcProvider, Wallet, id, isAddress, ZeroAddress } from "ethers";
 import ws from "ws";
+import { withRetry } from "./_retry.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const file of [".env.local", ".env"]) {
@@ -112,8 +113,8 @@ async function settleClaimed(supabase, contract, tokens) {
     try {
       const modeKey = id(r.mode_id);
       const [pu, pc] = await Promise.all([
-        contract.poolOf(r.onchain_day, modeKey, tokens[0]),
-        contract.poolOf(r.onchain_day, modeKey, tokens[1]),
+        withRetry(() => contract.poolOf(r.onchain_day, modeKey, tokens[0]), `poolOf ${r.mode_id} USDT`),
+        withRetry(() => contract.poolOf(r.onchain_day, modeKey, tokens[1]), `poolOf ${r.mode_id} COPm`),
       ]);
       if (pu === 0n && pc === 0n) {
         await supabase
@@ -149,7 +150,7 @@ async function main() {
   // Periodo que ACABA de cerrar = el anterior al activo.
   const closingStart = new Date(currentPeriodStart().getTime() - 86_400_000);
   const day = dayIndexFromPeriodStart(closingStart);
-  const onChainCurrentDay = Number(await contract.currentDay());
+  const onChainCurrentDay = Number(await withRetry(() => contract.currentDay(), "currentDay"));
 
   console.log(`Cerrando día ${day} (periodo ${closingStart.toISOString()}). currentDay on-chain = ${onChainCurrentDay}.`);
   if (day >= onChainCurrentDay) {
@@ -168,7 +169,7 @@ async function main() {
   for (const mode of MODES) {
     const modeKey = id(mode);
     try {
-      if (await contract.rolled(day, modeKey)) {
+      if (await withRetry(() => contract.rolled(day, modeKey), `rolled ${mode}`)) {
         console.log(`  = ${mode}: ya estaba cerrado, se salta.`);
         continue;
       }
@@ -178,7 +179,10 @@ async function main() {
       const hasWallet = wallet && isAddress(wallet);
       const winner = hasWallet ? wallet : ZeroAddress;
 
-      const receipt = await (await contract.rollDay(day, modeKey, winner, tokens)).wait();
+      const receipt = await withRetry(
+        async () => (await contract.rollDay(day, modeKey, winner, tokens)).wait(),
+        `rollDay ${mode}`,
+      );
 
       if (winner !== ZeroAddress && row) {
         await supabase
