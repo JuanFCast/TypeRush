@@ -17,6 +17,10 @@
  * cerrar días y no maneja fondos.
  *
  * Uso: node scripts/close-day-v2.mjs
+ *
+ * ⚠️ COPIA ESPEJO: el disparo principal ahora es la Edge Function
+ * supabase/functions/close-day/index.ts (cron de Supabase, 8:05 p.m.); este script
+ * queda como RESPALDO en GitHub Actions (8:35 p.m.). Un cambio aquí debe replicarse allá.
  */
 
 import { readFileSync, existsSync } from "node:fs";

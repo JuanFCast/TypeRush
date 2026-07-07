@@ -2,7 +2,10 @@
 # completa el piso de premio del día activo (1 USDT + 1.500 COPm por modo es/en).
 # Idempotente (solo aporta lo que falte).
 #
-# AUTOMÁTICO: corre cada noche a las 8:02 p.m. Colombia (antes que Close day, 8:05).
+# RESPALDO: el disparo principal es el cron de Supabase (supabase/gamev2_robots.sql →
+# Edge Function seed-day, 8:02 p.m. Colombia). Este workflow corre a las 8:32 p.m.
+# por si aquel falla — es idempotente, correr doble no duplica premios. El cron de
+# GitHub es impuntual (se retrasa o se salta), por eso dejó de ser el principal.
 # También se puede lanzar a mano (Actions → Seed day → Run workflow).
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
@@ -16,7 +19,7 @@ name: Seed day (GameV2)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "2 1 * * *"   # 01:02 UTC = 8:02 p.m. Colombia (antes del cierre)
+    - cron: "32 1 * * *"   # 01:32 UTC = 8:32 p.m. Colombia (RESPALDO del cron de Supabase)
 
 concurrency:
   group: seed-day

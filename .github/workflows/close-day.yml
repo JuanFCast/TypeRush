@@ -2,7 +2,10 @@
 # registra al ganador del día con rollDay() y detecta claims. NO paga — el ganador
 # reclama él mismo con claim().
 #
-# AUTOMÁTICO: corre cada noche a las 8:05 p.m. Colombia (después de Seed day, 8:02).
+# RESPALDO: el disparo principal es el cron de Supabase (supabase/gamev2_robots.sql →
+# Edge Function close-day, 8:05 p.m. Colombia). Este workflow corre a las 8:35 p.m.
+# por si aquel falla — es idempotente (si el día ya está cerrado, se salta). El cron
+# de GitHub es impuntual (se retrasa o se salta), por eso dejó de ser el principal.
 # También se puede lanzar a mano (Actions → Close day → Run workflow).
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
@@ -18,7 +21,7 @@ name: Close day (GameV2)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 1 * * *"   # 01:05 UTC = 8:05 p.m. Colombia
+    - cron: "35 1 * * *"   # 01:35 UTC = 8:35 p.m. Colombia (RESPALDO del cron de Supabase)
 
 concurrency:
   group: close-day

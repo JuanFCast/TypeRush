@@ -89,6 +89,21 @@ score = Math.round(wpm * accuracy * progress * mistakePenalty * 100) // wpm = (c
 Best score is stored **per challenge** in `localStorage` (`typerush.best.v3.<challengeId>`). Finished
 ranked races are also saved to Supabase `match_results` for the daily leaderboard.
 
+### ⚠️ GameV2 / Celo MAINNET (2026-07-05) — supersedes much of the section below
+
+The game moved to **`TypeRushGameV2` @ `0x22bda890153f9217ABf2F5B493c2B6E06b8c9336` on Celo
+MAINNET (42220)**, paid in **USDT (0.10) or COPm (500)**, split 80/20 pool/protocol, **PULL model**
+(the winner claims from the app via a ClaimBanner; nothing is pushed). Roles are separated:
+owner=Owner Admin `0xe953…` (cold), operator=Operator Bot `0xc91A…` (only closes days),
+treasury=Treasury Fees `0xA593…`, funder/seeder=`0x46d5…`. Client wiring lives in `lib/gameV2.ts`.
+Nightly robots (Colombia time): **8:02 p.m. seed** (top-up floor 1 USDT + 1500 COPm per mode,
+today+tomorrow) and **8:05 p.m. close** (register winner with `rollDay`). Primary trigger =
+**Supabase pg_cron → Edge Functions `seed-day` / `close-day`** (`supabase/gamev2_robots.sql`);
+GitHub Actions workflows run as idempotent BACKUP at 8:32/8:35 p.m. (GitHub cron is unreliable).
+Prize states in Supabase: pending → registered → claimed (or rollover), see `supabase/gamev2_prizes.sql`.
+The section below describes the RETIRED Sepolia/PayToPlayMulti system (its auto-payout was turned
+off 2026-07-05); `lib/payToPlay.ts` / `lib/prizePool.ts` are orphaned.
+
 ### Daily period & the on-chain prize (the money flow)
 
 - The game "day" runs **8 p.m. → 8 p.m. Colombia** (`lib/gamePeriod.ts`, `PERIOD_RESET_HOUR=20`; must

@@ -17,6 +17,10 @@
  * siembra aislada (su try/catch): si COPm falla, USDT igual se siembra.
  *
  * Firma con PRIVATE_KEY (Funder Rewards). Uso: node scripts/seed-day-v2.mjs
+ *
+ * ⚠️ COPIA ESPEJO: el disparo principal ahora es la Edge Function
+ * supabase/functions/seed-day/index.ts (cron de Supabase, 8:02 p.m.); este script
+ * queda como RESPALDO en GitHub Actions (8:32 p.m.). Un cambio aquí debe replicarse allá.
  */
 
 import { readFileSync, existsSync } from "node:fs";
