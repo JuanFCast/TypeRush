@@ -9,6 +9,7 @@ import {
   Stats,
 } from "@/lib/game";
 import { submitRun } from "@/lib/runs";
+import { playError, playFinish, playKey, playRecord } from "@/lib/sound";
 import { saveMatchHistoryItem } from "@/lib/history";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
@@ -86,6 +87,10 @@ export function useTypeRush() {
     setIsNewBest(record);
     setResult(final);
     setStatus("finished");
+
+    // Sonido de cierre; si hubo récord, el arpegio de celebración va encima.
+    playFinish();
+    if (record) playRecord();
 
     // Ranking: el servidor recalcula el score contra su pasaje canónico. Si no
     // hay run emitido (offline / start-run falló), la partida queda solo local.
@@ -181,6 +186,12 @@ export function useTypeRush() {
           if (mistakes === mistakeIndicesRef.current) mistakes = new Set(mistakes);
           mistakes.add(i);
         }
+      }
+      // Sonido por tecla NUEVA (no al borrar): click si acierta, golpe si falla.
+      if (clipped.length > typedRef.current.length) {
+        const last = clipped.length - 1;
+        if (clipped[last] === passageRef.current[last]) playKey();
+        else playError();
       }
       // Sincroniza los refs ya mismo: si esta tecla completa el pasaje,
       // finish() debe ver este input, no el del render anterior.

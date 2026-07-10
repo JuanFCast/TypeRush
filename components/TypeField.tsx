@@ -61,12 +61,12 @@ export default function TypeField({
         focus();
       }}
       onTouchStart={focus}
-      className="relative cursor-text rounded-2xl border border-line bg-surface2/60 p-4 sm:p-5"
+      className="relative cursor-text rounded-2xl border border-line bg-surface2 p-4 shadow-card sm:p-5"
     >
       <div
         ref={scrollRef}
         onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
-        className={`type-scroll relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem] ${
+        className={`type-scroll relative max-h-[8.5rem] overflow-y-auto sm:max-h-[10rem] [@media(max-height:640px)]:max-h-[6.5rem] ${
           scrolled ? "is-scrolled" : ""
         }`}
       >

@@ -130,7 +130,7 @@ export default function ProfileScreen() {
     savedWallet.toLowerCase() !== connectedWallet.toLowerCase();
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="screen-in flex flex-1 flex-col">
       <div className="mb-4 flex items-center gap-2">
         <span className="text-xl leading-none">👤</span>
         <h2 className="text-xl font-bold">Tú</h2>
@@ -140,7 +140,7 @@ export default function ProfileScreen() {
           visible aquí, no solo como banner en Inicio. */}
       <ClaimBanner />
 
-      <div className="rounded-2xl border border-line bg-surface2 p-4">
+      <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
         <label
           htmlFor="playerName"
           className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
@@ -181,13 +181,13 @@ export default function ProfileScreen() {
           type="button"
           onClick={() => void onSave()}
           disabled={tooShort || busy}
-          className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+          className="mt-4 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
         >
           {busy ? "Verificando…" : saved ? "✓ Guardado" : "Guardar"}
         </button>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-line bg-surface2 p-4">
+      <div className="mt-3 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
             Wallet para premios
@@ -232,7 +232,7 @@ export default function ProfileScreen() {
                     setAddrCopied(true);
                     setTimeout(() => setAddrCopied(false), 1500);
                   }}
-                  className="mt-2 rounded-lg border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand transition active:scale-[0.98]"
+                  className="mt-2 min-h-11 rounded-lg border border-brand/40 bg-brand/10 px-3.5 py-2.5 text-xs font-bold text-brand transition active:scale-[0.98]"
                 >
                   {addrCopied ? "✓ Copiada" : "Copiar dirección"}
                 </button>
@@ -316,7 +316,7 @@ export default function ProfileScreen() {
                     type="button"
                     onClick={() => void onConnectAndSave()}
                     disabled={walletBusy || profileInDb === false}
-                    className="mt-3 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+                    className="mt-3 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
                   >
                     {walletBusy
                       ? "Vinculando…"
@@ -344,7 +344,7 @@ export default function ProfileScreen() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 text-xs">
+      <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 shadow-card text-xs">
         <span className="text-muted">Perfil local</span>
         <span className="font-mono text-ink/80">
           {playerId ? `id ${playerId.slice(0, 8)}` : "—"}

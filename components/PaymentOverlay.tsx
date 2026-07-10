@@ -73,7 +73,7 @@ export default function PaymentOverlay({ phase, en }: Props) {
                 <span
                   className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-bold ${
                     done
-                      ? "border-brand bg-brand text-bg"
+                      ? "border-brand-deep bg-brand-deep text-white"
                       : current
                         ? "step-pulse border-brand bg-brand/15 text-brand"
                         : "border-line bg-surface2 text-muted"

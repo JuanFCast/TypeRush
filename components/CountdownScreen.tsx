@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { playCountTick, playGo } from "@/lib/sound";
 
 // 3 · 2 · 1 · ¡YA! — cada paso dura ~0.9s, el "¡YA!" un poco menos.
 const STEPS = ["3", "2", "1", "¡YA!"];
@@ -41,14 +42,22 @@ export default function CountdownScreen({
   }, []);
 
   const isGo = step === STEPS.length - 1;
+
+  // Sonido de cada paso: tick en 3·2·1 y tono ascendente en el "¡YA!". El audio
+  // ya quedó desbloqueado por el gesto que abrió esta pantalla.
+  useEffect(() => {
+    if (isGo) playGo();
+    else playCountTick();
+  }, [step, isGo]);
+
   // 3 marcas (3·2·1) que se van encendiendo; en "¡YA!" quedan todas activas.
   const filled = isGo ? 3 : step + 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start gap-6 bg-bg px-6 pt-[14vh] text-center">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start gap-6 bg-bg px-6 pt-[max(14vh,env(safe-area-inset-top))] text-center">
       {/* Contexto del reto */}
       <div className="flex flex-col items-center gap-1">
-        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-brand">
+        <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand">
           Calienta los dedos
         </span>
         {challengeName && (
@@ -66,7 +75,7 @@ export default function CountdownScreen({
         key={step}
         className={`countdown-pop font-mono font-bold leading-none ${
           isGo
-            ? "text-9xl text-brand [text-shadow:0_0_28px_rgba(0,209,143,0.55)]"
+            ? "text-9xl text-brand [text-shadow:0_0_28px_rgba(0,158,109,0.4)]"
             : "text-8xl text-ink"
         }`}
       >
@@ -92,7 +101,7 @@ export default function CountdownScreen({
       <button
         type="button"
         onClick={onCancel}
-        className="mt-2 h-10 rounded-xl px-4 text-sm font-semibold text-muted transition active:scale-[0.98]"
+        className="mt-2 h-11 rounded-xl px-5 text-sm font-semibold text-muted transition active:scale-[0.98]"
       >
         Cancelar carrera
       </button>

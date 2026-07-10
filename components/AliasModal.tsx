@@ -68,8 +68,8 @@ export default function AliasModal({
       : "Guardar y jugar";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface2 p-5 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center">
+      <div className="success-pop w-full max-w-sm rounded-2xl border border-line bg-surface2 p-5 shadow-pop">
         <div className="mb-1 flex items-center gap-2">
           <span className="text-xl leading-none">🏷️</span>
           <h2 className="text-lg font-bold">Elige tu alias</h2>
@@ -112,14 +112,14 @@ export default function AliasModal({
           type="button"
           onClick={() => void onSubmit()}
           disabled={busy}
-          className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+          className="mt-4 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
         >
           {label}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 h-10 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98]"
+          className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98]"
         >
           Cancelar
         </button>

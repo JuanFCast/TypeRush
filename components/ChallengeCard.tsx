@@ -18,10 +18,10 @@ export default function ChallengeCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`w-full rounded-2xl border p-4 text-left shadow-sm transition active:scale-[0.99] ${
+      className={`w-full rounded-2xl border p-4 text-left transition active:scale-[0.99] ${
         selected
-          ? "border-brand bg-brand/5 ring-1 ring-brand"
-          : "border-line bg-surface2"
+          ? "border-brand bg-surface2 shadow-pop ring-1 ring-brand"
+          : "border-line bg-surface2 shadow-card hover:border-brand/40"
       }`}
     >
       <div className="flex items-start justify-between gap-2">

@@ -70,7 +70,7 @@ export default function ClaimBanner() {
   if (prizes.length === 0) return null;
 
   return (
-    <div className="mb-4 rounded-2xl border border-brand/40 bg-gradient-to-br from-brand/20 to-brand/5 p-4">
+    <div className="mb-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand-soft to-surface2 p-4 shadow-card">
       <div className="flex items-center gap-2">
         <span className="text-xl leading-none">🏆</span>
         <span className="text-sm font-bold text-brand">¡Ganaste! Reclama tu premio</span>
@@ -83,7 +83,7 @@ export default function ClaimBanner() {
         {prizes.map((p) => {
           const st = states[key(p)] ?? "pending";
           return (
-            <div key={key(p)} className="rounded-xl border border-brand/25 bg-bg/40 p-3">
+            <div key={key(p)} className="rounded-xl border border-brand/20 bg-surface2/80 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wide text-ink/80">
                   {MODE_LABEL[p.modeId] ?? p.modeId}
@@ -96,7 +96,7 @@ export default function ClaimBanner() {
                 type="button"
                 onClick={() => onClaim(p)}
                 disabled={st === "claiming" || st === "claimed"}
-                className="mt-2.5 h-10 w-full rounded-lg bg-brand text-sm font-bold text-bg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-2.5 h-11 w-full rounded-lg bg-brand-deep text-sm font-bold text-white shadow-card transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {st === "claiming"
                   ? "Reclamando…"

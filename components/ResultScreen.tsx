@@ -1,12 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { ModeId } from "@/lib/passages";
 import { Stats } from "@/lib/game";
 import StatBlock from "./StatBlock";
 
 // Tiempo que los botones quedan bloqueados al terminar, para no tocarlos por error.
 const ARM_DELAY_MS = 3500;
+
+// Piezas de confeti precalculadas (posición horizontal, retardo y color): así el
+// render es estable y no hay Math.random() en cada pintado.
+const CONFETTI = [
+  { x: "6%", d: "0s", c: "var(--color-brand)" },
+  { x: "14%", d: "0.25s", c: "#f4c95d" },
+  { x: "23%", d: "0.1s", c: "var(--color-brand)" },
+  { x: "32%", d: "0.4s", c: "#6ec6ff" },
+  { x: "41%", d: "0.05s", c: "#f4c95d" },
+  { x: "50%", d: "0.3s", c: "var(--color-brand)" },
+  { x: "59%", d: "0.15s", c: "#6ec6ff" },
+  { x: "68%", d: "0.45s", c: "var(--color-brand)" },
+  { x: "77%", d: "0.2s", c: "#f4c95d" },
+  { x: "86%", d: "0.35s", c: "var(--color-brand)" },
+  { x: "93%", d: "0.08s", c: "#6ec6ff" },
+];
 
 type Props = {
   result: Stats;
@@ -36,9 +52,22 @@ export default function ResultScreen({
   }, []);
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
+    <div className="screen-in relative flex flex-1 flex-col items-center justify-center text-center">
+      {/* Confeti solo en récord: piezas CSS puras, invisibles con reduced-motion. */}
+      {isNewBest && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          {CONFETTI.map((p, i) => (
+            <span
+              key={i}
+              className="confetti"
+              style={{ "--x": p.x, "--d": p.d, "--c": p.c } as CSSProperties}
+            />
+          ))}
+        </div>
+      )}
+
       {isNewBest ? (
-        <div className="mb-3 rounded-full border border-brand/40 bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">
+        <div className="success-pop mb-3 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">
           {en ? "✦ New record!" : "✦ ¡Nuevo récord!"}
         </div>
       ) : (
@@ -95,7 +124,7 @@ export default function ResultScreen({
           type="button"
           onClick={onBackToLobby}
           disabled={!armed}
-          className="h-14 w-full rounded-2xl bg-brand text-lg font-bold text-bg transition active:scale-[0.98] disabled:opacity-40"
+          className="h-14 w-full rounded-2xl bg-brand-deep text-lg font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:opacity-40"
         >
           {en ? "Back to challenges" : "Volver a retos"}
         </button>
@@ -104,7 +133,7 @@ export default function ResultScreen({
           type="button"
           onClick={onExit}
           disabled={!armed}
-          className="mt-3 w-full text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
+          className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
         >
           {en ? "Back to home" : "Volver al inicio"}
         </button>

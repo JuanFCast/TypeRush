@@ -101,13 +101,13 @@ export default function ChallengeLobby({
   const hasPrize = presentCurrencies.length > 0;
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="screen-in flex flex-1 flex-col">
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
           onClick={onBack}
           aria-label="Volver a los modos"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-surface2 text-lg text-muted transition active:scale-95"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-surface2 text-lg text-muted shadow-card transition active:scale-95"
         >
           ‹
         </button>
@@ -118,12 +118,12 @@ export default function ChallengeLobby({
       </div>
 
       {payEnabled && hasPrize && (
-        <div className="mb-3 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/15 to-brand/5 px-4 py-3.5">
+        <div className="mb-3 rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3.5 shadow-card">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
               🏆 {prizeLabel}
             </span>
-            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
+            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
               {winBothLabel}
             </span>
           </div>
@@ -131,9 +131,9 @@ export default function ChallengeLobby({
             {presentCurrencies.map((c, i) => (
               <Fragment key={c.id}>
                 {i > 0 && (
-                  <span className="shrink-0 text-xl font-black text-brand/60">+</span>
+                  <span className="shrink-0 text-xl font-black text-brand/50">+</span>
                 )}
-                <div className="flex-1 rounded-xl border border-brand/25 bg-bg/40 px-2 py-2 text-center">
+                <div className="flex-1 rounded-xl border border-brand/20 bg-surface2/80 px-2 py-2 text-center">
                   <div className="text-base leading-none">{CURRENCY_META[c.id].icon}</div>
                   <div className="mt-1 font-mono text-xl font-extrabold leading-none text-brand">
                     {pools[c.id]}
@@ -168,7 +168,7 @@ export default function ChallengeLobby({
               type="button"
               onClick={onPlaySelected}
               disabled={playLoading || !canPlay}
-              className="h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {playLoading ? checkingLabel : canPlay ? playLabel : countdownLabel}
             </button>
@@ -178,7 +178,7 @@ export default function ChallengeLobby({
                 {freeUsedLabel} {en ? "Choose a currency:" : "Elige moneda:"}
               </p>
               <div className="flex justify-center">
-                <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">
+                <span className="rounded-full border border-brand/25 bg-brand-soft px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">
                   🟢 Celo Mainnet
                 </span>
               </div>
@@ -189,7 +189,7 @@ export default function ChallengeLobby({
                     type="button"
                     onClick={() => onPayAndPlay(selectedId, c.id)}
                     disabled={payState === "paying"}
-                    className="flex h-14 flex-col items-center justify-center rounded-xl bg-brand text-bg shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-14 flex-col items-center justify-center rounded-xl bg-brand-deep text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {payState === "paying" ? (
                       <span className="text-xs font-bold">{payingLabel}</span>

@@ -30,8 +30,8 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 px-6 backdrop-blur-sm">
-      <div className="w-full max-w-xs rounded-2xl border border-line bg-surface2 p-5 text-center shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 px-6 backdrop-blur-sm">
+      <div className="success-pop w-full max-w-xs rounded-2xl border border-line bg-surface2 p-5 text-center shadow-pop">
         <div className="text-3xl">💸</div>
         <h2 className="mt-2 text-lg font-bold text-ink">
           {en ? `You need more ${symbol}` : `Necesitas más ${symbol}`}
@@ -42,7 +42,7 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
             : `Para pagar la entrada necesitas ${needed} ${symbol}.`}
         </p>
 
-        <div className="mt-4 rounded-xl border border-brand/25 bg-bg/40 p-3">
+        <div className="mt-4 rounded-xl border border-brand/25 bg-brand-soft/40 p-3">
           <p className="text-[0.6rem] font-bold uppercase tracking-wide text-brand">
             🟢 {en ? "Deposit on Celo Mainnet" : "Deposita en Celo Mainnet"}
           </p>
@@ -52,7 +52,7 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
           <button
             type="button"
             onClick={copy}
-            className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface2 px-3 py-2 font-mono text-xs text-ink transition active:scale-[0.98]"
+            className="mt-1.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface2 px-3 py-2.5 font-mono text-xs text-ink transition active:scale-[0.98]"
           >
             <span>{short}</span>
             <span className="text-[0.6rem] font-sans font-bold uppercase text-brand">
@@ -64,7 +64,7 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
         <button
           type="button"
           onClick={onClose}
-          className="mt-5 h-11 w-full rounded-xl bg-brand text-sm font-bold text-bg transition active:scale-[0.98]"
+          className="mt-5 h-11 w-full rounded-xl bg-brand-deep text-sm font-bold text-white transition active:scale-[0.98]"
         >
           {en ? "Got it" : "Entendido"}
         </button>

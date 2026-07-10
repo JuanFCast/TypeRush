@@ -14,7 +14,9 @@ import ProfileScreen from "@/components/ProfileScreen";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import PaymentOverlay from "@/components/PaymentOverlay";
+import SoundToggle from "@/components/SoundToggle";
 import { getPlayerId, getPlayerName, hasPlayerAlias } from "@/lib/player";
+import { unlockAudio } from "@/lib/sound";
 import { isStartRunOk, startRun, StartRunResult } from "@/lib/runs";
 import {
   AttemptClaim,
@@ -74,7 +76,12 @@ export default function Page() {
   // foco se transfiere a él (mover el foco entre inputs no cierra el teclado). El
   // input real queda montado durante todo el 3·2·1, así el teclado no se pierde.
   const primerRef = useRef<HTMLTextAreaElement>(null);
-  const primeKeyboard = () => primerRef.current?.focus();
+  // Además de abrir el teclado, este gesto desbloquea el audio (iOS/Android solo
+  // permiten crear/reanudar el AudioContext dentro de una interacción real).
+  const primeKeyboard = () => {
+    unlockAudio();
+    primerRef.current?.focus();
+  };
 
   // Aviso cuando no se pudo validar el tiro gratis contra Supabase.
   const [attemptError, setAttemptError] = useState<string | null>(null);
@@ -298,17 +305,20 @@ export default function Page() {
 
   return (
     <main
-      className={`mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] ${
-        status === "idle" ? "pb-28" : "pb-6"
+      className={`mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:max-w-lg md:pt-8 ${
+        status === "idle" ? "pb-28" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       }`}
     >
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between gap-3">
         <span className="font-mono text-sm font-bold tracking-normal">
           type<span className="text-brand">rush</span>
         </span>
-        <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
-          45s typing race
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block">
+            45s typing race
+          </span>
+          <SoundToggle />
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col">
@@ -385,9 +395,9 @@ export default function Page() {
         <button
           type="button"
           onClick={() => setAttemptError(null)}
-          className="fixed inset-x-0 bottom-24 z-40 mx-auto w-full max-w-md px-5 text-left"
+          className="fixed inset-x-0 bottom-24 z-40 mx-auto w-full max-w-md px-5 text-left md:max-w-lg"
         >
-          <span className="block rounded-xl border border-line bg-surface2 px-4 py-3 text-sm font-semibold text-danger shadow-xl">
+          <span className="block rounded-xl border border-danger/30 bg-surface2 px-4 py-3 text-sm font-semibold text-danger shadow-pop">
             {attemptError}
           </span>
         </button>
@@ -451,7 +461,7 @@ export default function Page() {
               <button
                 type="button"
                 onClick={onStartPaid}
-                className="h-14 w-full max-w-xs rounded-2xl bg-brand text-lg font-extrabold text-bg shadow-lg transition active:scale-[0.98]"
+                className="h-14 w-full max-w-xs rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition active:scale-[0.98]"
               >
                 {en ? "Start! ▶" : "¡Empezar! ▶"}
               </button>

@@ -9,25 +9,26 @@ type Props = {
 
 export default function ModeHome({ onSelectMode }: Props) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
+    <div className="screen-in flex flex-1 flex-col items-center justify-center text-center">
       <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
         Type<span className="text-brand">Rush</span>
       </h1>
       <p className="mt-3 max-w-xs text-balance text-muted">
         Elige un modo y pon a prueba tu velocidad. Tienes{" "}
-        <span className="text-ink">{DURATION} segundos</span> por carrera.
+        <span className="font-semibold text-ink">{DURATION} segundos</span> por
+        carrera.
       </p>
 
       {/* Modos principales como cards grandes */}
-      <div className="mt-8 w-full max-w-xs space-y-3">
+      <div className="mt-8 w-full max-w-xs space-y-3 sm:max-w-sm">
         {MODES.map((m) => (
           <button
             key={m.id}
             type="button"
             onClick={() => onSelectMode(m.id)}
-            className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface2 p-4 text-left shadow-sm transition active:scale-[0.99]"
+            className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface2 p-4 text-left shadow-card transition hover:border-brand/40 active:scale-[0.99]"
           >
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bg text-2xl leading-none">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-2xl leading-none">
               {m.icon}
             </span>
             <span className="min-w-0 flex-1">

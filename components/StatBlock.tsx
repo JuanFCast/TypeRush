@@ -7,7 +7,7 @@ type Props = {
 
 export default function StatBlock({ label, value, accent, big }: Props) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-center">
+    <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5 text-center shadow-card">
       <div
         className={`font-mono font-bold leading-none ${
           big ? "text-4xl" : "text-2xl"

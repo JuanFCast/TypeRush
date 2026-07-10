@@ -231,7 +231,7 @@ export default function DevTransferTool() {
                 <button
                   type="button"
                   onClick={() => void onConfirm()}
-                  className="h-11 rounded-xl bg-brand text-sm font-bold text-bg shadow-sm transition active:scale-[0.98]"
+                  className="h-11 rounded-xl bg-brand-deep text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
                 >
                   Confirmar
                 </button>
@@ -242,7 +242,7 @@ export default function DevTransferTool() {
               type="button"
               onClick={onReview}
               disabled={!canReview}
-              className="mt-4 h-12 w-full rounded-xl bg-brand text-base font-bold text-bg shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+              className="mt-4 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
             >
               {status.kind === "sending"
                 ? "Enviando…"

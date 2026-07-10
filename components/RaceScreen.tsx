@@ -26,7 +26,7 @@ export default function RaceScreen({
   const urgent = remaining <= 10;
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-3 sm:gap-4">
       {/* Cronómetro + barra de tiempo */}
       <div>
         <div className="mb-2 flex items-end justify-between">
@@ -35,13 +35,13 @@ export default function RaceScreen({
           </span>
           <span
             className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-              urgent ? "text-danger" : "text-brand"
+              urgent ? "timer-pulse text-danger" : "text-brand"
             }`}
           >
             {remaining}s
           </span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-surface2">
+        <div className="h-1.5 overflow-hidden rounded-full bg-line">
           <div
             className={`h-full rounded-full transition-[width] duration-200 ease-linear ${
               urgent ? "bg-danger" : "bg-brand"
@@ -83,7 +83,7 @@ function Live({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-2 py-2 text-center">
+    <div className="rounded-xl border border-line bg-surface2 px-2 py-2 text-center shadow-card">
       <div
         className={`font-mono text-xl font-bold leading-none ${
           accent ? "text-brand" : "text-ink"

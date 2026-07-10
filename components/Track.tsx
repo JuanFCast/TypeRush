@@ -7,7 +7,7 @@ export default function Track({ progress }: Props) {
   const pct = Math.max(0, Math.min(1, progress)) * 100;
 
   return (
-    <div className="relative h-9 overflow-hidden rounded-full border border-line bg-surface2">
+    <div className="relative h-8 overflow-hidden rounded-full border border-line bg-surface2 shadow-card sm:h-9 [@media(max-height:640px)]:h-6">
       {/* Estela recorrida */}
       <div
         className="absolute inset-y-0 left-0 bg-brand/15"
