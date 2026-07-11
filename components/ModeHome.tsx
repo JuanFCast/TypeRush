@@ -90,15 +90,6 @@ export default function ModeHome({ onSelectMode }: Props) {
 
   return (
     <div className="screen-in relative flex flex-1 flex-col justify-center pt-4 pb-2 lg:py-8">
-      {/* Líneas de velocidad decorativas, sutiles pero intencionales (el
-          amarillo claro sobre fondo claro parecía una mancha: va el profundo). */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-8 top-10 h-1.5 w-44 -skew-y-6 rounded-full bg-gradient-to-r from-brand/25 to-transparent" />
-        <div className="absolute -left-4 top-16 h-1 w-28 -skew-y-6 rounded-full bg-gradient-to-r from-celo-deep/45 to-transparent" />
-        <div className="absolute -right-6 bottom-14 h-1.5 w-52 -skew-y-6 rounded-full bg-gradient-to-l from-brand/20 to-transparent" />
-        <div className="absolute -right-2 bottom-9 h-1 w-32 -skew-y-6 rounded-full bg-gradient-to-l from-celo-deep/35 to-transparent" />
-      </div>
-
       <div className="relative grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-12 [@media(max-height:700px)]:gap-4">
         {/* Columna izquierda: propuesta de valor + premio + CTA. */}
         <section className="flex flex-col items-center text-center lg:items-start lg:text-left">
@@ -252,7 +243,13 @@ export default function ModeHome({ onSelectMode }: Props) {
         {/* Columna derecha: demo visual de la carrera. En lg va alineada arriba
             (con un pequeño offset óptico) para no dejar un vacío muerto en el
             cuadrante superior derecho. */}
-        <section className="mx-auto w-full max-w-md lg:mt-9 lg:max-w-none">
+        <section className="relative mx-auto w-full max-w-md lg:mt-9 lg:max-w-none">
+          {/* Halo radial verde extremadamente sutil tras la demo: sin bordes
+              (degradado a transparente), solo da profundidad al fondo limpio. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[150%] w-[130%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(0,158,109,0.08),rgba(0,158,109,0))]"
+          />
           <RaceDemo />
         </section>
       </div>

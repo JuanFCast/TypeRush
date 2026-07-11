@@ -3,26 +3,59 @@
 import { useEffect, useState } from "react";
 import { DURATION } from "@/lib/game";
 
-// Frase corta de la demo (solo visual; las carreras reales usan lib/passages).
-const SENTENCE = "La velocidad se entrena: una carrera a la vez.";
-const TICK_MS = 95; // ~1 carácter por tick ≈ ritmo humano rápido
+// Frase de la demo (solo visual; las carreras reales usan lib/passages).
+const SENTENCE =
+  "La velocidad se entrena: una carrera a la vez y cada error corregido suma.";
+const TICK_MS = 95; // ~1 tecla por tick ≈ ritmo humano rápido
 const PAUSE_TICKS = 18; // pausa al completar antes de reiniciar
-// La demo "se equivoca" en este índice y lo corrige unos caracteres después:
-// muestra el sistema de colores real (rojo = error activo, ámbar = corregido).
-const ERROR_AT = 17; // una letra de "entrena" (no un espacio, que se ve raro)
-const ERROR_FIX_AFTER = 7;
+// Índices donde la demo "se equivoca" (letras, no espacios). Igual que el juego
+// real: el rojo PERSISTE mientras sigue escribiendo, luego borra hacia atrás,
+// reescribe y la posición queda ámbar (corregida) el resto de la carrera.
+const ERRORS = [17, 54];
+const OVERSHOOT = 4; // teclas que sigue escribiendo antes de notar el error
+
+type Frame = { typed: number; wrongAt: number | null; fixed: number[] };
+
+// Línea de tiempo precalculada de toda la vuelta: cada frame es una "tecla"
+// (avance, borrado o reescritura), así el render es una función pura del paso.
+function buildFrames(): Frame[] {
+  const frames: Frame[] = [];
+  const fixed: number[] = [];
+  for (let i = 0; i < SENTENCE.length; i += 1) {
+    if (ERRORS.includes(i)) {
+      // Teclea el carácter equivocado y sigue OVERSHOOT teclas sin notarlo.
+      for (let k = 0; k <= OVERSHOOT; k += 1) {
+        frames.push({ typed: i + 1 + k, wrongAt: i, fixed: [...fixed] });
+      }
+      // Borra de vuelta; al eliminar la tecla errónea la posición pasa a ámbar.
+      for (let t = i + OVERSHOOT; t >= i; t -= 1) {
+        frames.push({
+          typed: t,
+          wrongAt: t > i ? i : null,
+          fixed: t > i ? [...fixed] : [...fixed, i],
+        });
+      }
+      fixed.push(i);
+      // Reescribe la posición corregida y sigue la carrera.
+      frames.push({ typed: i + 1, wrongAt: null, fixed: [...fixed] });
+    } else {
+      frames.push({ typed: i + 1, wrongAt: null, fixed: [...fixed] });
+    }
+  }
+  return frames;
+}
+
+const FRAMES = buildFrames();
+const LOOP = FRAMES.length + PAUSE_TICKS;
 
 /**
- * Demostración NO interactiva de una carrera para la portada: texto que se va
- * escribiendo (con un error que se corrige), cursor parpadeante, reloj, WPM y
- * progreso. Los números salen de la propia animación con la aritmética del
- * juego, no son cifras inventadas. La barra representa el PROGRESO (se llena
- * con la escritura, en sintonía con el % de abajo). Con prefers-reduced-motion
- * muestra una foto fija a mitad de carrera.
+ * Demostración NO interactiva de una carrera para la portada. Reproduce la
+ * mecánica real del juego: texto que avanza, un error que queda ROJO hasta que
+ * la demo borra hacia atrás y lo reescribe (queda ÁMBAR el resto de la vuelta),
+ * cursor parpadeante y métricas derivadas de la propia animación con la
+ * aritmética del juego. Con prefers-reduced-motion muestra una foto fija.
  */
 export default function RaceDemo() {
-  // Un solo contador de vuelta: 0..len escribe, len..len+PAUSE sostiene la
-  // frase completa y luego reinicia. typedCount se deriva de él.
   const [step, setStep] = useState(0);
   const [reduced, setReduced] = useState(false);
 
@@ -31,29 +64,25 @@ export default function RaceDemo() {
     if (mq.matches) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setReduced(true);
-      setStep(Math.floor(SENTENCE.length * 0.6));
+      // Foto fija pasada la primera corrección: se ve el ámbar y buen avance.
+      setStep(Math.floor(FRAMES.length * 0.62));
       return;
     }
-    const id = setInterval(
-      () => setStep((s) => (s + 1) % (SENTENCE.length + PAUSE_TICKS)),
-      TICK_MS,
-    );
+    const id = setInterval(() => setStep((s) => (s + 1) % LOOP), TICK_MS);
     return () => clearInterval(id);
   }, []);
 
-  const typedCount = Math.min(step, SENTENCE.length);
-  // Error activo entre que "lo comete" y que "lo corrige".
-  const errorActive = typedCount > ERROR_AT && typedCount <= ERROR_AT + ERROR_FIX_AFTER;
-  const errorFixed = typedCount > ERROR_AT + ERROR_FIX_AFTER;
+  const frame = FRAMES[Math.min(step, FRAMES.length - 1)];
+  const { typed, wrongAt, fixed } = frame;
 
-  // Misma aritmética del juego real: WPM = (chars/5)/min; precisión = correctos/escritos.
-  const elapsedMs = Math.max(typedCount * TICK_MS, 1);
-  const wpm = typedCount > 0 ? Math.round(typedCount / 5 / (elapsedMs / 60000)) : 0;
-  const progress = typedCount / SENTENCE.length;
+  // Misma aritmética del juego: WPM = (chars/5)/min (baja mientras corrige).
+  const elapsedMs = (Math.min(step, FRAMES.length - 1) + 1) * TICK_MS;
+  const wpm = typed > 0 ? Math.round(typed / 5 / (elapsedMs / 60000)) : 0;
+  const progress = typed / SENTENCE.length;
   const remaining = Math.max(0, DURATION - Math.floor(elapsedMs / 1000));
   const accuracy =
-    errorActive && typedCount > 0
-      ? Math.round(((typedCount - 1) / typedCount) * 100)
+    wrongAt !== null && typed > 0
+      ? Math.round(((typed - 1) / typed) * 100)
       : 100;
 
   return (
@@ -96,13 +125,13 @@ export default function RaceDemo() {
       <p className="mt-4 font-mono text-[1.05rem] leading-[1.9] tracking-tight break-words sm:text-[1.15rem]">
         {[...SENTENCE].map((char, i) => {
           let cls: string;
-          if (i === ERROR_AT && errorActive) {
-            cls = "ch ch-wrong"; // error activo (rojo)
-          } else if (i === ERROR_AT && errorFixed) {
-            cls = "ch ch-fixed"; // ya corregido (ámbar)
-          } else if (i < typedCount) {
+          if (i === wrongAt) {
+            cls = "ch ch-wrong"; // error activo (rojo) hasta que lo borra
+          } else if (fixed.includes(i)) {
+            cls = "ch ch-fixed"; // corregido (ámbar) el resto de la vuelta
+          } else if (i < typed) {
             cls = "ch ch-done";
-          } else if (i === typedCount) {
+          } else if (i === typed) {
             cls = "ch ch-current caret-blink";
           } else {
             cls = "ch";
