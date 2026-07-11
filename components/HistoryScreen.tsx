@@ -60,7 +60,7 @@ export default function HistoryScreen() {
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-2.5">
+        <ul className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
           {items.map((it) => (
             <li
               key={it.id}

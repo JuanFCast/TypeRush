@@ -116,52 +116,57 @@ export default function ChallengeLobby({
         </div>
       </div>
 
-      {payEnabled && hasPrize && (
-        <div className="mb-3 rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3.5 shadow-card">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
-              🏆 {prizeLabel}
-            </span>
-            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
-              {winBothLabel}
-            </span>
-          </div>
-          <div className="mt-2.5 flex items-center gap-2">
-            {presentCurrencies.map((c, i) => (
-              <Fragment key={c.id}>
-                {i > 0 && (
-                  <span className="shrink-0 text-xl font-black text-brand/50">+</span>
-                )}
-                <div className="flex-1 rounded-xl border border-brand/20 bg-surface2/80 px-2 py-2 text-center">
-                  <div className="text-base leading-none">{CURRENCY_META[c.id].icon}</div>
-                  <div className="mt-1 font-mono text-xl font-extrabold leading-none text-brand">
-                    {pools[c.id]}
-                  </div>
-                  <div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink/80">
-                    {c.symbol}
-                  </div>
-                  <div className="text-[0.55rem] text-muted">
-                    {CURRENCY_META[c.id].label}
-                  </div>
-                </div>
-              </Fragment>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Móvil: una columna (premio arriba). Escritorio: retos a la izquierda y
+          premio fijo (sticky) en una columna lateral a la derecha. */}
+      <div className="flex flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
+        {payEnabled && hasPrize && (
+          <aside className="lg:sticky lg:top-20 lg:order-last">
+            <div className="rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3.5 shadow-card">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
+                  🏆 {prizeLabel}
+                </span>
+                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
+                  {winBothLabel}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                {presentCurrencies.map((c, i) => (
+                  <Fragment key={c.id}>
+                    {i > 0 && (
+                      <span className="shrink-0 text-xl font-black text-brand/50">+</span>
+                    )}
+                    <div className="flex-1 rounded-xl border border-brand/20 bg-surface2/80 px-2 py-2 text-center">
+                      <div className="text-base leading-none">{CURRENCY_META[c.id].icon}</div>
+                      <div className="mt-1 font-mono text-xl font-extrabold leading-none text-brand">
+                        {pools[c.id]}
+                      </div>
+                      <div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink/80">
+                        {c.symbol}
+                      </div>
+                      <div className="text-[0.55rem] text-muted">
+                        {CURRENCY_META[c.id].label}
+                      </div>
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          </aside>
+        )}
 
-      <div className="flex flex-1 flex-col gap-3">
-        {challenges.map((c) => (
-          <ChallengeCard
-            key={c.id}
-            challenge={c}
-            best={bestByChallenge[c.id] ?? 0}
-            selected={c.id === selectedId}
-            onSelect={() => setSelectedId(c.id)}
-          />
-        ))}
+        <div className="flex flex-1 flex-col gap-3 lg:min-h-[24rem]">
+          {challenges.map((c) => (
+            <ChallengeCard
+              key={c.id}
+              challenge={c}
+              best={bestByChallenge[c.id] ?? 0}
+              selected={c.id === selectedId}
+              onSelect={() => setSelectedId(c.id)}
+            />
+          ))}
 
-        <div className="mt-auto flex flex-col gap-2">
+          <div className="mt-auto flex flex-col gap-2">
           {canPlay || !payEnabled ? (
             <button
               type="button"
@@ -210,6 +215,7 @@ export default function ChallengeLobby({
               )}
             </>
           )}
+          </div>
         </div>
       </div>
     </div>

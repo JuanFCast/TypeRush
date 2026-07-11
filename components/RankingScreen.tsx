@@ -34,14 +34,13 @@ export default function RankingScreen() {
 
   return (
     <div className="screen-in flex flex-1 flex-col">
-      {/* Cabecera + pestañas de modo: quedan fijas arriba mientras se hace scroll. */}
-      <div className="sticky top-0 z-20 -mx-5 mb-4 bg-bg/95 px-5 pb-3 pt-1 backdrop-blur">
+      <div className="mb-4">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xl leading-none">🏆</span>
           <h2 className="text-xl font-bold">Ranking</h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1 sm:max-w-md">
           {MODES.map((m) => {
             const on = m.id === modeId;
             return (
@@ -68,13 +67,9 @@ export default function RankingScreen() {
           No pudimos cargar el ranking ahora.
         </p>
       ) : (
-        <>
-          <p className="mb-4 rounded-xl border border-line bg-surface2 px-3 py-2 text-center text-[0.7rem] leading-snug text-muted">
-            Periodo actual (hora Colombia)
-            <br />
-            <span className="font-semibold text-ink/80">{data.periodLabel}</span>
-          </p>
-
+        // Móvil: una columna. Escritorio: Top 5 a la izquierda; periodo y tu
+        // posición como columna lateral a la derecha.
+        <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
               Top 5 · {mode?.label}
@@ -97,29 +92,37 @@ export default function RankingScreen() {
             )}
           </section>
 
-          <section className="mt-5">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Tu posición
-            </h3>
-            {data.me.rank == null ? (
-              <div className="rounded-2xl border border-dashed border-line bg-surface2 p-4 text-sm text-muted">
-                Aún no tienes puntaje en {mode?.label ?? "este modo"}. Juega una
-                partida para aparecer aquí.
-              </div>
-            ) : (
-              <RankingRow
-                entry={{
-                  rank: data.me.rank,
-                  playerId,
-                  name: data.me.name,
-                  score: data.me.score,
-                }}
-                modeId={modeId}
-                highlight
-              />
-            )}
-          </section>
-        </>
+          <aside className="flex flex-col gap-5 lg:sticky lg:top-20">
+            <p className="rounded-xl border border-line bg-surface2 px-3 py-2 text-center text-[0.7rem] leading-snug text-muted">
+              Periodo actual (hora Colombia)
+              <br />
+              <span className="font-semibold text-ink/80">{data.periodLabel}</span>
+            </p>
+
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                Tu posición
+              </h3>
+              {data.me.rank == null ? (
+                <div className="rounded-2xl border border-dashed border-line bg-surface2 p-4 text-sm text-muted">
+                  Aún no tienes puntaje en {mode?.label ?? "este modo"}. Juega una
+                  partida para aparecer aquí.
+                </div>
+              ) : (
+                <RankingRow
+                  entry={{
+                    rank: data.me.rank,
+                    playerId,
+                    name: data.me.name,
+                    score: data.me.score,
+                  }}
+                  modeId={modeId}
+                  highlight
+                />
+              )}
+            </section>
+          </aside>
+        </div>
       )}
     </div>
   );

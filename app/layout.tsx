@@ -26,9 +26,12 @@ export const metadata: Metadata = {
 
 // Sin maximum-scale: el zoom del usuario queda permitido (accesibilidad). El
 // zoom automático de iOS al enfocar inputs se evita con fuentes ≥16px en ellos.
+// viewport-fit=cover: la app pinta detrás del notch/home-bar y las safe areas
+// se manejan con env(safe-area-inset-*) en el header y la navegación.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: "#f2f5f3",
 };
 

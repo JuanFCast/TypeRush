@@ -10,6 +10,18 @@ const PREF_KEY = "typerush.sound.v1";
 let ctx: AudioContext | null = null;
 let enabled: boolean | null = null;
 let lastKeyAt = 0;
+// Buffer de ruido blanco compartido (50ms) para el click mecánico de las teclas;
+// se genera una sola vez y cada tecla lo reproduce filtrado.
+let noiseBuf: AudioBuffer | null = null;
+
+function getNoiseBuffer(c: AudioContext): AudioBuffer {
+  if (!noiseBuf) {
+    noiseBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.05), c.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
 
 type WindowWithWebkitAudio = Window & { webkitAudioContext?: typeof AudioContext };
 
@@ -93,13 +105,45 @@ export function playGo(): void {
   tone({ freq: 660, to: 990, duration: 0.18, type: "triangle", gain: 0.07 });
 }
 
-/** Tecla correcta: click cortísimo con leve variación de tono (no cansa). */
+/**
+ * Tecla correcta: "thock" de teclado mecánico. Dos capas: una ráfaga de ruido
+ * filtrado (el transitorio del switch) y un golpe grave cortísimo (el cuerpo de
+ * la tecla al fondo). Con variación aleatoria de tono para que no canse.
+ */
 export function playKey(): void {
   const now = performance.now();
   if (now - lastKeyAt < 28) return; // sin ráfagas superpuestas al teclear rápido
   lastKeyAt = now;
-  const jitter = 1 + (Math.random() - 0.5) * 0.12;
-  tone({ freq: 2050 * jitter, duration: 0.03, type: "triangle", gain: 0.022 });
+  if (!ctx || ctx.state !== "running" || !isSoundEnabled()) return;
+  try {
+    const t0 = ctx.currentTime;
+    const jitter = 1 + (Math.random() - 0.5) * 0.3;
+
+    // Capa 1 — click: ruido blanco por un pasabanda medio-agudo, caída rápida.
+    const src = ctx.createBufferSource();
+    src.buffer = getNoiseBuffer(ctx);
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.setValueAtTime(2600 * jitter, t0);
+    band.Q.value = 0.8;
+    const clickAmp = ctx.createGain();
+    clickAmp.gain.setValueAtTime(0.085, t0);
+    clickAmp.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.032);
+    src.connect(band).connect(clickAmp).connect(ctx.destination);
+    src.start(t0);
+    src.stop(t0 + 0.04);
+
+    // Capa 2 — cuerpo: golpe grave breve que baja de tono (el "thock").
+    tone({
+      freq: 165 * jitter,
+      to: 110,
+      duration: 0.05,
+      type: "sine",
+      gain: 0.035,
+    });
+  } catch {
+    // Un fallo de audio jamás debe romper el juego.
+  }
 }
 
 /** Error de tecleo: golpe grave y corto, más bajo que el click normal. */

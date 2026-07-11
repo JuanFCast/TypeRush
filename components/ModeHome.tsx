@@ -19,8 +19,9 @@ export default function ModeHome({ onSelectMode }: Props) {
         carrera.
       </p>
 
-      {/* Modos principales como cards grandes */}
-      <div className="mt-8 w-full max-w-xs space-y-3 sm:max-w-sm">
+      {/* Modos principales como cards grandes: columna en móvil, lado a lado
+          desde tablet. */}
+      <div className="mt-8 grid w-full max-w-xs grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-2">
         {MODES.map((m) => (
           <button
             key={m.id}

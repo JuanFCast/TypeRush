@@ -140,7 +140,11 @@ export default function ProfileScreen() {
           visible aquí, no solo como banner en Inicio. */}
       <ClaimBanner />
 
-      <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
+      {/* Móvil: una columna. Escritorio: identidad a la izquierda y wallet /
+          herramientas a la derecha. */}
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+        <div className="flex flex-col gap-3">
+          <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
         <label
           htmlFor="playerName"
           className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
@@ -185,9 +189,18 @@ export default function ProfileScreen() {
         >
           {busy ? "Verificando…" : saved ? "✓ Guardado" : "Guardar"}
         </button>
-      </div>
+          </div>
 
-      <div className="mt-3 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
+          <div className="flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 text-xs shadow-card">
+            <span className="text-muted">Perfil local</span>
+            <span className="font-mono text-ink/80">
+              {playerId ? `id ${playerId.slice(0, 8)}` : "—"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
             Wallet para premios
@@ -342,16 +355,11 @@ export default function ProfileScreen() {
             ) : null}
           </>
         )}
-      </div>
+          </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 shadow-card text-xs">
-        <span className="text-muted">Perfil local</span>
-        <span className="font-mono text-ink/80">
-          {playerId ? `id ${playerId.slice(0, 8)}` : "—"}
-        </span>
+          <DevTransferTool />
+        </div>
       </div>
-
-      <DevTransferTool />
     </div>
   );
 }

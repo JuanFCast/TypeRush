@@ -304,45 +304,54 @@ export default function Page() {
   };
 
   return (
-    <main
-      className={`mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:max-w-lg md:pt-8 ${
-        status === "idle" ? "pb-28" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-      }`}
-    >
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <span className="font-mono text-sm font-bold tracking-normal">
-          type<span className="text-brand">rush</span>
-        </span>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block">
-            carrera de 45s
+    // Shell exterior a pantalla completa: header y navegación van de extremo a
+    // extremo; solo el CONTENIDO interno de cada franja se centra con max-width.
+    <div className="flex min-h-dvh w-full flex-col">
+      <header className="sticky top-0 z-40 w-full border-b border-line/70 bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+          <span className="font-mono text-sm font-bold tracking-normal">
+            type<span className="text-brand">rush</span>
           </span>
-          <SoundToggle />
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block">
+              carrera de 45s
+            </span>
+            <SoundToggle />
+          </div>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col">
+      <main
+        className={`mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 sm:px-6 lg:max-w-6xl ${
+          status === "idle" ? "pb-28" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        }`}
+      >
+        {/* La carrera vive en una columna legible (~max-w-3xl), no a todo lo ancho. */}
         {(status === "racing" || status === "countdown") && (
-          <RaceScreen
-            passage={passage}
-            typed={typed}
-            remaining={remaining}
-            stats={liveStats}
-            mistakeIndices={mistakeIndices}
-            started={status === "racing"}
-            onInput={onInput}
-          />
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
+            <RaceScreen
+              passage={passage}
+              typed={typed}
+              remaining={remaining}
+              stats={liveStats}
+              mistakeIndices={mistakeIndices}
+              started={status === "racing"}
+              onInput={onInput}
+            />
+          </div>
         )}
 
         {status === "finished" && result && (
-          <ResultScreen
-            result={result}
-            best={best}
-            isNewBest={isNewBest}
-            modeId={getChallenge(challenge)?.modeId ?? "es"}
-            onBackToLobby={onBackToLobby}
-            onExit={onExitRace}
-          />
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
+            <ResultScreen
+              result={result}
+              best={best}
+              isNewBest={isNewBest}
+              modeId={getChallenge(challenge)?.modeId ?? "es"}
+              onBackToLobby={onBackToLobby}
+              onExit={onExitRace}
+            />
+          </div>
         )}
 
         {status === "idle" && (
@@ -375,7 +384,7 @@ export default function Page() {
             {tab === "you" && <ProfileScreen />}
           </>
         )}
-      </div>
+      </main>
 
       {/* Cebador de teclado (móvil): oculto y fuera del alcance de foco/lectores.
           Solo se enfoca por código para abrir el teclado dentro de un gesto. */}
@@ -469,6 +478,6 @@ export default function Page() {
           }}
         />
       )}
-    </main>
+    </div>
   );
 }
