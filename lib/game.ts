@@ -40,6 +40,14 @@ export function computeStats(
   return { wpm, accuracy, errors, mistakes: mistakeCount, score, progress };
 }
 
+/**
+ * Formatea un puntaje según la modalidad: Español con es-CO (4.304) y English
+ * con en-US (4,304). Locale explícito para que server y cliente coincidan.
+ */
+export function formatScore(score: number, modeId?: string): string {
+  return score.toLocaleString(modeId === "en" ? "en-US" : "es-CO");
+}
+
 /** Lee el mejor puntaje de un reto (0 si no hay o no hay localStorage). */
 export function loadBestScore(challengeId: string): number {
   if (typeof window === "undefined") return 0;

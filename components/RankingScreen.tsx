@@ -6,6 +6,7 @@ import {
   ModeRankingEntry,
   ModeRankingResult,
 } from "@/lib/leaderboard";
+import { formatScore } from "@/lib/game";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import { MODES, ModeId } from "@/lib/passages";
 
@@ -88,6 +89,7 @@ export default function RankingScreen() {
                   <RankingRow
                     key={entry.playerId}
                     entry={entry}
+                    modeId={modeId}
                     highlight={entry.playerId === playerId}
                   />
                 ))}
@@ -112,6 +114,7 @@ export default function RankingScreen() {
                   name: data.me.name,
                   score: data.me.score,
                 }}
+                modeId={modeId}
                 highlight
               />
             )}
@@ -124,9 +127,11 @@ export default function RankingScreen() {
 
 function RankingRow({
   entry,
+  modeId,
   highlight,
 }: {
   entry: ModeRankingEntry;
+  modeId: ModeId;
   highlight?: boolean;
 }) {
   return (
@@ -157,7 +162,7 @@ function RankingRow({
         </span>
       </div>
       <span className="shrink-0 font-mono text-sm font-bold text-ink">
-        {entry.score.toLocaleString()}
+        {formatScore(entry.score, modeId)}
       </span>
     </div>
   );

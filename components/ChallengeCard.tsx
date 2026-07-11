@@ -1,3 +1,4 @@
+import { formatScore } from "@/lib/game";
 import { Challenge } from "@/lib/passages";
 
 type Props = {
@@ -40,7 +41,7 @@ export default function ChallengeCard({
         <span className="text-muted">Tu mejor puntaje</span>
         {best > 0 ? (
           <span className="font-mono font-bold text-brand">
-            {best.toLocaleString()}
+            {formatScore(best, challenge.modeId)}
           </span>
         ) : (
           <span className="text-muted">Aún no tienes puntaje</span>

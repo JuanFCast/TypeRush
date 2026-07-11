@@ -24,10 +24,11 @@ export const metadata: Metadata = {
   },
 };
 
+// Sin maximum-scale: el zoom del usuario queda permitido (accesibilidad). El
+// zoom automático de iOS al enfocar inputs se evita con fuentes ≥16px en ellos.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   themeColor: "#f2f5f3",
 };
 

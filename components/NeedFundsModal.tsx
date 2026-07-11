@@ -9,12 +9,11 @@ type Props = {
   needed: string;
   /** Wallet del usuario, para mostrar dónde depositar. */
   address: string;
-  en?: boolean;
   onClose: () => void;
 };
 
 /** Modal de "fondos insuficientes": explica cuánto falta y a qué dirección depositar. */
-export default function NeedFundsModal({ symbol, needed, address, en, onClose }: Props) {
+export default function NeedFundsModal({ symbol, needed, address, onClose }: Props) {
   const [copied, setCopied] = useState(false);
 
   const short = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
@@ -34,20 +33,18 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
       <div className="success-pop w-full max-w-xs rounded-2xl border border-line bg-surface2 p-5 text-center shadow-pop">
         <div className="text-3xl">💸</div>
         <h2 className="mt-2 text-lg font-bold text-ink">
-          {en ? `You need more ${symbol}` : `Necesitas más ${symbol}`}
+          {`Necesitas más ${symbol}`}
         </h2>
         <p className="mt-1.5 text-sm text-muted">
-          {en
-            ? `To pay the entry you need ${needed} ${symbol}.`
-            : `Para pagar la entrada necesitas ${needed} ${symbol}.`}
+          {`Para pagar la entrada necesitas ${needed} ${symbol}.`}
         </p>
 
         <div className="mt-4 rounded-xl border border-brand/25 bg-brand-soft/40 p-3">
           <p className="text-[0.6rem] font-bold uppercase tracking-wide text-brand">
-            🟢 {en ? "Deposit on Celo Mainnet" : "Deposita en Celo Mainnet"}
+            🟢 Deposita en Celo Mainnet
           </p>
           <p className="mt-2 text-[0.65rem] text-muted">
-            {en ? "Send" : "Envía"} {symbol} {en ? "to your wallet:" : "a tu wallet:"}
+            Envía {symbol} a tu wallet:
           </p>
           <button
             type="button"
@@ -56,7 +53,7 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
           >
             <span>{short}</span>
             <span className="text-[0.6rem] font-sans font-bold uppercase text-brand">
-              {copied ? (en ? "Copied" : "Copiado") : en ? "Copy" : "Copiar"}
+              {copied ? "Copiado" : "Copiar"}
             </span>
           </button>
         </div>
@@ -66,7 +63,7 @@ export default function NeedFundsModal({ symbol, needed, address, en, onClose }:
           onClick={onClose}
           className="mt-5 h-11 w-full rounded-xl bg-brand-deep text-sm font-bold text-white transition active:scale-[0.98]"
         >
-          {en ? "Got it" : "Entendido"}
+          Entendido
         </button>
       </div>
     </div>

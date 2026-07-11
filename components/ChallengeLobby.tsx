@@ -12,9 +12,9 @@ import { CurrencyId, PAY_CURRENCIES, fetchPoolLabel } from "@/lib/gameV2";
 import ChallengeCard from "./ChallengeCard";
 
 // Icono y sublabel por moneda para la tarjeta de premio (monedas del contrato nuevo).
-const CURRENCY_META: Record<CurrencyId, { icon: string; es: string; en: string }> = {
-  usdt: { icon: "💵", es: "dólares", en: "dollars" },
-  copm: { icon: "🇨🇴", es: "pesos", en: "pesos" },
+const CURRENCY_META: Record<CurrencyId, { icon: string; label: string }> = {
+  usdt: { icon: "💵", label: "dólares" },
+  copm: { icon: "🇨🇴", label: "pesos" },
 };
 
 type Props = {
@@ -80,22 +80,21 @@ export default function ChallengeLobby({
     onPlay(selectedId);
   };
 
-  const en = modeId === "en";
-  const playLabel = en ? "▶ Play free" : "▶ Jugar gratis";
-  const checkingLabel = en ? "Checking…" : "Verificando…";
-  const calculatingLabel = en ? "Calculating…" : "Calculando…";
+  // La interfaz es SIEMPRE en español (en ambos modos): en English solo los
+  // nombres, descripciones y pasajes de las categorías van en inglés.
+  const playLabel = "▶ Jugar gratis";
+  const checkingLabel = "Verificando…";
+  const calculatingLabel = "Calculando…";
   const countdownLabel = resetCountdown
-    ? en
-      ? `Next free play in ${resetCountdown}`
-      : `Próximo gratis en ${resetCountdown}`
+    ? `Próximo gratis en ${resetCountdown}`
     : calculatingLabel;
 
-  const payingLabel = en ? "Processing payment…" : "Procesando pago…";
-  const freeUsedLabel = en ? "Free play used." : "Usaste tu tiro gratis.";
-  const prizeLabel = en ? "Prize for #1" : "Premio para el #1";
-  const winBothLabel = en ? "win both" : "gana los dos";
-  const payVerb = en ? "Pay" : "Pagar";
-  const andPlay = en ? "& play" : "y jugar";
+  const payingLabel = "Procesando pago…";
+  const freeUsedLabel = "Usaste tu tiro gratis.";
+  const prizeLabel = "Premio para el #1";
+  const winBothLabel = "gana los dos";
+  const payVerb = "Pagar";
+  const andPlay = "y jugar";
 
   const presentCurrencies = PAY_CURRENCIES.filter((c) => pools[c.id] !== null);
   const hasPrize = presentCurrencies.length > 0;
@@ -142,7 +141,7 @@ export default function ChallengeLobby({
                     {c.symbol}
                   </div>
                   <div className="text-[0.55rem] text-muted">
-                    {en ? CURRENCY_META[c.id].en : CURRENCY_META[c.id].es}
+                    {CURRENCY_META[c.id].label}
                   </div>
                 </div>
               </Fragment>
@@ -175,7 +174,7 @@ export default function ChallengeLobby({
           ) : (
             <>
               <p className="text-center text-xs text-muted">
-                {freeUsedLabel} {en ? "Choose a currency:" : "Elige moneda:"}
+                {freeUsedLabel} Elige moneda:
               </p>
               <div className="flex justify-center">
                 <span className="rounded-full border border-brand/25 bg-brand-soft px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">

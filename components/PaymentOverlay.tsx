@@ -4,7 +4,6 @@ import { PayPhase } from "@/lib/gameV2";
 
 type Props = {
   phase: PayPhase;
-  en?: boolean;
 };
 
 // Cada fase del pago cae en uno de 3 pasos visibles.
@@ -15,35 +14,22 @@ const STEP_OF: Record<PayPhase, number> = {
   confirming: 2,
 };
 
-export default function PaymentOverlay({ phase, en }: Props) {
+export default function PaymentOverlay({ phase }: Props) {
   const active = STEP_OF[phase];
 
-  const steps = en
-    ? ["Preparing", "Confirm in wallet", "Confirming on-chain"]
-    : ["Preparando", "Confirma en tu wallet", "Confirmando en red"];
+  const steps = ["Preparando", "Confirma en tu wallet", "Confirmando en red"];
 
-  const title = en
-    ? {
-        preparing: "Preparing payment…",
-        approving: "Authorize the token in your wallet",
-        signing: "Waiting for your confirmation…",
-        confirming: "Confirming the transaction…",
-      }[phase]
-    : {
-        preparing: "Preparando el pago…",
-        approving: "Autoriza el token en tu wallet",
-        signing: "Esperando tu confirmación…",
-        confirming: "Confirmando la transacción…",
-      }[phase];
+  const title = {
+    preparing: "Preparando el pago…",
+    approving: "Autoriza el token en tu wallet",
+    signing: "Esperando tu confirmación…",
+    confirming: "Confirmando la transacción…",
+  }[phase];
 
   const hint =
     phase === "approving" || phase === "signing"
-      ? en
-        ? "Approve the request in MiniPay."
-        : "Aprueba la solicitud en MiniPay."
-      : en
-        ? "This takes just a few seconds."
-        : "Esto tarda solo unos segundos.";
+      ? "Aprueba la solicitud en MiniPay."
+      : "Esto tarda solo unos segundos.";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-7 bg-bg/95 px-8 text-center backdrop-blur-sm">

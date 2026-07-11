@@ -6,6 +6,7 @@ import {
   loadMatchHistory,
   MatchHistoryItem,
 } from "@/lib/history";
+import { formatScore } from "@/lib/game";
 
 const dateFmt = new Intl.DateTimeFormat("es", {
   day: "2-digit",
@@ -76,7 +77,7 @@ export default function HistoryScreen() {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-mono text-xl font-bold leading-none text-brand">
-                    {it.score}
+                    {formatScore(it.score, it.modeId)}
                   </p>
                   {it.isNewBest && (
                     <p className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-brand">

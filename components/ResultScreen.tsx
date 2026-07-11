@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { ModeId } from "@/lib/passages";
-import { Stats } from "@/lib/game";
+import { formatScore, Stats } from "@/lib/game";
 import StatBlock from "./StatBlock";
 
 // Tiempo que los botones quedan bloqueados al terminar, para no tocarlos por error.
@@ -41,8 +41,6 @@ export default function ResultScreen({
   onBackToLobby,
   onExit,
 }: Props) {
-  const en = modeId === "en";
-
   // Botones bloqueados unos segundos: evita que el último tecleo rápido caiga
   // sobre "Volver" justo al terminar la carrera.
   const [armed, setArmed] = useState(false);
@@ -68,11 +66,11 @@ export default function ResultScreen({
 
       {isNewBest ? (
         <div className="success-pop mb-3 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">
-          {en ? "✦ New record!" : "✦ ¡Nuevo récord!"}
+          ✦ ¡Nuevo récord!
         </div>
       ) : (
         <div className="mb-3 text-sm font-semibold uppercase tracking-[0.15em] text-muted">
-          {en ? "Race finished" : "Carrera terminada"}
+          Carrera terminada
         </div>
       )}
 
@@ -81,30 +79,30 @@ export default function ResultScreen({
         {result.wpm}
       </div>
       <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-        {en ? "words per minute" : "palabras por minuto"}
+        palabras por minuto
       </div>
 
       <div className="mt-7 grid w-full max-w-xs grid-cols-2 gap-2.5">
         <StatBlock
-          label={en ? "Accuracy" : "Precisión"}
+          label="Precisión"
           value={`${Math.round(result.accuracy * 100)}%`}
         />
-        <StatBlock label={en ? "Errors" : "Errores"} value={result.errors} />
+        <StatBlock label="Errores" value={result.errors} />
         <StatBlock
-          label={en ? "Corrections" : "Correcciones"}
+          label="Correcciones"
           value={result.mistakes}
         />
-        <StatBlock label={en ? "Score" : "Puntaje"} value={result.score} accent />
+        <StatBlock label="Puntaje" value={formatScore(result.score, modeId)} accent />
       </div>
 
       <div className="mt-5 font-mono text-sm text-muted">
         {best > 0 ? (
           <>
-            {en ? "Best score: " : "Mejor puntaje: "}
-            <span className="font-bold text-ink">{best.toLocaleString()}</span>
+            Mejor puntaje:{" "}
+            <span className="font-bold text-ink">{formatScore(best, modeId)}</span>
           </>
         ) : (
-          <span>{en ? "No record yet" : "Aún no tienes récord"}</span>
+          <span>Aún no tienes récord</span>
         )}
       </div>
 
@@ -115,7 +113,7 @@ export default function ResultScreen({
               <div className="result-arm h-full rounded-full bg-brand/70" />
             </div>
             <p className="mt-2 text-center text-xs text-muted">
-              {en ? "Take a look at your score…" : "Mira tu puntaje un momento…"}
+              Mira tu puntaje un momento…
             </p>
           </div>
         )}
@@ -126,7 +124,7 @@ export default function ResultScreen({
           disabled={!armed}
           className="h-14 w-full rounded-2xl bg-brand-deep text-lg font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:opacity-40"
         >
-          {en ? "Back to challenges" : "Volver a retos"}
+          Volver a retos
         </button>
 
         <button
@@ -135,7 +133,7 @@ export default function ResultScreen({
           disabled={!armed}
           className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
         >
-          {en ? "Back to home" : "Volver al inicio"}
+          Volver al inicio
         </button>
       </div>
     </div>

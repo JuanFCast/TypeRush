@@ -156,7 +156,7 @@ export default function DevTransferTool() {
             autoComplete="off"
             spellCheck={false}
             placeholder="0x…"
-            className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-ink outline-none focus:border-brand"
+            className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
           />
           {to.trim().length > 0 && !addressValid && (
             <p className="mt-1 text-xs text-danger">Dirección 0x inválida.</p>

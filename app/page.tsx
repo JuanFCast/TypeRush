@@ -315,7 +315,7 @@ export default function Page() {
         </span>
         <div className="flex items-center gap-3">
           <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block">
-            45s typing race
+            carrera de 45s
           </span>
           <SoundToggle />
         </div>
@@ -426,48 +426,37 @@ export default function Page() {
         />
       )}
 
-      {payState === "paying" && (
-        <PaymentOverlay phase={payPhase} en={selectedMode === "en"} />
-      )}
+      {payState === "paying" && <PaymentOverlay phase={payPhase} />}
 
       {needFunds && (
         <NeedFundsModal
           symbol={needFunds.symbol}
           needed={needFunds.needed}
           address={needFunds.address}
-          en={selectedMode === "en"}
           onClose={() => setNeedFunds(null)}
         />
       )}
 
-      {readyChallenge &&
-        (() => {
-          const en = getChallenge(readyChallenge)?.modeId === "en";
-          return (
-            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg px-8 text-center">
-              <div className="success-pop grid h-24 w-24 place-items-center rounded-full bg-brand/15 ring-4 ring-brand/30">
-                <span className="text-5xl">✅</span>
-              </div>
-              <div>
-                <p className="text-2xl font-extrabold text-brand">
-                  {en ? "Payment confirmed!" : "¡Pago confirmado!"}
-                </p>
-                <p className="mt-2 max-w-xs text-balance text-sm text-muted">
-                  {en
-                    ? "You're in the ranked round. Tap to start."
-                    : "Estás en la ronda por el premio. Toca para empezar."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onStartPaid}
-                className="h-14 w-full max-w-xs rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition active:scale-[0.98]"
-              >
-                {en ? "Start! ▶" : "¡Empezar! ▶"}
-              </button>
-            </div>
-          );
-        })()}
+      {readyChallenge && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg px-8 text-center">
+          <div className="success-pop grid h-24 w-24 place-items-center rounded-full bg-brand/15 ring-4 ring-brand/30">
+            <span className="text-5xl">✅</span>
+          </div>
+          <div>
+            <p className="text-2xl font-extrabold text-brand">¡Pago confirmado!</p>
+            <p className="mt-2 max-w-xs text-balance text-sm text-muted">
+              Estás en la ronda por el premio. Toca para empezar.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onStartPaid}
+            className="h-14 w-full max-w-xs rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition active:scale-[0.98]"
+          >
+            ¡Empezar! ▶
+          </button>
+        </div>
+      )}
 
       {status === "countdown" && (
         <CountdownScreen
