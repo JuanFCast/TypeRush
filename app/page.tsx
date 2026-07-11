@@ -7,7 +7,7 @@ import ModeHome from "@/components/ModeHome";
 import ChallengeLobby from "@/components/ChallengeLobby";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
-import BottomNav, { Tab } from "@/components/BottomNav";
+import BottomNav, { NAV_ITEMS, Tab } from "@/components/BottomNav";
 import HistoryScreen from "@/components/HistoryScreen";
 import RankingScreen from "@/components/RankingScreen";
 import ProfileScreen from "@/components/ProfileScreen";
@@ -312,8 +312,31 @@ export default function Page() {
           <span className="font-mono text-sm font-bold tracking-normal">
             type<span className="text-brand">rush</span>
           </span>
+
+          {/* Navegación de escritorio (en móvil vive abajo como tab bar). */}
+          {status === "idle" && (
+            <nav className="hidden items-center gap-1 md:flex">
+              {NAV_ITEMS.map((it) => {
+                const on = it.id === tab;
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => onTabChange(it.id)}
+                    aria-current={on ? "page" : undefined}
+                    className={`min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
+                      on ? "bg-brand-soft text-brand" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {it.label}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+
           <div className="flex items-center gap-3">
-            <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block">
+            <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block md:hidden lg:block">
               carrera de 45s
             </span>
             <SoundToggle />
@@ -323,7 +346,7 @@ export default function Page() {
 
       <main
         className={`mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 sm:px-6 lg:max-w-6xl ${
-          status === "idle" ? "pb-28" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          status === "idle" ? "pb-28 md:pb-10" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         }`}
       >
         {/* La carrera vive en una columna legible (~max-w-3xl), no a todo lo ancho. */}
