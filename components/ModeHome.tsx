@@ -10,6 +10,7 @@ import {
   isConfigured as isGameV2Configured,
 } from "@/lib/gameV2";
 import { formatResetCountdown, getMsUntilNextReset } from "@/lib/gamePeriod";
+import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import RaceDemo from "./RaceDemo";
 
 type Props = {
@@ -34,6 +35,11 @@ const CURRENCY_SUB: Record<CurrencyId, string> = {
 export default function ModeHome({ onSelectMode }: Props) {
   const [lang, setLang] = useState<ModeId>("es");
   const payEnabled = isGameV2Configured();
+
+  // Tiro gratis del idioma elegido: MISMA fuente autoritativa que el lobby
+  // (Supabase player_game_modes.has_free_attempt por player_id), no localStorage.
+  const { canPlay, loading: playLoading } = usePlayEligibility(lang);
+  const freeUsed = !playLoading && !canPlay;
 
   // Pozo real del día para el idioma elegido (mismo origen que el lobby).
   const [pools, setPools] = useState<Record<CurrencyId, string | null>>({
@@ -177,19 +183,37 @@ export default function ModeHome({ onSelectMode }: Props) {
             })}
           </div>
 
-          {/* CTA principal: va ANTES de la demo para no salir de la 1ª pantalla. */}
+          {/* CTA principal: va ANTES de la demo para no salir de la 1ª pantalla.
+              El estado del tiro gratis viene de Supabase: mientras carga NO se
+              muestra "Jugar gratis" para no prometer algo que quizá ya se usó. */}
+          {freeUsed && (
+            <p className="mt-3 text-xs font-semibold text-brand">
+              ✓ Intento gratis utilizado
+            </p>
+          )}
           <button
             type="button"
             onClick={() => onSelectMode(lang)}
-            className="mt-3 flex h-14 w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition hover:brightness-105 active:scale-[0.98]"
+            disabled={playLoading}
+            className={`flex h-14 w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${
+              freeUsed ? "mt-1.5" : "mt-3"
+            }`}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-              <path d="M4 2.5v11l9-5.5-9-5.5z" />
-            </svg>
-            Jugar gratis
+            {playLoading ? (
+              "Cargando…"
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                  <path d="M4 2.5v11l9-5.5-9-5.5z" />
+                </svg>
+                {canPlay ? "Jugar gratis" : "Jugar por 0.10 USDT"}
+              </>
+            )}
           </button>
           <p className="mt-2 text-xs text-muted">
-            Sin registro: eliges alias y corres. Luego, entradas desde 0.10 USDT.
+            {freeUsed
+              ? "Tu intento gratis ya fue utilizado. Las siguientes carreras cuestan 0.10 USDT."
+              : "Sin registro: eliges alias y corres. Luego, entradas desde 0.10 USDT."}
           </p>
         </section>
 
