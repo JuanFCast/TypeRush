@@ -16,8 +16,11 @@
      cumplir WCAG AA en texto normal (el brand base da solo 3.44:1). */
   --color-brand-deep: #008558;
   --color-brand-soft: #d9f3e8;
-  /* Amarillo Celo (color de marca de Celo), solo para acentos pequeños. */
+  /* Amarillo Celo (color de marca de Celo): el claro solo funciona como FONDO
+     de resaltado con texto oscuro encima; para trazos/puntos pequeños sobre
+     fondo claro se usa la variante profunda (si no, parece una mancha). */
   --color-celo: #fcff52;
+  --color-celo-deep: #d4a900;
   --color-danger: #d43f54;
   --color-warn: #9a6700;
 

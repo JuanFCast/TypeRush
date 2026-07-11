@@ -9,7 +9,7 @@ import {
   fetchPoolLabel,
   isConfigured as isGameV2Configured,
 } from "@/lib/gameV2";
-import { formatResetCountdown, getMsUntilNextReset } from "@/lib/gamePeriod";
+import { getMsUntilNextReset } from "@/lib/gamePeriod";
 import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import RaceDemo from "./RaceDemo";
 
@@ -69,13 +69,19 @@ export default function ModeHome({ onSelectMode }: Props) {
     };
   }, [lang, payEnabled]);
 
-  // Cuenta regresiva al cierre diario (8 p. m. Colombia). Solo en cliente para
-  // no romper la hidratación.
+  // Cuenta regresiva al cierre diario (8 p. m. Colombia) en formato humano
+  // ("8 h 09 min"): sin segundos corriendo que compitan con el premio. Solo en
+  // cliente para no romper la hidratación.
   const [closesIn, setClosesIn] = useState<string | null>(null);
   useEffect(() => {
-    const tick = () => setClosesIn(formatResetCountdown(getMsUntilNextReset()));
+    const tick = () => {
+      const ms = getMsUntilNextReset();
+      const h = Math.floor(ms / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      setClosesIn(h > 0 ? `${h} h ${String(m).padStart(2, "0")} min` : `${Math.max(1, m)} min`);
+    };
     tick();
-    const id = setInterval(tick, 1000);
+    const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -83,46 +89,57 @@ export default function ModeHome({ onSelectMode }: Props) {
   const hasPrize = payEnabled && presentCurrencies.length > 0;
 
   return (
-    <div className="screen-in relative flex flex-1 flex-col justify-center py-4 lg:py-8">
-      {/* Líneas de velocidad decorativas, muy sutiles. */}
+    <div className="screen-in relative flex flex-1 flex-col justify-center pt-4 pb-2 lg:py-8">
+      {/* Líneas de velocidad decorativas, sutiles pero intencionales (el
+          amarillo claro sobre fondo claro parecía una mancha: va el profundo). */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-8 top-10 h-1.5 w-44 -skew-y-6 rounded-full bg-gradient-to-r from-brand/20 to-transparent" />
-        <div className="absolute -left-4 top-16 h-1 w-28 -skew-y-6 rounded-full bg-gradient-to-r from-celo/70 to-transparent" />
-        <div className="absolute -right-6 bottom-14 h-1.5 w-52 -skew-y-6 rounded-full bg-gradient-to-l from-brand/15 to-transparent" />
-        <div className="absolute -right-2 bottom-9 h-1 w-32 -skew-y-6 rounded-full bg-gradient-to-l from-celo/50 to-transparent" />
+        <div className="absolute -left-8 top-10 h-1.5 w-44 -skew-y-6 rounded-full bg-gradient-to-r from-brand/25 to-transparent" />
+        <div className="absolute -left-4 top-16 h-1 w-28 -skew-y-6 rounded-full bg-gradient-to-r from-celo-deep/45 to-transparent" />
+        <div className="absolute -right-6 bottom-14 h-1.5 w-52 -skew-y-6 rounded-full bg-gradient-to-l from-brand/20 to-transparent" />
+        <div className="absolute -right-2 bottom-9 h-1 w-32 -skew-y-6 rounded-full bg-gradient-to-l from-celo-deep/35 to-transparent" />
       </div>
 
-      <div className="relative grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-12">
+      <div className="relative grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-12 [@media(max-height:700px)]:gap-4">
         {/* Columna izquierda: propuesta de valor + premio + CTA. */}
         <section className="flex flex-col items-center text-center lg:items-start lg:text-left">
           {/* Distintivos discretos */}
           <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
             <Badge dotClass="bg-brand">Celo Mainnet</Badge>
             <Badge dotClass="bg-ink/70">MiniPay</Badge>
-            <Badge dotClass="bg-celo">Premios diarios</Badge>
+            <Badge dotClass="bg-celo-deep">Premios diarios</Badge>
           </div>
 
-          <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
+          <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl [@media(max-height:700px)]:text-[2.1rem]">
             Escribe rápido.
             <br />
             Sube al ranking.
             <br />
-            <span className="rounded-lg bg-celo px-2 text-ink">Gana en Celo.</span>
-            <span
-              aria-hidden
-              className="caret-blink ml-1.5 inline-block h-[0.85em] w-[3px] translate-y-[0.1em] rounded-sm bg-brand"
-            />
+            {/* El caret vive DENTRO del resaltado: anclado al texto no parece
+                una barra perdida en una captura estática. */}
+            <span className="rounded-lg bg-celo px-2 text-ink">
+              Gana en Celo.
+              <span
+                aria-hidden
+                className="caret-blink ml-1 inline-block h-[0.8em] w-[3px] translate-y-[0.08em] rounded-sm bg-ink/80"
+              />
+            </span>
           </h1>
 
-          <p className="mt-3 text-sm font-semibold text-muted sm:text-base">
-            Carreras de {DURATION} segundos · primer intento gratis
+          {/* El subtítulo cuenta la verdad según el estado: nunca promete un
+              intento gratis que ya se usó. */}
+          <p className="mt-3 text-sm font-semibold text-muted sm:text-base [@media(max-height:700px)]:mt-2">
+            {playLoading
+              ? `Carreras de ${DURATION} segundos`
+              : freeUsed
+                ? `Carreras de ${DURATION} segundos · entrada 0,10 USDT`
+                : `Carreras de ${DURATION} segundos · primer intento gratis`}
           </p>
 
           {/* Premio real del día (pozo on-chain; solo se muestra si cargó). */}
           {hasPrize && (
-            <div className="mt-5 w-full max-w-sm rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3 shadow-card">
+            <div className="mt-5 w-full max-w-sm rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3 shadow-card [@media(max-height:700px)]:mt-3">
               <div className="flex items-center justify-between">
-                <span className="text-[0.65rem] font-bold uppercase tracking-wide text-brand">
+                <span className="text-[0.65rem] font-bold uppercase tracking-wide text-brand-deep">
                   Premio real de hoy · el #1 se lo lleva todo
                 </span>
               </div>
@@ -130,12 +147,13 @@ export default function ModeHome({ onSelectMode }: Props) {
                 {presentCurrencies.map((c, i) => (
                   <span key={c.id} className="flex items-baseline gap-1.5">
                     {i > 0 && <span className="text-lg font-black text-brand/50">+</span>}
-                    <span className="font-mono text-2xl font-extrabold leading-none text-brand">
+                    <span className="font-mono text-2xl font-extrabold leading-none text-brand-deep">
                       {pools[c.id]}
                     </span>
-                    <span className="text-[0.65rem] font-bold uppercase text-ink/70">
+                    {/* Sin `uppercase`: la marca del token es COPm, no COPM. */}
+                    <span className="text-[0.65rem] font-bold text-ink/70">
                       {c.symbol}
-                      <span className="ml-1 font-normal normal-case text-muted">
+                      <span className="ml-1 font-normal text-muted">
                         {CURRENCY_SUB[c.id]}
                       </span>
                     </span>
@@ -147,9 +165,7 @@ export default function ModeHome({ onSelectMode }: Props) {
                 {closesIn && (
                   <>
                     {" · "}quedan{" "}
-                    <span className="font-mono font-semibold text-ink/80 tabular-nums">
-                      {closesIn}
-                    </span>
+                    <span className="font-semibold text-ink/80">{closesIn}</span>
                   </>
                 )}
               </p>
@@ -157,7 +173,7 @@ export default function ModeHome({ onSelectMode }: Props) {
           )}
 
           {/* Selector de idioma */}
-          <div className="mt-5 grid w-full max-w-sm grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1">
+          <div className="mt-5 grid w-full max-w-sm grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1 [@media(max-height:700px)]:mt-3">
             {LANGS.map((l) => {
               const on = l.id === lang;
               return (
@@ -186,9 +202,25 @@ export default function ModeHome({ onSelectMode }: Props) {
           {/* CTA principal: va ANTES de la demo para no salir de la 1ª pantalla.
               El estado del tiro gratis viene de Supabase: mientras carga NO se
               muestra "Jugar gratis" para no prometer algo que quizá ya se usó. */}
+          {/* Aviso de estado en tono neutro con icono de información: un check
+              verde "celebraba" quedarse sin intento gratis. */}
           {freeUsed && (
-            <p className="mt-3 text-xs font-semibold text-brand">
-              ✓ Intento gratis utilizado
+            <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-muted">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="11" x2="12" y2="16.5" />
+                <line x1="12" y1="7.5" x2="12" y2="7.6" />
+              </svg>
+              Intento gratis utilizado
             </p>
           )}
           <button
@@ -206,19 +238,21 @@ export default function ModeHome({ onSelectMode }: Props) {
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
                   <path d="M4 2.5v11l9-5.5-9-5.5z" />
                 </svg>
-                {canPlay ? "Jugar gratis" : "Jugar por 0.10 USDT"}
+                {canPlay ? "Jugar gratis" : "Jugar por 0,10 USDT"}
               </>
             )}
           </button>
           <p className="mt-2 text-xs text-muted">
             {freeUsed
-              ? "Tu intento gratis ya fue utilizado. Las siguientes carreras cuestan 0.10 USDT."
-              : "Sin registro: eliges alias y corres. Luego, entradas desde 0.10 USDT."}
+              ? "Tu intento gratis ya fue utilizado. Las siguientes carreras cuestan 0,10 USDT."
+              : "Sin registro: eliges alias y corres. Luego, entradas desde 0,10 USDT."}
           </p>
         </section>
 
-        {/* Columna derecha: demo visual de la carrera. */}
-        <section className="mx-auto w-full max-w-md lg:max-w-none">
+        {/* Columna derecha: demo visual de la carrera. En lg va alineada arriba
+            (con un pequeño offset óptico) para no dejar un vacío muerto en el
+            cuadrante superior derecho. */}
+        <section className="mx-auto w-full max-w-md lg:mt-9 lg:max-w-none">
           <RaceDemo />
         </section>
       </div>

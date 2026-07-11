@@ -51,7 +51,8 @@ export const PAY_CURRENCIES: Currency[] = [
     symbol: "USDT",
     decimals: 6,
     displayDecimals: 2,
-    entryLabel: "0.10",
+    // Etiqueta de UI (es-CO usa coma decimal); el monto real se lee del contrato.
+    entryLabel: "0,10",
   },
   {
     id: "copm",
