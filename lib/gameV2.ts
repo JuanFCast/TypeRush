@@ -335,6 +335,54 @@ export async function fetchPoolLabel(
   }
 }
 
+/**
+ * Formatea unidades CRUDAS de un token (las que guarda prize_payouts) a la
+ * etiqueta es-CO que usa el resto de la app ("2,40" · "7.500"). Devuelve null
+ * si no hay monto, para que la UI pueda distinguir "0" de "no se sabe".
+ */
+export function formatTokenUnits(
+  units: string | bigint | null | undefined,
+  currencyId: CurrencyId,
+): string | null {
+  const currency = getCurrency(currencyId);
+  if (!currency || units === null || units === undefined || units === "") return null;
+  try {
+    return formatPool(BigInt(units), currency);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pozo on-chain (unidades crudas) de un día+modalidad ya cerrado. Sirve de
+ * respaldo para las rondas anteriores al snapshot: solo devuelve algo real
+ * mientras el ganador NO haya reclamado (al reclamar, poolOf vuelve a 0).
+ */
+export async function fetchPoolUnits(
+  day: number,
+  modeId: string,
+): Promise<{ usdt: bigint; copm: bigint } | null> {
+  if (!isConfigured()) return null;
+  const usdt = getCurrency("usdt");
+  const copm = getCurrency("copm");
+  if (!usdt || !copm) return null;
+  try {
+    const contract = new Contract(CONTRACT, GAME_ABI, readProvider());
+    const [pu, pc] = (await Promise.all([
+      contract.poolOf(day, id(modeId), usdt.address),
+      contract.poolOf(day, id(modeId), copm.address),
+    ])) as [bigint, bigint];
+    return { usdt: pu, copm: pc };
+  } catch {
+    return null;
+  }
+}
+
+/** Enlace al explorador para una transacción (historial de ganadores, recibos). */
+export function txUrl(hash: string): string {
+  return `${CELO_MAINNET.explorer}/tx/${hash}`;
+}
+
 /** Dirección del ganador registrado de un día+modalidad, o null si aún no se cierra / sin ganador. */
 export async function fetchWinner(day: number, modeId: string): Promise<string | null> {
   if (!isConfigured()) return null;

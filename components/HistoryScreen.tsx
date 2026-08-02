@@ -7,6 +7,7 @@ import {
   MatchHistoryItem,
 } from "@/lib/history";
 import { formatScore } from "@/lib/game";
+import WinnersHistory from "./WinnersHistory";
 
 const dateFmt = new Intl.DateTimeFormat("es", {
   day: "2-digit",
@@ -15,7 +16,20 @@ const dateFmt = new Intl.DateTimeFormat("es", {
   minute: "2-digit",
 });
 
+/**
+ * "Tus partidas" es local a este dispositivo (localStorage); "Ganadores" es el
+ * historial público de rondas cerradas (Supabase). Son dos cosas distintas, por
+ * eso conviven en la misma pestaña pero no se mezclan.
+ */
+type SubTab = "mine" | "winners";
+
+const SUB_TABS: { id: SubTab; label: string }[] = [
+  { id: "mine", label: "Tus partidas" },
+  { id: "winners", label: "Ganadores" },
+];
+
 export default function HistoryScreen() {
+  const [tab, setTab] = useState<SubTab>("mine");
   const [items, setItems] = useState<MatchHistoryItem[]>([]);
 
   // Lee el historial en un effect para no romper la hidratación (el server no
@@ -39,7 +53,7 @@ export default function HistoryScreen() {
           <span className="text-xl leading-none">🕘</span>
           <h2 className="text-xl font-bold">Historial</h2>
         </div>
-        {items.length > 0 && (
+        {tab === "mine" && items.length > 0 && (
           <button
             type="button"
             onClick={onClear}
@@ -50,7 +64,29 @@ export default function HistoryScreen() {
         )}
       </div>
 
-      {items.length === 0 ? (
+      {/* Mismo selector segmentado que el de modalidad en Ranking. */}
+      <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1 sm:max-w-md">
+        {SUB_TABS.map((t) => {
+          const on = t.id === tab;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-pressed={on}
+              className={`min-h-11 rounded-lg py-2.5 text-sm font-semibold transition ${
+                on ? "bg-surface2 text-brand shadow-card" : "text-muted"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "winners" ? (
+        <WinnersHistory />
+      ) : items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-line bg-surface text-2xl">
             🕘

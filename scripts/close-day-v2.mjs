@@ -100,6 +100,27 @@ async function fetchClosingRows(supabase, closingPeriodStart) {
 }
 
 /**
+ * Foto del pozo JUSTO ANTES de cerrar: es el premio que se jugó esa ronda y lo que muestra
+ * el historial público de ganadores. Hace falta guardarlo porque `poolOf` vuelve a 0 en
+ * cuanto el ganador reclama (y en un rollover el pozo se mueve al día siguiente).
+ *
+ * NUNCA bloquea el cierre: si la lectura falla se devuelve {} y el día se cierra igual que
+ * antes, con las columnas del premio en null.
+ */
+async function readPrizeSnapshot(contract, day, modeKey, tokens) {
+  try {
+    const [pu, pc] = await Promise.all([
+      contract.poolOf(day, modeKey, tokens[0]),
+      contract.poolOf(day, modeKey, tokens[1]),
+    ]);
+    return { prize_usdt_units: pu.toString(), prize_copm_units: pc.toString() };
+  } catch (err) {
+    console.warn("  ! snapshot del pozo omitido:", err.message ?? err);
+    return {};
+  }
+}
+
+/**
  * Detección de claim (job nocturno): recorre las filas `registered` y, si el pozo on-chain
  * de ese (día, modalidad) ya está en 0 (el ganador reclamó con claim()), las marca `claimed`.
  */
@@ -183,6 +204,10 @@ async function main() {
       const hasWallet = wallet && isAddress(wallet);
       const winner = hasWallet ? wallet : ZeroAddress;
 
+      // Se lee ANTES de rollDay: después el pozo o queda esperando el claim o se mueve al
+      // día siguiente. Solo es bookkeeping para el historial de ganadores.
+      const prize = await readPrizeSnapshot(contract, day, modeKey, tokens);
+
       const receipt = await withRetry(
         async () => (await contract.rollDay(day, modeKey, winner, tokens)).wait(),
         `rollDay ${mode}`,
@@ -191,7 +216,7 @@ async function main() {
       if (winner !== ZeroAddress && row) {
         await supabase
           .from("prize_payouts")
-          .update({ status: "registered", rolled_tx: receipt.hash, onchain_day: day, updated_at: now() })
+          .update({ status: "registered", rolled_tx: receipt.hash, onchain_day: day, updated_at: now(), ...prize })
           .eq("id", row.id);
         console.log(`  ✓ ${mode}: ganador ${winner} REGISTRADO (cobra con claim). tx ${receipt.hash}`);
       } else {
@@ -199,7 +224,7 @@ async function main() {
         if (row) {
           await supabase
             .from("prize_payouts")
-            .update({ status: "rollover", rolled_tx: receipt.hash, onchain_day: day, updated_at: now() })
+            .update({ status: "rollover", rolled_tx: receipt.hash, onchain_day: day, updated_at: now(), ...prize })
             .eq("id", row.id);
         }
         console.log(`  ↻ ${mode}: rollover (sin ganador o sin wallet). tx ${receipt.hash}`);

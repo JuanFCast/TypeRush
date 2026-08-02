@@ -56,6 +56,7 @@ components/
   ModeHome · ChallengeLobby · ChallengeCard  — lobby: modes (es/en), challenges, pools, pay buttons
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
   ResultScreen · RankingScreen · HistoryScreen · ProfileScreen — results, rankings, Historial, Tú
+  WinnersHistory — public past-rounds list (the "Ganadores" sub-tab inside Historial)
   PaymentOverlay · AliasModal · BottomNav
 hooks/
   useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
@@ -67,6 +68,7 @@ lib/
   prizePool.ts    — read pool/period helpers (periodId from period start)
   runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
   gamePeriod.ts   — daily window (8 p.m. Bogota, PERIOD_RESET_HOUR=20, UTC−5 fixed)
+  winners.ts      — READ-ONLY winners history: paginated `prize_payouts` (see below)
   leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
 scripts/
@@ -74,6 +76,7 @@ scripts/
 contracts/      — Foundry: TypeRushPayToPlayMulti.sol (live) + legacy contracts + README
 supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
   anti_cheat.sql — `runs` table (server-issued passages) + drops the public INSERT on match_results
+  winners_history.sql — adds prize_usdt_units / prize_copm_units to prize_payouts (winners history)
   functions/distribute-prizes — Edge Function: instant on-chain payout at period close (pg_net-fired)
   functions/start-run · functions/submit-run — anti-cheat: issue passage / recompute score server-side
 legacy/         — original static prototype (reference)
@@ -103,6 +106,31 @@ GitHub Actions workflows run as idempotent BACKUP at 8:32/8:35 p.m. (GitHub cron
 Prize states in Supabase: pending → registered → claimed (or rollover), see `supabase/gamev2_prizes.sql`.
 The section below describes the RETIRED Sepolia/PayToPlayMulti system (its auto-payout was turned
 off 2026-07-05); `lib/payToPlay.ts` / `lib/prizePool.ts` are orphaned.
+
+### Winners history (added 2026-08-02) — READ-ONLY
+
+Public list of closed rounds (one per period + mode) — winner, mode, prize, date, tx link. It lives
+as a **"Ganadores" sub-tab inside the Historial tab** (the other sub-tab, "Tus partidas", is the
+unchanged local `localStorage` history). Modelled on avispate.fun's `round_settlements` → `/api/history`
+→ `WinnersHistory` chain, adapted to TypeRush's existing tables.
+
+- **Source of truth:** `prize_payouts` — the already-persisted settlement record, NOT the live ranking
+  and nothing from the device. `lib/winners.ts` pages it client-side with the publishable key
+  (`SELECT` was already public), newest first, asking for `limit + 1` rows to know if there's a next page.
+- **Payout state** is derived from `status`, never assumed: `claimed`/`sent`/`completed` → *Cobrado*,
+  `registered` → *Por cobrar*, `rollover` → *Pozo acumulado*, anything else → *Cerrando*.
+  Tx link prefers `claim_tx`, else `rolled_tx`, else legacy `tx_hash`. Wallets are shown **shortened**.
+- **Prize amount** is the one thing `prize_payouts` didn't store, because on-chain `poolOf` returns 0
+  once the winner claims. `supabase/winners_history.sql` adds `prize_usdt_units` / `prize_copm_units`
+  (`numeric(78,0)` — COPm's 18 decimals overflow bigint) and **close-day snapshots the pool right
+  before `rollDay`**, in a try/catch that can never block the close. For rounds that closed before
+  this existed, the UI falls back to reading `poolOf` on-chain, but ONLY for `registered` rows (in
+  `claimed`/`rollover` ones the pool is legitimately 0, and showing that would be a lie).
+- If `winners_history.sql` hasn't been run yet, the query 42703s and **retries without those two
+  columns**, so app and SQL can be deployed in any order (history works, just without amounts).
+- ⚠️ **To deploy:** (1) run `supabase/winners_history.sql` in the SQL editor; (2) redeploy the
+  `close-day` Edge Function (paste `supabase/functions/close-day/index.ts`) so new rounds get the
+  snapshot. Its backup mirror `scripts/close-day-v2.mjs` has the same change — keep both in sync.
 
 ### Daily period & the on-chain prize (the money flow)
 
@@ -174,4 +202,4 @@ function, you must re-run it in the SQL editor for it to take effect.
 - USDC `0x01C5C0122039549AD1493B8220cABEdD739BC44E` (6 dec) · COPm `0x5F8d55c3627d2dc0a2B4afa798f877242F382F67` (18 dec).
 - Live URL: `https://type-rush-orpin.vercel.app` (Vercel auto-deploys on push to `main`; `NEXT_PUBLIC_*`
   is baked at build → after changing a Vercel env you MUST redeploy).
-- Genuinely deferred (don't add until asked): login/auth, Farcaster, real Historial (placeholder).
+- Genuinely deferred (don't add until asked): login/auth, Farcaster.
