@@ -29,8 +29,9 @@ const CURRENCY_SUB: Record<CurrencyId, string> = {
 
 /**
  * Portada: propuesta de valor + premio real del día + selector de idioma + CTA
- * a la izquierda; demo animada de una carrera a la derecha (columna única en
- * móvil, con el CTA antes de la demo para que quede en la primera pantalla).
+ * a la izquierda; vista previa animada de la pantalla de carrera a la derecha
+ * (columna única en móvil, con el CTA antes de la vista previa para que quede
+ * en la primera pantalla).
  */
 export default function ModeHome({ onSelectMode }: Props) {
   const [lang, setLang] = useState<ModeId>("es");
@@ -190,7 +191,7 @@ export default function ModeHome({ onSelectMode }: Props) {
             })}
           </div>
 
-          {/* CTA principal: va ANTES de la demo para no salir de la 1ª pantalla.
+          {/* CTA principal: va ANTES de la vista previa para no salir de la 1ª pantalla.
               El estado del tiro gratis viene de Supabase: mientras carga NO se
               muestra "Jugar gratis" para no prometer algo que quizá ya se usó. */}
           {/* Aviso de estado en tono neutro con icono de información: un check
@@ -240,11 +241,11 @@ export default function ModeHome({ onSelectMode }: Props) {
           </p>
         </section>
 
-        {/* Columna derecha: demo visual de la carrera. En lg va alineada arriba
-            (con un pequeño offset óptico) para no dejar un vacío muerto en el
-            cuadrante superior derecho. */}
+        {/* Columna derecha: vista previa fiel de la pantalla de carrera. En lg
+            va alineada arriba (con un pequeño offset óptico) para no dejar un
+            vacío muerto en el cuadrante superior derecho. */}
         <section className="relative mx-auto w-full max-w-md lg:mt-9 lg:max-w-none">
-          {/* Halo radial verde extremadamente sutil tras la demo: sin bordes
+          {/* Halo radial verde extremadamente sutil tras la vista previa: sin bordes
               (degradado a transparente), solo da profundidad al fondo limpio. */}
           <div
             aria-hidden
