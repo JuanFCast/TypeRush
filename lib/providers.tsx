@@ -15,6 +15,7 @@ import { PrivySessionBridge } from "./privySession";
 import { I18nProvider } from "./i18n/client";
 import type { Lang } from "./i18n";
 import { WelcomeGasProvider } from "@/components/WelcomeGasBridge";
+import { ProfileProvider } from "./profileContext";
 
 const queryClient = new QueryClient();
 
@@ -118,7 +119,9 @@ function PrivyLayer({ children }: { children: ReactNode }) {
       {/* El gas inicial va DENTRO del puente de sesión: necesita el token de
           Privy para pedirlo, y la pantalla Jugar necesita su estado. */}
       <PrivySessionBridge>
-        <WelcomeGasProvider>{children}</WelcomeGasProvider>
+        <WelcomeGasProvider>
+          <ProfileProvider>{children}</ProfileProvider>
+        </WelcomeGasProvider>
       </PrivySessionBridge>
     </PrivyProvider>
   );
