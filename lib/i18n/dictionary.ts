@@ -258,6 +258,15 @@ export const es = {
   "dev.sent": "Enviado",
   "dev.view_explorer": "Ver en el explorer",
 
+  /* ------------------------------- Wallet -------------------------------- */
+  "wallet.kind.privy": "Wallet de TypeRush",
+  "wallet.kind.minipay": "MiniPay",
+  "wallet.kind.external": "Wallet externa",
+  "wallet.kind.none": "Sin wallet",
+  "turnstile.aria": "Verificación de seguridad",
+  "turnstile.text":
+    "Confirma que no eres un robot para recibir el saldo inicial que paga las comisiones de red.",
+
   /* -------------------------------- Errores ------------------------------ */
   "error.attempt_validation":
     "No pudimos validar tu intento, revisa tu conexión e intenta de nuevo.",
@@ -551,6 +560,15 @@ export const en: Record<MessageKey, string> = {
   "dev.tx_sent": "Transaction sent, confirming…",
   "dev.sent": "Sent",
   "dev.view_explorer": "View on the explorer",
+
+  /* ------------------------------- Wallet -------------------------------- */
+  "wallet.kind.privy": "TypeRush wallet",
+  "wallet.kind.minipay": "MiniPay",
+  "wallet.kind.external": "External wallet",
+  "wallet.kind.none": "No wallet",
+  "turnstile.aria": "Security check",
+  "turnstile.text":
+    "Confirm you're not a robot to receive the starting balance that pays network fees.",
 
   /* -------------------------------- Errors ------------------------------- */
   "error.attempt_validation":

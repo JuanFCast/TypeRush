@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { I18nProvider } from "@/lib/i18n/client";
+import { Providers } from "@/lib/providers";
 import { getServerLang, getServerT } from "@/lib/i18n/server";
 
 const spaceGrotesk = Space_Grotesk({
@@ -63,7 +63,7 @@ export default async function RootLayout({
       className={`notranslate ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <I18nProvider initialLang={lang}>{children}</I18nProvider>
+        <Providers lang={lang}>{children}</Providers>
       </body>
     </html>
   );
