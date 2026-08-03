@@ -29,10 +29,12 @@ export async function loadModeRanking(
   modeId: ModeId,
   playerId: string,
   playerName: string,
+  /** Locale de la interfaz: solo para escribir `periodLabel`. */
+  locale = "es-CO",
 ): Promise<ModeRankingResult | null> {
   if (!supabase) return null;
   try {
-    const period = getCurrentGamePeriod();
+    const period = getCurrentGamePeriod(new Date(), locale);
     const { data, error } = await supabase
       .from("match_results")
       .select("player_id, player_name, score")

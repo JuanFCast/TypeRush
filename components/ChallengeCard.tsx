@@ -1,5 +1,8 @@
+"use client";
+
 import { formatScore } from "@/lib/game";
 import { Challenge } from "@/lib/passages";
+import { useI18n } from "@/lib/i18n/client";
 
 type Props = {
   challenge: Challenge;
@@ -14,6 +17,8 @@ export default function ChallengeCard({
   selected,
   onSelect,
 }: Props) {
+  const { t, locale } = useI18n();
+
   return (
     <button
       type="button"
@@ -27,24 +32,26 @@ export default function ChallengeCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-base font-bold text-ink">{challenge.title}</h3>
-          <p className="mt-0.5 text-xs text-muted">{challenge.description}</p>
+          <h3 className="text-base font-bold text-ink">{t(challenge.titleKey)}</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            {t(challenge.descriptionKey)}
+          </p>
         </div>
         {selected && (
           <span className="shrink-0 rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-brand">
-            Elegido
+            {t("card.selected")}
           </span>
         )}
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs">
-        <span className="text-muted">Tu mejor puntaje</span>
+        <span className="text-muted">{t("card.your_best")}</span>
         {best > 0 ? (
           <span className="font-mono font-bold text-brand">
-            {formatScore(best, challenge.modeId)}
+            {formatScore(best, locale)}
           </span>
         ) : (
-          <span className="text-muted">Aún no tienes puntaje</span>
+          <span className="text-muted">{t("card.no_score")}</span>
         )}
       </div>
     </button>

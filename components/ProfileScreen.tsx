@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import DevTransferTool from "@/components/DevTransferTool";
 import ClaimBanner from "@/components/ClaimBanner";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 import { fetchWalletBalances, TokenBalance } from "@/lib/balances";
 import { getPlayerId, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
 import {
@@ -20,6 +22,7 @@ import {
 } from "@/lib/wallet";
 
 export default function ProfileScreen() {
+  const { t, tError, locale } = useI18n();
   const [name, setName] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [saved, setSaved] = useState(false);
@@ -40,12 +43,15 @@ export default function ProfileScreen() {
   const [balances, setBalances] = useState<TokenBalance[] | null>(null);
   const [balancesLoading, setBalancesLoading] = useState(false);
 
-  const loadBalances = useCallback(async (address: string) => {
-    setBalancesLoading(true);
-    const res = await fetchWalletBalances(address);
-    setBalances(res);
-    setBalancesLoading(false);
-  }, []);
+  const loadBalances = useCallback(
+    async (address: string) => {
+      setBalancesLoading(true);
+      const res = await fetchWalletBalances(address, locale);
+      setBalances(res);
+      setBalancesLoading(false);
+    },
+    [locale],
+  );
 
   const loadWalletState = useCallback(async () => {
     setWalletLoading(true);
@@ -92,7 +98,7 @@ export default function ProfileScreen() {
     setName(res.name);
     // verified:false → se guardó local pero no se pudo verificar (Supabase off).
     if (res.verified) setSaved(true);
-    else setNotice("No pudimos verificar disponibilidad ahora. Se guardó localmente.");
+    else setNotice("error.alias_unverified");
     setProfileInDb(true);
   };
 
@@ -133,7 +139,7 @@ export default function ProfileScreen() {
     <div className="screen-in flex flex-1 flex-col">
       <div className="mb-4 flex items-center gap-2">
         <span className="text-xl leading-none">👤</span>
-        <h2 className="text-xl font-bold">Tú</h2>
+        <h2 className="text-xl font-bold">{t("profile.title")}</h2>
       </div>
 
       {/* Premio por reclamar (si esta wallet es ganadora registrada). Siempre
@@ -149,7 +155,7 @@ export default function ProfileScreen() {
           htmlFor="playerName"
           className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted"
         >
-          Nombre del jugador
+          {t("profile.name_label")}
         </label>
         <input
           id="playerName"
@@ -168,17 +174,17 @@ export default function ProfileScreen() {
           className="mt-2 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
         />
         {error ? (
-          <p className="mt-2 text-xs text-danger">{error}</p>
+          <p className="mt-2 text-xs text-danger">
+            {tError(error, { min: NAME_MIN, name: trimmed })}
+          </p>
         ) : notice ? (
-          <p className="mt-2 text-xs text-warn">{notice}</p>
+          <p className="mt-2 text-xs text-warn">{tError(notice)}</p>
         ) : tooShort ? (
           <p className="mt-2 text-xs text-muted">
-            El nombre necesita al menos {NAME_MIN} caracteres.
+            {t("profile.name_too_short", { min: NAME_MIN })}
           </p>
         ) : (
-          <p className="mt-2 text-xs text-muted">
-            Así aparecerás en los rankings de cada reto.
-          </p>
+          <p className="mt-2 text-xs text-muted">{t("profile.name_hint")}</p>
         )}
 
         <button
@@ -187,12 +193,28 @@ export default function ProfileScreen() {
           disabled={tooShort || busy}
           className="mt-4 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
         >
-          {busy ? "Verificando…" : saved ? "✓ Guardado" : "Guardar"}
+          {busy
+            ? t("common.checking")
+            : saved
+              ? `✓ ${t("profile.saved")}`
+              : t("profile.save")}
         </button>
           </div>
 
+          {/* Idioma de la interfaz: el mismo ajuste que la pastilla ES/EN de la
+              cabecera, aquí con su nombre completo para quien lo busque. */}
+          <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
+            <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
+              {t("profile.language")}
+            </span>
+            <div className="mt-2">
+              <LanguageToggle />
+            </div>
+            <p className="mt-2 text-xs text-muted">{t("profile.language_hint")}</p>
+          </div>
+
           <div className="flex items-center justify-between rounded-2xl border border-line bg-surface2 p-4 text-xs shadow-card">
-            <span className="text-muted">Perfil local</span>
+            <span className="text-muted">{t("profile.local_profile")}</span>
             <span className="font-mono text-ink/80">
               {playerId ? `id ${playerId.slice(0, 8)}` : "—"}
             </span>
@@ -203,7 +225,7 @@ export default function ProfileScreen() {
           <div className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
-            Wallet para premios
+            {t("profile.wallet_title")}
           </span>
           {inMiniPay ? (
             <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[0.6rem] font-semibold text-brand">
@@ -214,26 +236,22 @@ export default function ProfileScreen() {
           ) : null}
         </div>
 
-        <p className="mt-2 text-xs text-muted">
-          Es la wallet donde recibes tu premio (USDT y COPm) si quedas #1 del día.
-          En MiniPay es tu misma wallet: la vinculas una vez y listo.
-        </p>
+        <p className="mt-2 text-xs text-muted">{t("profile.wallet_desc")}</p>
 
         {profileInDb === false && (
           <p className="mt-2 text-xs text-warn">
-            Primero guarda tu nombre de jugador arriba. La wallet se vincula a tu
-            perfil en el servidor.
+            {t("profile.wallet_need_name")}
           </p>
         )}
 
         {walletLoading ? (
-          <p className="mt-3 text-xs text-muted">Cargando wallet…</p>
+          <p className="mt-3 text-xs text-muted">{t("profile.wallet_loading")}</p>
         ) : (
           <>
             {connectedWallet && (
               <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-3">
                 <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
-                  Tu dirección (cópiala para recibir fondos)
+                  {t("profile.address_label")}
                 </span>
                 <p className="mt-1 break-all font-mono text-xs text-ink">
                   {connectedWallet}
@@ -247,7 +265,9 @@ export default function ProfileScreen() {
                   }}
                   className="mt-2 min-h-11 rounded-lg border border-brand/40 bg-brand/10 px-3.5 py-2.5 text-xs font-bold text-brand transition active:scale-[0.98]"
                 >
-                  {addrCopied ? "✓ Copiada" : "Copiar dirección"}
+                  {addrCopied
+                    ? `✓ ${t("profile.copied")}`
+                    : t("profile.copy_address")}
                 </button>
               </div>
             )}
@@ -256,7 +276,7 @@ export default function ProfileScreen() {
               <div className="mt-3 rounded-xl border border-line bg-bg px-3 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted">
-                    Tu saldo
+                    {t("profile.balance")}
                   </span>
                   <button
                     type="button"
@@ -264,7 +284,9 @@ export default function ProfileScreen() {
                     disabled={balancesLoading}
                     className="text-[0.6rem] font-semibold text-brand disabled:opacity-40"
                   >
-                    {balancesLoading ? "Actualizando…" : "↻ Actualizar"}
+                    {balancesLoading
+                      ? t("profile.updating")
+                      : `↻ ${t("profile.refresh")}`}
                   </button>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -294,7 +316,7 @@ export default function ProfileScreen() {
               <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-brand">
-                    ✓ Vinculada para premios
+                    ✓ {t("profile.wallet_linked")}
                   </span>
                   <button
                     type="button"
@@ -302,7 +324,7 @@ export default function ProfileScreen() {
                     disabled={walletBusy}
                     className="text-[0.65rem] font-semibold text-muted transition active:scale-95 disabled:opacity-40"
                   >
-                    {walletBusy ? "…" : "Cambiar"}
+                    {walletBusy ? "…" : t("profile.change")}
                   </button>
                 </div>
                 <p className="mt-0.5 font-mono text-[0.7rem] text-muted">
@@ -313,12 +335,12 @@ export default function ProfileScreen() {
               <>
                 {walletMismatch && (
                   <p className="mt-3 text-xs text-warn">
-                    La wallet conectada no coincide con la guardada para premios.
+                    {t("profile.wallet_mismatch")}
                   </p>
                 )}
                 {connectedWallet && !savedWallet && !inMiniPay && (
                   <p className="mt-3 text-xs text-muted">
-                    Detectada:{" "}
+                    {t("profile.detected")}{" "}
                     <span className="font-mono text-ink/80">
                       {shortWalletAddress(connectedWallet)}
                     </span>
@@ -332,26 +354,29 @@ export default function ProfileScreen() {
                     className="mt-3 h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-40"
                   >
                     {walletBusy
-                      ? "Vinculando…"
+                      ? t("profile.linking")
                       : walletMismatch
-                        ? "Actualizar a la wallet conectada"
+                        ? t("profile.wallet_update")
                         : inMiniPay
-                          ? "Vincular wallet para premios"
-                          : "Conectar y vincular wallet"}
+                          ? t("profile.wallet_link_minipay")
+                          : t("profile.wallet_connect")}
                   </button>
                 ) : (
                   <p className="mt-3 text-xs text-muted">
-                    Abre TypeRush dentro de MiniPay (o usa una extensión web3) para
-                    vincular tu wallet y recibir premios.
+                    {t("profile.no_provider")}
                   </p>
                 )}
               </>
             )}
 
             {walletError ? (
-              <p className="mt-2 text-xs text-danger">{walletError}</p>
+              <p className="mt-2 text-xs text-danger">
+                {tError(walletError, { name: trimmed })}
+              </p>
             ) : walletSaved ? (
-              <p className="mt-2 text-xs text-brand">✓ Wallet vinculada</p>
+              <p className="mt-2 text-xs text-brand">
+                ✓ {t("profile.wallet_saved")}
+              </p>
             ) : null}
           </>
         )}

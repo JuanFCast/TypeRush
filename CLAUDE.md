@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **MiniPay** (Opera's wallet) on **Celo Sepolia (testnet)**. Styled after daily-reward games like
 Nerdos.fun. From a home **lobby** the player picks a mode (`es` / `en`) and a challenge, then types a
 passage against a 45-second timer. The app measures **WPM, accuracy, errors, corrections and score**.
+The **whole UI is bilingual (es/en)** — see "Interface language" below; do not add Spanish-only copy.
 
 There are two ways to play a challenge:
 - **Gratis:** one free ranked attempt per mode per day.
@@ -57,13 +58,15 @@ components/
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
   ResultScreen · RankingScreen · HistoryScreen · ProfileScreen — results, rankings, Historial, Tú
   WinnersHistory — public past-rounds list (the "Ganadores" sub-tab inside Historial)
-  PaymentOverlay · AliasModal · BottomNav
+  PaymentOverlay · AliasModal · BottomNav · LanguageToggle (UI language, ES/EN)
 hooks/
   useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
   usePlayEligibility.ts — free-attempt / pay gating per mode
 lib/
+  i18n/          — UI language: index.ts (core+detection) · dictionary.ts (es+en) ·
+                   client.tsx (I18nProvider/useI18n/useT) · server.ts (getServerLang)
   game.ts        — pure logic: computeStats + per-challenge localStorage best score
-  passages.ts    — modes (es/en) + challenges + clauses + buildPassage
+  passages.ts    — modes (es/en) + challenges (i18n title keys) + clauses + buildPassage
   payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
   prizePool.ts    — read pool/period helpers (periodId from period start)
   runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
@@ -164,6 +167,52 @@ unchanged local `localStorage` history). Modelled on avispate.fun's `round_settl
 - ⚠️ **To deploy:** (1) run `supabase/winners_history.sql` in the SQL editor; (2) redeploy the
   `close-day` Edge Function (paste `supabase/functions/close-day/index.ts`) so new rounds get the
   snapshot. Its backup mirror `scripts/close-day-v2.mjs` has the same change — keep both in sync.
+
+### Interface language (added 2026-08-03) — and the crash it fixed
+
+**Two different things are called "language" here; don't confuse them.**
+- **`ModeId` (`es`/`en`, `lib/passages.ts`)** = the language of the **text you type**. It picks the
+  challenge, the ranking and the prize pool. Passages (`clauses`) are **never** translated.
+- **UI language (`lib/i18n`)** = the language you **read the app in**. Independent setting.
+
+**The bug it fixed.** The app was Spanish-only with a hardcoded `<html lang="es">`. On an
+English-locale device, Chrome (and the MiniPay webview) auto-translated the page, which rewrites
+every text node into `<font>` wrappers. The next React render tried to remove nodes that were no
+longer its children → `NotFoundError: Failed to execute 'removeChild'` → Next.js error screen
+**"This page couldn't load"**. Reproduced exactly before the fix (press the ES/EN toggle, or enter
+the lobby, on a translated page). Both user-reported symptoms — the crash, and "the language
+selector does nothing in MiniPay" — were the same root cause: there was no real UI language, so the
+browser invented one and broke React.
+
+- **Server-first detection.** `app/layout.tsx` is an async server component: `getServerLang()` reads
+  the `typerush_lang` cookie, else `Accept-Language`. The first paint is already in the right
+  language and `<html lang>` tells the truth, so the browser never offers to translate. This makes
+  `/` a dynamic route on purpose.
+- **`<html translate="no" class="notranslate">`** as a hard guarantee, plus `translate="no"` on the
+  passage `<p>` in `TypeField`. Auto-translating a typing game is not a feature: the passage is
+  scored character-by-character against the server's canonical text, so a translated passage is
+  unwinnable even if it didn't crash.
+- **Persistence is doubled on purpose:** cookie (so the *server* gets it right on the next load) +
+  `localStorage` (`typerush.lang.v1`), because the MiniPay webview doesn't always keep cookies.
+  `I18nProvider` reconciles both on mount and rewrites whichever is missing. Verified in a
+  cookie-blocked MiniPay simulation.
+- **Dictionary (`lib/i18n/dictionary.ts`):** `es` is the base and defines `MessageKey`; `en` is typed
+  as `Record<MessageKey, string>`, so **a new key without its English translation does not compile**.
+  Interpolation is `{name}`.
+- **Errors from `lib/` return message KEYS, not sentences** (`"error.pay_failed"`, …). Components
+  render them with `tError(value, vars)`, which translates a known key and passes anything else
+  through untouched. This is why a payment/wallet error follows the language even after it appears.
+- **Everything locale-dependent takes the locale explicitly** so server and client agree:
+  `formatScore(score, locale)`, `getCurrentGamePeriod(now, locale)`, `formatGamePeriodLabel`,
+  `loadModeRanking(..., locale)`, and every money formatter (`fetchPoolLabel`, `entryLabel`,
+  `formatTokenUnits`, `fetchWalletBalances`, `loadWinnerRounds`). Amounts read `1,00 USDT / 1.900
+  COPm` in Spanish and `1.00 USDT / 1,500 COPm` in English.
+- **Where the player switches it:** the ES/EN control on the home screen (it sets the UI language
+  *and* the mode you're about to play — pressing "English" does what it says), plus a compact ES/EN
+  pill in the header available from every tab, plus the "Idioma de la app" block in **Tú**. Inside a
+  lobby the mode stays fixed, so app-in-English + typing-in-Spanish is reachable and was tested.
+- **Local history** stores `modeName`/`challengeName` in Spanish as a fallback record only;
+  `HistoryScreen` re-derives the visible names from the ids so old rows follow the current language.
 
 ### Daily period & the on-chain prize (the money flow)
 

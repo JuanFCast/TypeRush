@@ -31,13 +31,12 @@ import {
 } from "@/lib/gameV2";
 import NeedFundsModal from "@/components/NeedFundsModal";
 import ClaimBanner from "@/components/ClaimBanner";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
-// Mensaje cuando no se puede validar el tiro contra Supabase (no inicia ranking).
-const ATTEMPT_VALIDATION_ERROR =
-  "No pudimos validar tu intento, revisa tu conexión e intenta de nuevo.";
-
 export default function Page() {
+  const { t, tError, locale } = useI18n();
   const {
     status,
     passage,
@@ -83,7 +82,9 @@ export default function Page() {
     primerRef.current?.focus();
   };
 
-  // Aviso cuando no se pudo validar el tiro gratis contra Supabase.
+  // Aviso cuando no se pudo validar el tiro gratis contra Supabase. Se guarda
+  // la CLAVE del mensaje, no el texto: así sigue el idioma activo aunque se
+  // cambie con el aviso en pantalla.
   const [attemptError, setAttemptError] = useState<string | null>(null);
 
   // Pago de entrada (cuando se agota el tiro gratis): estado del flujo on-chain.
@@ -203,7 +204,7 @@ export default function Page() {
     setPayPhase("preparing");
     setPayState("paying");
     const modeId = getChallenge(id)?.modeId ?? "es";
-    const res = await payEntry(modeId, currencyId, setPayPhase);
+    const res = await payEntry(modeId, currencyId, setPayPhase, locale);
     if (!res.ok) {
       // Sin saldo: no es un error del pago, abrimos el modal de fondos.
       if (res.insufficient) {
@@ -266,7 +267,7 @@ export default function Page() {
     runPromiseRef.current = null;
     reset();
     primerRef.current?.blur();
-    if (claim === "error") setAttemptError(ATTEMPT_VALIDATION_ERROR);
+    if (claim === "error") setAttemptError("error.attempt_validation");
     void refreshPlayEligibility();
   };
 
@@ -328,7 +329,7 @@ export default function Page() {
                       on ? "bg-brand-soft text-brand" : "text-muted hover:text-ink"
                     }`}
                   >
-                    {it.label}
+                    {t(it.labelKey)}
                   </button>
                 );
               })}
@@ -337,8 +338,12 @@ export default function Page() {
 
           <div className="flex items-center gap-3">
             <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block md:hidden lg:block">
-              carrera de 45s
+              {t("header.tagline")}
             </span>
+            {/* El idioma se puede cambiar desde CUALQUIER pestaña, no solo desde
+                la portada. Durante la carrera se oculta para no distraer (y para
+                no cambiar el idioma con el teclado abierto). */}
+            {status === "idle" && <LanguageToggle variant="compact" />}
             <SoundToggle />
           </div>
         </div>
@@ -370,7 +375,6 @@ export default function Page() {
               result={result}
               best={best}
               isNewBest={isNewBest}
-              modeId={getChallenge(challenge)?.modeId ?? "es"}
               onBackToLobby={onBackToLobby}
               onExit={onExitRace}
             />
@@ -430,7 +434,7 @@ export default function Page() {
           className="fixed inset-x-0 bottom-24 z-40 mx-auto w-full max-w-md px-5 text-left md:max-w-lg"
         >
           <span className="block rounded-xl border border-danger/30 bg-surface2 px-4 py-3 text-sm font-semibold text-danger shadow-pop">
-            {attemptError}
+            {tError(attemptError)}
           </span>
         </button>
       )}
@@ -475,9 +479,11 @@ export default function Page() {
             <span className="text-5xl">✅</span>
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-brand">¡Pago confirmado!</p>
+            <p className="text-2xl font-extrabold text-brand">
+              {t("paid.confirmed")}
+            </p>
             <p className="mt-2 max-w-xs text-balance text-sm text-muted">
-              Estás en la ronda por el premio. Toca para empezar.
+              {t("paid.hint")}
             </p>
           </div>
           <button
@@ -485,15 +491,21 @@ export default function Page() {
             onClick={onStartPaid}
             className="h-14 w-full max-w-xs rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition active:scale-[0.98]"
           >
-            ¡Empezar! ▶
+            {t("paid.start")} ▶
           </button>
         </div>
       )}
 
       {status === "countdown" && (
         <CountdownScreen
-          challengeName={getChallenge(challenge)?.title}
-          modeName={getMode(getChallenge(challenge)?.modeId ?? "es")?.label}
+          challengeName={(() => {
+            const key = getChallenge(challenge)?.titleKey;
+            return key ? t(key) : undefined;
+          })()}
+          modeName={(() => {
+            const key = getMode(getChallenge(challenge)?.modeId ?? "es")?.labelKey;
+            return key ? t(key) : undefined;
+          })()}
           onCancel={onCancelCountdown}
           onDone={() => {
             // beginRace arranca el reloj tras validar (mantiene "¡YA!" mientras tanto).

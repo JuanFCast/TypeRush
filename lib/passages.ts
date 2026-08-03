@@ -1,5 +1,15 @@
 // Textos para mecanografía, organizados por modo y, dentro de cada modo, por reto.
 // Con ortografía, tildes y puntuación correctas (mayúsculas, comas y punto final).
+//
+// OJO con la diferencia entre las dos cosas que aquí se llaman "idioma":
+//  - `ModeId` (es/en) = idioma del TEXTO QUE SE TECLEA. Define el reto, el
+//    ranking y el pozo del premio. Las `clauses` NUNCA se traducen.
+//  - El idioma de la INTERFAZ (lib/i18n) = en qué idioma se lee la app. Por eso
+//    los títulos y descripciones de aquí son CLAVES del diccionario: el reto
+//    "motivacionEs" se lee "Motivación" o "Motivation" según la app, pero se
+//    teclea en español siempre.
+
+import type { MessageKey } from "./i18n";
 
 export type ModeId = "es" | "en";
 
@@ -15,8 +25,9 @@ export type RankingEntry = { name: string; score: number };
 export type Challenge = {
   id: ChallengeId;
   modeId: ModeId;
-  title: string;
-  description: string;
+  /** Clave i18n del nombre visible del reto (el texto tecleado no se traduce). */
+  titleKey: MessageKey;
+  descriptionKey: MessageKey;
   // Ranking local temporal (datos de ejemplo, sin backend todavía).
   ranking: RankingEntry[];
   clauses: string[];
@@ -24,22 +35,23 @@ export type Challenge = {
 
 export type Mode = {
   id: ModeId;
-  label: string;
-  description: string;
+  /** Clave i18n del idioma que se teclea en esta modalidad. */
+  labelKey: MessageKey;
+  descriptionKey: MessageKey;
   icon: string;
 };
 
 export const MODES: Mode[] = [
   {
     id: "es",
-    label: "Español",
-    description: "Motivación, noticias y crypto en español.",
+    labelKey: "mode.es",
+    descriptionKey: "mode.es.description",
     icon: "🇪🇸",
   },
   {
     id: "en",
-    label: "English",
-    description: "Motivation and everyday English practice.",
+    labelKey: "mode.en",
+    descriptionKey: "mode.en.description",
     icon: "🇺🇸",
   },
 ];
@@ -49,8 +61,8 @@ export const CHALLENGES: Challenge[] = [
   {
     id: "motivacionEs",
     modeId: "es",
-    title: "Motivación",
-    description: "Frases para darte impulso.",
+    titleKey: "challenge.motivacionEs.title",
+    descriptionKey: "challenge.motivacionEs.description",
     ranking: [
       { name: "Lucia", score: 5120 },
       { name: "Mateo", score: 4380 },
@@ -68,8 +80,8 @@ export const CHALLENGES: Challenge[] = [
   {
     id: "noticiasEs",
     modeId: "es",
-    title: "Noticias",
-    description: "Datos y avances del mundo.",
+    titleKey: "challenge.noticiasEs.title",
+    descriptionKey: "challenge.noticiasEs.description",
     ranking: [
       { name: "Diego", score: 4760 },
       { name: "Valeria", score: 4210 },
@@ -87,8 +99,8 @@ export const CHALLENGES: Challenge[] = [
   {
     id: "cryptoEs",
     modeId: "es",
-    title: "Crypto",
-    description: "El mundo de las criptomonedas.",
+    titleKey: "challenge.cryptoEs.title",
+    descriptionKey: "challenge.cryptoEs.description",
     ranking: [
       { name: "Satoshi", score: 6100 },
       { name: "Camila", score: 4890 },
@@ -107,8 +119,8 @@ export const CHALLENGES: Challenge[] = [
   {
     id: "motivationEn",
     modeId: "en",
-    title: "Motivation",
-    description: "Sentences to keep you going.",
+    titleKey: "challenge.motivationEn.title",
+    descriptionKey: "challenge.motivationEn.description",
     ranking: [
       { name: "Emma", score: 5300 },
       { name: "Liam", score: 4470 },
@@ -126,8 +138,8 @@ export const CHALLENGES: Challenge[] = [
   {
     id: "dailyEn",
     modeId: "en",
-    title: "Daily English",
-    description: "Everyday English practice.",
+    titleKey: "challenge.dailyEn.title",
+    descriptionKey: "challenge.dailyEn.description",
     ranking: [
       { name: "Noah", score: 4980 },
       { name: "Ava", score: 4310 },

@@ -1,6 +1,7 @@
 "use client";
 
 import { DURATION, Stats } from "@/lib/game";
+import { useT } from "@/lib/i18n/client";
 import TypeField from "./TypeField";
 import Track from "./Track";
 
@@ -23,6 +24,7 @@ export default function RaceScreen({
   started,
   onInput,
 }: Props) {
+  const t = useT();
   const urgent = remaining <= 10;
 
   return (
@@ -31,7 +33,7 @@ export default function RaceScreen({
       <div>
         <div className="mb-2 flex items-end justify-between">
           <span className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-            Tiempo
+            {t("race.time")}
           </span>
           <span
             className={`font-mono text-3xl font-bold leading-none tabular-nums ${
@@ -64,10 +66,13 @@ export default function RaceScreen({
 
       {/* Métricas en vivo */}
       <div className="grid grid-cols-4 gap-2">
-        <Live label="WPM" value={stats.wpm} accent />
-        <Live label="Precisión" value={`${Math.round(stats.accuracy * 100)}%`} />
-        <Live label="Errores" value={stats.errors} />
-        <Live label="Correc." value={stats.mistakes} />
+        <Live label={t("race.wpm")} value={stats.wpm} accent />
+        <Live
+          label={t("race.accuracy")}
+          value={`${Math.round(stats.accuracy * 100)}%`}
+        />
+        <Live label={t("race.errors")} value={stats.errors} />
+        <Live label={t("race.corrections_short")} value={stats.mistakes} />
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getPlayerName, NAME_MAX } from "@/lib/player";
+import { DEFAULT_NAME, getPlayerName, NAME_MAX, NAME_MIN } from "@/lib/player";
 import { ALIAS_UNVERIFIED, ensurePlayerProfile } from "@/lib/playerProfile";
+import { useI18n } from "@/lib/i18n/client";
 
 type Props = {
   onSaved: (name: string) => void;
@@ -16,6 +17,7 @@ export default function AliasModal({
   onClose,
   onPrimeKeyboard,
 }: Props) {
+  const { t, tError } = useI18n();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -62,21 +64,19 @@ export default function AliasModal({
   };
 
   const label = busy
-    ? "Verificando…"
+    ? t("common.checking")
     : pending
-      ? "Continuar y jugar"
-      : "Guardar y jugar";
+      ? t("alias.continue_and_play")
+      : t("alias.save_and_play");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center">
       <div className="success-pop w-full max-w-sm rounded-2xl border border-line bg-surface2 p-5 shadow-pop">
         <div className="mb-1 flex items-center gap-2">
           <span className="text-xl leading-none">🏷️</span>
-          <h2 className="text-lg font-bold">Elige tu alias</h2>
+          <h2 className="text-lg font-bold">{t("alias.title")}</h2>
         </div>
-        <p className="text-xs text-muted">
-          Necesitas un alias para jugar. Así apareces en los rankings.
-        </p>
+        <p className="text-xs text-muted">{t("alias.subtitle")}</p>
 
         <input
           type="text"
@@ -94,18 +94,18 @@ export default function AliasModal({
           }}
           autoComplete="off"
           spellCheck={false}
-          placeholder="Tu alias"
+          placeholder={t("alias.placeholder")}
           className="mt-4 h-12 w-full rounded-xl border border-line bg-bg px-3 font-mono text-base text-ink outline-none focus:border-brand"
         />
 
         {error ? (
-          <p className="mt-2 text-xs text-danger">{error}</p>
-        ) : notice ? (
-          <p className="mt-2 text-xs text-warn">{notice}</p>
-        ) : (
-          <p className="mt-2 text-xs text-muted">
-            Entre 2 y 16 caracteres: letras, números, guion bajo o espacios.
+          <p className="mt-2 text-xs text-danger">
+            {tError(error, { min: NAME_MIN, name: DEFAULT_NAME })}
           </p>
+        ) : notice ? (
+          <p className="mt-2 text-xs text-warn">{tError(notice)}</p>
+        ) : (
+          <p className="mt-2 text-xs text-muted">{t("alias.rules")}</p>
         )}
 
         <button
@@ -121,7 +121,7 @@ export default function AliasModal({
           onClick={onClose}
           className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98]"
         >
-          Cancelar
+          {t("common.cancel")}
         </button>
       </div>
     </div>

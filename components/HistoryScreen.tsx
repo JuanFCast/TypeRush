@@ -7,14 +7,11 @@ import {
   MatchHistoryItem,
 } from "@/lib/history";
 import { formatScore } from "@/lib/game";
+import { getChallenge, getMode } from "@/lib/passages";
+import type { ChallengeId, ModeId } from "@/lib/passages";
+import { useI18n } from "@/lib/i18n/client";
+import type { Translate } from "@/lib/i18n";
 import WinnersHistory from "./WinnersHistory";
-
-const dateFmt = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 /**
  * "Tus partidas" es local a este dispositivo (localStorage); "Ganadores" es el
@@ -23,12 +20,37 @@ const dateFmt = new Intl.DateTimeFormat("es", {
  */
 type SubTab = "mine" | "winners";
 
-const SUB_TABS: { id: SubTab; label: string }[] = [
-  { id: "mine", label: "Tus partidas" },
-  { id: "winners", label: "Ganadores" },
-];
+const SUB_TABS: { id: SubTab; labelKey: "history.tab.mine" | "history.tab.winners" }[] =
+  [
+    { id: "mine", labelKey: "history.tab.mine" },
+    { id: "winners", labelKey: "history.tab.winners" },
+  ];
+
+/**
+ * Nombre del reto/modalidad EN EL IDIOMA ACTUAL. El historial guardó el nombre
+ * con el que se jugó, así que se reconstruye desde el id y solo se cae al texto
+ * guardado si el reto ya no existe en el catálogo.
+ */
+function challengeName(t: Translate, item: MatchHistoryItem): string {
+  const challenge = getChallenge(item.challengeId as ChallengeId);
+  return challenge
+    ? t(challenge.titleKey)
+    : item.challengeName || t("history.challenge_fallback");
+}
+
+function modeName(t: Translate, item: MatchHistoryItem): string {
+  const mode = getMode(item.modeId as ModeId);
+  return mode ? t(mode.labelKey) : item.modeName || "—";
+}
 
 export default function HistoryScreen() {
+  const { t, locale } = useI18n();
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const [tab, setTab] = useState<SubTab>("mine");
   const [items, setItems] = useState<MatchHistoryItem[]>([]);
 
@@ -41,7 +63,7 @@ export default function HistoryScreen() {
 
   const onClear = () => {
     if (items.length === 0) return;
-    if (!window.confirm("¿Borrar todo tu historial local?")) return;
+    if (!window.confirm(t("history.clear_confirm"))) return;
     clearMatchHistory();
     setItems([]);
   };
@@ -51,7 +73,7 @@ export default function HistoryScreen() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl leading-none">🕘</span>
-          <h2 className="text-xl font-bold">Historial</h2>
+          <h2 className="text-xl font-bold">{t("history.title")}</h2>
         </div>
         {tab === "mine" && items.length > 0 && (
           <button
@@ -59,26 +81,26 @@ export default function HistoryScreen() {
             onClick={onClear}
             className="min-h-11 rounded-xl border border-line bg-surface2 px-3.5 py-2.5 text-xs font-semibold text-muted shadow-card transition active:scale-[0.98]"
           >
-            Limpiar
+            {t("history.clear")}
           </button>
         )}
       </div>
 
       {/* Mismo selector segmentado que el de modalidad en Ranking. */}
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1 sm:max-w-md">
-        {SUB_TABS.map((t) => {
-          const on = t.id === tab;
+        {SUB_TABS.map((sub) => {
+          const on = sub.id === tab;
           return (
             <button
-              key={t.id}
+              key={sub.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => setTab(sub.id)}
               aria-pressed={on}
               className={`min-h-11 rounded-lg py-2.5 text-sm font-semibold transition ${
                 on ? "bg-surface2 text-brand shadow-card" : "text-muted"
               }`}
             >
-              {t.label}
+              {t(sub.labelKey)}
             </button>
           );
         })}
@@ -92,7 +114,7 @@ export default function HistoryScreen() {
             🕘
           </div>
           <p className="max-w-xs text-balance text-sm text-muted">
-            Aún no tienes partidas. Juega una carrera para ver tu historial.
+            {t("history.empty")}
           </p>
         </div>
       ) : (
@@ -105,29 +127,32 @@ export default function HistoryScreen() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">
-                    {it.challengeName || "Reto"}
+                    {challengeName(t, it)}
                   </p>
                   <p className="mt-0.5 text-[0.7rem] uppercase tracking-[0.12em] text-muted">
-                    {it.modeName || "—"} · {dateFmt.format(it.createdAt)}
+                    {modeName(t, it)} · {dateFmt.format(it.createdAt)}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-mono text-xl font-bold leading-none text-brand">
-                    {formatScore(it.score, it.modeId)}
+                    {formatScore(it.score, locale)}
                   </p>
                   {it.isNewBest && (
                     <p className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-brand">
-                      ★ Récord
+                      ★ {t("history.record")}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                <Mini label="WPM" value={it.wpm} />
-                <Mini label="Prec." value={`${Math.round(it.accuracy * 100)}%`} />
-                <Mini label="Errores" value={it.errors} />
-                <Mini label="Correc." value={it.mistakes} />
+                <Mini label={t("race.wpm")} value={it.wpm} />
+                <Mini
+                  label={t("history.accuracy_short")}
+                  value={`${Math.round(it.accuracy * 100)}%`}
+                />
+                <Mini label={t("race.errors")} value={it.errors} />
+                <Mini label={t("race.corrections_short")} value={it.mistakes} />
               </div>
             </li>
           ))}

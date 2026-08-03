@@ -141,18 +141,18 @@ export async function sendTokenTransfer(
   onHash?: (txHash: string) => void,
 ): Promise<TransferResult> {
   const token = getTransferToken(tokenId);
-  if (!token) return { ok: false, error: "Token no soportado." };
+  if (!token) return { ok: false, error: "error.currency_unsupported" };
 
   // 1. Dirección destino válida (checksum EIP-55).
   const trimmedTo = to.trim();
   if (!isAddress(trimmedTo)) {
-    return { ok: false, error: "La dirección destino no es válida." };
+    return { ok: false, error: "error.dest_invalid" };
   }
   const dest = getAddress(trimmedTo);
 
   const eth = getEthereum();
   if (!eth) {
-    return { ok: false, error: "Abre la app en MiniPay para enviar fondos." };
+    return { ok: false, error: "error.open_in_minipay_send" };
   }
 
   try {
@@ -162,17 +162,17 @@ export async function sendTokenTransfer(
     try {
       value = parseUnits(normalizeAmount(amount), decimals);
     } catch {
-      return { ok: false, error: "El monto no es válido." };
+      return { ok: false, error: "error.amount_invalid" };
     }
     if (value <= 0n) {
-      return { ok: false, error: "El monto debe ser mayor a 0." };
+      return { ok: false, error: "dev.amount_invalid" };
     }
 
     // 3. Cuenta conectada (MiniPay: sin popup; fuera de MiniPay pide permiso).
     const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
     const accounts = (await eth.request({ method })) as string[];
     const from = accounts?.[0];
-    if (!from) return { ok: false, error: "No pudimos leer tu wallet." };
+    if (!from) return { ok: false, error: "error.wallet_read" };
 
     // 4. Red correcta.
     await ensureCeloMainnet();
@@ -238,7 +238,7 @@ export async function sendTokenTransfer(
       const provider = new JsonRpcProvider(CELO_MAINNET.rpc);
       const receipt = await provider.waitForTransaction(txHash, 1, 60_000);
       if (receipt && receipt.status === 0) {
-        return { ok: false, error: "La transferencia revirtió on-chain." };
+        return { ok: false, error: "error.transfer_reverted" };
       }
     } catch (waitErr) {
       console.warn("[DevTransfer] waitForTransaction falló", waitErr);
@@ -250,7 +250,7 @@ export async function sendTokenTransfer(
     const cancelled =
       e?.code === 4001 || /reject|denied|cancel/i.test(e?.message ?? "");
     if (cancelled) {
-      return { ok: false, error: "Cancelaste la transferencia." };
+      return { ok: false, error: "error.transfer_cancelled" };
     }
     const detail = e?.message ? `: ${e.message}` : "";
     return { ok: false, error: `No se pudo completar la transferencia${detail}` };

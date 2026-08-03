@@ -11,6 +11,7 @@ import {
 import { submitRun } from "@/lib/runs";
 import { playError, playFinish, playKey, playRecord } from "@/lib/sound";
 import { saveMatchHistoryItem } from "@/lib/history";
+import { translate } from "@/lib/i18n";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import {
   ALL_CHALLENGE_IDS,
@@ -120,10 +121,14 @@ export function useTypeRush() {
       playerName,
       modeId,
       challengeId: id,
+      // El historial se PINTA traducido al idioma activo a partir de los ids
+      // (ver HistoryScreen): estos nombres son solo el registro de reserva por
+      // si algún día el reto desaparece del catálogo, así que se guardan en
+      // español, que es la base del diccionario y no cambia con la sesión.
       modeName: challengeInfo
-        ? (getMode(challengeInfo.modeId)?.label ?? "")
+        ? translate("es", getMode(challengeInfo.modeId)?.labelKey ?? "mode.es")
         : "",
-      challengeName: challengeInfo?.title ?? "",
+      challengeName: challengeInfo ? translate("es", challengeInfo.titleKey) : "",
       score: final.score,
       wpm: final.wpm,
       accuracy: final.accuracy,

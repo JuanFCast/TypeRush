@@ -64,8 +64,14 @@ export type GamePeriod = {
   label: string;
 };
 
-/** Periodo activo: desde las 8 p.m. de ayer/hoy hasta las 8 p.m. siguientes. */
-export function getCurrentGamePeriod(now = new Date()): GamePeriod {
+/**
+ * Periodo activo: desde las 8 p.m. de ayer/hoy hasta las 8 p.m. siguientes.
+ * `locale` solo afecta a `label` (el texto para mostrar), nunca a las fechas.
+ */
+export function getCurrentGamePeriod(
+  now = new Date(),
+  locale = "es-CO",
+): GamePeriod {
   const p = getBogotaParts(now);
   let startYear = p.year;
   let startMonth = p.month;
@@ -85,7 +91,7 @@ export function getCurrentGamePeriod(now = new Date()): GamePeriod {
   return {
     start,
     end,
-    label: formatGamePeriodLabel(start, end),
+    label: formatGamePeriodLabel(start, end, locale),
   };
 }
 
@@ -104,8 +110,17 @@ export function formatResetCountdown(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function formatGamePeriodLabel(start: Date, end: Date): string {
-  const fmt = new Intl.DateTimeFormat("es-CO", {
+/**
+ * "3 ago, 8:00 p. m. – 4 ago, 8:00 p. m.". El periodo SIEMPRE se expresa en
+ * hora Colombia (es cuando cierra la ronda), pero se escribe en el idioma de la
+ * interfaz, así que el locale se pasa desde fuera.
+ */
+export function formatGamePeriodLabel(
+  start: Date,
+  end: Date,
+  locale = "es-CO",
+): string {
+  const fmt = new Intl.DateTimeFormat(locale, {
     timeZone: GAME_TIMEZONE,
     day: "numeric",
     month: "short",

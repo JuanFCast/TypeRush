@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { txUrl } from "@/lib/gameV2";
 import { GAME_TIMEZONE } from "@/lib/gamePeriod";
 import { formatScore } from "@/lib/game";
 import { MODES } from "@/lib/passages";
+import { useI18n } from "@/lib/i18n/client";
+import type { MessageKey, Translate } from "@/lib/i18n";
 import {
   WINNERS_PAGE_SIZE,
   WinnerPayout,
@@ -13,17 +15,11 @@ import {
   loadWinnerRounds,
 } from "@/lib/winners";
 
-const dateFmt = new Intl.DateTimeFormat("es-CO", {
-  timeZone: GAME_TIMEZONE,
-  day: "numeric",
-  month: "short",
-});
-
-const PAYOUT_LABEL: Record<WinnerPayout, string> = {
-  claimed: "Cobrado",
-  registered: "Por cobrar",
-  rollover: "Pozo acumulado",
-  pending: "Cerrando",
+const PAYOUT_LABEL: Record<WinnerPayout, MessageKey> = {
+  claimed: "winners.payout.claimed",
+  registered: "winners.payout.registered",
+  rollover: "winners.payout.rollover",
+  pending: "winners.payout.pending",
 };
 
 // Verde solo para el premio que YA está en manos del ganador; ámbar mientras
@@ -47,6 +43,7 @@ type Status = "loading" | "ready" | "error";
  * mismo. Es solo lectura — aquí no se paga ni se reclama nada.
  */
 export default function WinnersHistory() {
+  const { t, locale } = useI18n();
   const [rounds, setRounds] = useState<WinnerRound[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [hasMore, setHasMore] = useState(false);
@@ -54,18 +51,21 @@ export default function WinnersHistory() {
 
   // Rellena los montos que faltan (rondas anteriores al snapshot) leyendo el
   // pozo on-chain. Va aparte para que la lista se pinte sin esperar al RPC.
-  const fillAmounts = (page: WinnerRound[]) => {
-    void fetchMissingPrizeAmounts(page).then((extra) => {
-      if (Object.keys(extra).length === 0) return;
-      setRounds((prev) =>
-        prev.map((r) => (extra[r.key] ? { ...r, ...extra[r.key] } : r)),
-      );
-    });
-  };
+  const fillAmounts = useCallback(
+    (page: WinnerRound[]) => {
+      void fetchMissingPrizeAmounts(page, locale).then((extra) => {
+        if (Object.keys(extra).length === 0) return;
+        setRounds((prev) =>
+          prev.map((r) => (extra[r.key] ? { ...r, ...extra[r.key] } : r)),
+        );
+      });
+    },
+    [locale],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    void loadWinnerRounds().then((page) => {
+    void loadWinnerRounds(0, undefined, locale).then((page) => {
       if (cancelled) return;
       if (!page) {
         setStatus("error");
@@ -79,11 +79,13 @@ export default function WinnersHistory() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Al cambiar de idioma se recarga la página de rondas: los importes se
+    // formatean en el servidor de datos con el locale, no en el render.
+  }, [locale, fillAmounts]);
 
   const onMore = async () => {
     setLoadingMore(true);
-    const page = await loadWinnerRounds(rounds.length);
+    const page = await loadWinnerRounds(rounds.length, undefined, locale);
     setLoadingMore(false);
     if (!page) return;
     setRounds((prev) => [...prev, ...page.rounds]);
@@ -107,8 +109,7 @@ export default function WinnersHistory() {
   if (status === "error") {
     return (
       <p className="rounded-2xl border border-line bg-surface2 p-4 text-sm text-muted">
-        No pudimos cargar el historial de ganadores ahora. Inténtalo de nuevo en
-        un momento.
+        {t("winners.error")}
       </p>
     );
   }
@@ -120,8 +121,7 @@ export default function WinnersHistory() {
           🏆
         </div>
         <p className="max-w-xs text-balance text-sm text-muted">
-          Todavía no hay rondas cerradas. La primera aparecerá tras el cierre de
-          las 8:00 p. m. (Colombia).
+          {t("winners.empty")}
         </p>
       </div>
     );
@@ -131,7 +131,7 @@ export default function WinnersHistory() {
     <>
       <ul className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
         {rounds.map((round) => (
-          <RoundCard key={round.key} round={round} />
+          <RoundCard key={round.key} round={round} t={t} locale={locale} />
         ))}
       </ul>
 
@@ -142,14 +142,31 @@ export default function WinnersHistory() {
           disabled={loadingMore}
           className="mx-auto mt-4 min-h-11 rounded-xl border border-line bg-surface2 px-5 py-2.5 text-sm font-semibold text-muted shadow-card transition active:scale-[0.98] disabled:opacity-50"
         >
-          {loadingMore ? "Cargando…" : `Ver ${WINNERS_PAGE_SIZE} más`}
+          {loadingMore
+            ? t("common.loading")
+            : t("winners.more", { count: WINNERS_PAGE_SIZE })}
         </button>
       )}
     </>
   );
 }
 
-function RoundCard({ round }: { round: WinnerRound }) {
+function RoundCard({
+  round,
+  t,
+  locale,
+}: {
+  round: WinnerRound;
+  t: Translate;
+  locale: string;
+}) {
+  // La fecha SIEMPRE en hora Colombia (es cuando cierra la ronda), pero escrita
+  // en el idioma de la interfaz.
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    timeZone: GAME_TIMEZONE,
+    day: "numeric",
+    month: "short",
+  });
   const mode = MODES.find((m) => m.id === round.modeId);
   const winner = round.winnerName || round.winnerWallet;
   const rolled = round.payout === "rollover";
@@ -163,12 +180,12 @@ function RoundCard({ round }: { round: WinnerRound }) {
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-[0.7rem] uppercase tracking-[0.12em] text-muted">
           {dateFmt.format(new Date(round.periodEnd))} ·{" "}
-          {mode ? `${mode.icon} ${mode.label}` : round.modeId}
+          {mode ? `${mode.icon} ${t(mode.labelKey)}` : round.modeId}
         </p>
         <span
           className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide ${PAYOUT_CLASS[round.payout]}`}
         >
-          {PAYOUT_LABEL[round.payout]}
+          {t(PAYOUT_LABEL[round.payout])}
         </span>
       </div>
 
@@ -177,7 +194,7 @@ function RoundCard({ round }: { round: WinnerRound }) {
           {rolled ? "↻" : "🏆"}
         </span>
         <p className="min-w-0 truncate text-sm font-bold text-ink">
-          {winner ?? "Sin ganador"}
+          {winner ?? t("winners.no_winner")}
         </p>
       </div>
       {/* La wallet solo se muestra si además hay alias, para no repetirla. */}
@@ -191,15 +208,13 @@ function RoundCard({ round }: { round: WinnerRound }) {
         {prize.length > 0 ? prize.join(" + ") : "—"}
       </p>
       {rolled && (
-        <p className="mt-1 text-[0.65rem] text-muted">
-          Nadie pudo cobrarlo: el pozo pasó al día siguiente.
-        </p>
+        <p className="mt-1 text-[0.65rem] text-muted">{t("winners.rolled")}</p>
       )}
 
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <span className="text-[0.65rem] text-muted">
           {round.score !== null
-            ? `${formatScore(round.score, round.modeId)} pts`
+            ? t("winners.points", { score: formatScore(round.score, locale) })
             : ""}
         </span>
         {round.txHash && (
@@ -209,7 +224,7 @@ function RoundCard({ round }: { round: WinnerRound }) {
             rel="noopener noreferrer"
             className="shrink-0 text-[0.7rem] font-semibold text-brand underline underline-offset-2"
           >
-            Ver transacción ↗
+            {t("winners.tx")} ↗
           </a>
         )}
       </div>

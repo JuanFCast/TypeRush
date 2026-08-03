@@ -8,13 +8,22 @@ import {
   ModeId,
 } from "@/lib/passages";
 // Paso 2 (conexión v2): premio Y pago usan el contrato nuevo (mainnet, USDT/COPm).
-import { CurrencyId, PAY_CURRENCIES, fetchPoolLabel } from "@/lib/gameV2";
+import {
+  CurrencyId,
+  PAY_CURRENCIES,
+  entryLabel,
+  fetchPoolLabel,
+} from "@/lib/gameV2";
+import { useI18n } from "@/lib/i18n/client";
 import ChallengeCard from "./ChallengeCard";
 
-// Icono y sublabel por moneda para la tarjeta de premio (monedas del contrato nuevo).
-const CURRENCY_META: Record<CurrencyId, { icon: string; label: string }> = {
-  usdt: { icon: "💵", label: "dólares" },
-  copm: { icon: "🇨🇴", label: "pesos" },
+// Icono y clave del sublabel por moneda para la tarjeta de premio.
+const CURRENCY_META: Record<
+  CurrencyId,
+  { icon: string; labelKey: "currency.usdt.sub" | "currency.copm.sub" }
+> = {
+  usdt: { icon: "💵", labelKey: "currency.usdt.sub" },
+  copm: { icon: "🇨🇴", labelKey: "currency.copm.sub" },
 };
 
 type Props = {
@@ -45,6 +54,7 @@ export default function ChallengeLobby({
   payError,
   onPayAndPlay,
 }: Props) {
+  const { t, tError, locale } = useI18n();
   const mode = getMode(modeId);
   const challenges = getChallengesByMode(modeId);
   const [selectedId, setSelectedId] = useState<ChallengeId>(
@@ -61,7 +71,7 @@ export default function ChallengeLobby({
     let cancelled = false;
     const load = () => {
       for (const c of PAY_CURRENCIES) {
-        void fetchPoolLabel(modeId, c.id).then((label) => {
+        void fetchPoolLabel(modeId, c.id, locale).then((label) => {
           if (!cancelled && label !== null)
             setPools((prev) => ({ ...prev, [c.id]: label }));
         });
@@ -73,28 +83,16 @@ export default function ChallengeLobby({
       cancelled = true;
       clearInterval(id);
     };
-  }, [modeId, payEnabled]);
+  }, [modeId, payEnabled, locale]);
 
   const onPlaySelected = () => {
     if (playLoading || !canPlay || !selectedId) return;
     onPlay(selectedId);
   };
 
-  // La interfaz es SIEMPRE en español (en ambos modos): en English solo los
-  // nombres, descripciones y pasajes de las categorías van en inglés.
-  const playLabel = "▶ Jugar gratis";
-  const checkingLabel = "Verificando…";
-  const calculatingLabel = "Calculando…";
   const countdownLabel = resetCountdown
-    ? `Próximo gratis en ${resetCountdown}`
-    : calculatingLabel;
-
-  const payingLabel = "Procesando pago…";
-  const freeUsedLabel = "Usaste tu tiro gratis.";
-  const prizeLabel = "Premio para el #1";
-  const winBothLabel = "gana los dos";
-  const payVerb = "Pagar";
-  const andPlay = "y jugar";
+    ? t("lobby.next_free", { time: resetCountdown })
+    : t("common.calculating");
 
   const presentCurrencies = PAY_CURRENCIES.filter((c) => pools[c.id] !== null);
   const hasPrize = presentCurrencies.length > 0;
@@ -105,14 +103,16 @@ export default function ChallengeLobby({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Volver a los modos"
+          aria-label={t("lobby.back")}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-surface2 text-lg text-muted shadow-card transition active:scale-95"
         >
           ‹
         </button>
         <div className="flex items-center gap-2">
           <span className="text-xl leading-none">{mode?.icon}</span>
-          <h2 className="text-xl font-bold">{mode?.label}</h2>
+          <h2 className="text-xl font-bold">
+            {mode ? t(mode.labelKey) : modeId}
+          </h2>
         </div>
       </div>
 
@@ -124,10 +124,10 @@ export default function ChallengeLobby({
             <div className="rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3.5 shadow-card">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
-                  🏆 {prizeLabel}
+                  🏆 {t("lobby.prize")}
                 </span>
                 <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
-                  {winBothLabel}
+                  {t("lobby.win_both")}
                 </span>
               </div>
               <div className="mt-2.5 flex items-center gap-2">
@@ -145,7 +145,7 @@ export default function ChallengeLobby({
                         {c.symbol}
                       </div>
                       <div className="text-[0.55rem] text-muted">
-                        {CURRENCY_META[c.id].label}
+                        {t(CURRENCY_META[c.id].labelKey)}
                       </div>
                     </div>
                   </Fragment>
@@ -174,12 +174,16 @@ export default function ChallengeLobby({
               disabled={playLoading || !canPlay}
               className="h-12 w-full rounded-xl bg-brand-deep text-base font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {playLoading ? checkingLabel : canPlay ? playLabel : countdownLabel}
+              {playLoading
+                ? t("common.checking")
+                : canPlay
+                  ? `▶ ${t("lobby.play_free")}`
+                  : countdownLabel}
             </button>
           ) : (
             <>
               <p className="text-center text-xs text-muted">
-                {freeUsedLabel} Elige moneda:
+                {t("lobby.free_used")}
               </p>
               <div className="flex justify-center">
                 <span className="rounded-full border border-brand/25 bg-brand-soft px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">
@@ -196,20 +200,27 @@ export default function ChallengeLobby({
                     className="flex h-14 flex-col items-center justify-center rounded-xl bg-brand-deep text-white shadow-card transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {payState === "paying" ? (
-                      <span className="text-xs font-bold">{payingLabel}</span>
+                      <span className="text-xs font-bold">{t("lobby.paying")}</span>
                     ) : (
                       <>
                         <span className="text-sm font-bold">
-                          {payVerb} {c.entryLabel} {c.symbol}
+                          {t("lobby.pay", {
+                            amount: entryLabel(c, locale),
+                            symbol: c.symbol,
+                          })}
                         </span>
-                        <span className="text-[0.6rem] opacity-80">{andPlay}</span>
+                        <span className="text-[0.6rem] opacity-80">
+                          {t("lobby.and_play")}
+                        </span>
                       </>
                     )}
                   </button>
                 ))}
               </div>
               {payState === "error" && payError ? (
-                <p className="text-center text-xs text-danger">{payError}</p>
+                <p className="text-center text-xs text-danger">
+                  {tError(payError)}
+                </p>
               ) : (
                 <p className="text-center text-xs text-muted">{countdownLabel}.</p>
               )}

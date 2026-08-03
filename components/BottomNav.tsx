@@ -1,5 +1,8 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n";
+
 export type Tab = "home" | "ranking" | "history" | "you";
 
 type Props = {
@@ -8,14 +11,16 @@ type Props = {
 };
 
 // Compartido con la navegación del header en escritorio (page.tsx).
-export const NAV_ITEMS: { id: Tab; label: string }[] = [
-  { id: "home", label: "Inicio" },
-  { id: "ranking", label: "Ranking" },
-  { id: "history", label: "Historial" },
-  { id: "you", label: "Tú" },
+export const NAV_ITEMS: { id: Tab; labelKey: MessageKey }[] = [
+  { id: "home", labelKey: "nav.home" },
+  { id: "ranking", labelKey: "nav.ranking" },
+  { id: "history", labelKey: "nav.history" },
+  { id: "you", labelKey: "nav.you" },
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
+  const t = useT();
+
   return (
     // Franja fija de extremo a extremo (como el header); los controles van
     // centrados dentro del mismo ancho máximo del contenido.
@@ -35,7 +40,7 @@ export default function BottomNav({ active, onChange }: Props) {
                   on ? "bg-brand-soft text-brand" : "text-muted"
                 }`}
               >
-                {it.label}
+                {t(it.labelKey)}
               </button>
             );
           })}

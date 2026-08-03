@@ -7,11 +7,11 @@ import {
   fetchConnectedAddress,
   findClaimablePrizes,
 } from "@/lib/gameV2";
+import { useI18n } from "@/lib/i18n/client";
+import { getMode, type ModeId } from "@/lib/passages";
 
 // Estado por premio: pendiente → reclamando → reclamado (o error).
 type RowState = "pending" | "claiming" | "claimed" | "error";
-
-const MODE_LABEL: Record<string, string> = { es: "Español", en: "Inglés" };
 
 function key(p: ClaimablePrize): string {
   return `${p.day}:${p.modeId}`;
@@ -23,6 +23,7 @@ function key(p: ClaimablePrize): string {
  * Permite reclamar USDT + COPm de cada premio con claim().
  */
 export default function ClaimBanner() {
+  const { t, tError, locale } = useI18n();
   const [prizes, setPrizes] = useState<ClaimablePrize[]>([]);
   const [states, setStates] = useState<Record<string, RowState>>({});
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function ClaimBanner() {
     const scan = async () => {
       const addr = await fetchConnectedAddress();
       if (!addr || cancelled) return;
-      const found = await findClaimablePrizes(addr);
+      const found = await findClaimablePrizes(addr, locale);
       if (cancelled) return;
       // Add-only durante la sesión: no borra filas ya reclamadas (para ver el ✓).
       setPrizes((prev) => {
@@ -47,12 +48,14 @@ export default function ClaimBanner() {
       });
     };
     void scan();
-    const t = setInterval(scan, 20000);
+    const timer = setInterval(scan, 20000);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(timer);
     };
-  }, []);
+    // `locale` entra aquí porque los importes del premio se escriben con él:
+    // al cambiar de idioma se vuelven a leer ya formateados.
+  }, [locale]);
 
   const onClaim = async (p: ClaimablePrize) => {
     const k = key(p);
@@ -73,7 +76,7 @@ export default function ClaimBanner() {
     <div className="mb-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand-soft to-surface2 p-4 shadow-card">
       <div className="flex items-center gap-2">
         <span className="text-xl leading-none">🏆</span>
-        <span className="text-sm font-bold text-brand">¡Ganaste! Reclama tu premio</span>
+        <span className="text-sm font-bold text-brand">{t("claim.title")}</span>
         <span className="ml-auto rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
           🟢 Celo Mainnet
         </span>
@@ -86,7 +89,10 @@ export default function ClaimBanner() {
             <div key={key(p)} className="rounded-xl border border-brand/20 bg-surface2/80 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wide text-ink/80">
-                  {MODE_LABEL[p.modeId] ?? p.modeId}
+                  {(() => {
+                    const mode = getMode(p.modeId as ModeId);
+                    return mode ? t(mode.labelKey) : p.modeId;
+                  })()}
                 </span>
                 <span className="font-mono text-sm font-extrabold text-brand">
                   {p.usdtLabel} USDT + {p.copmLabel} COPm
@@ -99,17 +105,19 @@ export default function ClaimBanner() {
                 className="mt-2.5 h-11 w-full rounded-lg bg-brand-deep text-sm font-bold text-white shadow-card transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {st === "claiming"
-                  ? "Reclamando…"
+                  ? t("claim.claiming")
                   : st === "claimed"
-                    ? "Premio reclamado ✓"
-                    : "Reclamar premio"}
+                    ? `${t("claim.claimed")} ✓`
+                    : t("claim.claim")}
               </button>
             </div>
           );
         })}
       </div>
 
-      {error && <p className="mt-2 text-center text-xs text-danger">{error}</p>}
+      {error && (
+        <p className="mt-2 text-center text-xs text-danger">{tError(error)}</p>
+      )}
     </div>
   );
 }

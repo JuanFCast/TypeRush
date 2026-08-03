@@ -51,14 +51,14 @@ export type ConnectWalletResult =
   | { ok: true; address: string }
   | { ok: false; error: string };
 
-/** Pide acceso a la wallet (o la lee en MiniPay si ya está disponible). */
+/**
+ * Pide acceso a la wallet (o la lee en MiniPay si ya está disponible).
+ * `error` es una CLAVE del diccionario (lib/i18n), no una frase: quien la
+ * pinta la traduce al idioma activo con `tError`.
+ */
 export async function connectWallet(): Promise<ConnectWalletResult> {
   if (!hasEthereumProvider()) {
-    return {
-      ok: false,
-      error:
-        "No encontramos una wallet. Abre la app en MiniPay o usa un navegador con extensión compatible.",
-    };
+    return { ok: false, error: "error.no_wallet" };
   }
 
   try {
@@ -68,15 +68,15 @@ export async function connectWallet(): Promise<ConnectWalletResult> {
       return {
         ok: false,
         error: isMiniPay()
-          ? "No pudimos leer tu wallet de MiniPay."
-          : "Conexión cancelada o sin cuentas disponibles.",
+          ? "error.minipay_wallet_read"
+          : "error.connection_cancelled",
       };
     }
     const address = normalizeWalletAddress(accounts[0]);
-    if (!address) return { ok: false, error: "La dirección recibida no es válida." };
+    if (!address) return { ok: false, error: "error.address_invalid" };
     return { ok: true, address };
   } catch {
-    return { ok: false, error: "No se pudo conectar la wallet." };
+    return { ok: false, error: "error.wallet_connect_failed" };
   }
 }
 

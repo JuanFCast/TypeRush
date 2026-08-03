@@ -41,11 +41,13 @@ export function computeStats(
 }
 
 /**
- * Formatea un puntaje según la modalidad: Español con es-CO (4.304) y English
- * con en-US (4,304). Locale explícito para que server y cliente coincidan.
+ * Formatea un puntaje con el locale de la INTERFAZ, no con el de la modalidad:
+ * los separadores de miles son cosa del idioma en el que lees la app (es-CO
+ * 4.304 · en-US 4,304), no del idioma del texto que tecleaste. El locale se
+ * pasa explícito (useI18n().locale) para que servidor y cliente coincidan.
  */
-export function formatScore(score: number, modeId?: string): string {
-  return score.toLocaleString(modeId === "en" ? "en-US" : "es-CO");
+export function formatScore(score: number, locale = "es-CO"): string {
+  return score.toLocaleString(locale);
 }
 
 /** Lee el mejor puntaje de un reto (0 si no hay o no hay localStorage). */

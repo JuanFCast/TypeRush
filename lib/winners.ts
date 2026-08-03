@@ -102,7 +102,7 @@ function toUnits(value: string | number | null | undefined): string | null {
   return raw.length > 0 ? raw : null;
 }
 
-function mapRow(row: PayoutRow): WinnerRound {
+function mapRow(row: PayoutRow, locale: string): WinnerRound {
   return {
     key: `${row.period_start}:${row.mode_id}`,
     periodEnd: row.period_end,
@@ -110,8 +110,8 @@ function mapRow(row: PayoutRow): WinnerRound {
     winnerName: row.player_name,
     winnerWallet: shorten(row.wallet_address),
     score: row.score,
-    usdt: formatTokenUnits(toUnits(row.prize_usdt_units), "usdt"),
-    copm: formatTokenUnits(toUnits(row.prize_copm_units), "copm"),
+    usdt: formatTokenUnits(toUnits(row.prize_usdt_units), "usdt", locale),
+    copm: formatTokenUnits(toUnits(row.prize_copm_units), "copm", locale),
     // El cobro es la tx más informativa; si no, la del cierre; si no, la legado.
     txHash: row.claim_tx ?? row.rolled_tx ?? row.tx_hash,
     onchainDay: row.onchain_day === null ? null : Number(row.onchain_day),
@@ -140,6 +140,8 @@ const PRIZE_COLUMNS = "prize_usdt_units::text, prize_copm_units::text";
 export async function loadWinnerRounds(
   offset = 0,
   limit = WINNERS_PAGE_SIZE,
+  /** Locale de la interfaz: solo afecta a cómo se escriben los montos. */
+  locale = "es-CO",
 ): Promise<WinnerPage | null> {
   if (!supabase) return null;
 
@@ -165,7 +167,9 @@ export async function loadWinnerRounds(
     const all = data as unknown as PayoutRow[];
     const hasMore = all.length > limit;
     return {
-      rounds: (hasMore ? all.slice(0, limit) : all).map(mapRow),
+      rounds: (hasMore ? all.slice(0, limit) : all).map((row) =>
+        mapRow(row, locale),
+      ),
       hasMore,
     };
   } catch {
@@ -185,6 +189,7 @@ export async function loadWinnerRounds(
  */
 export async function fetchMissingPrizeAmounts(
   rounds: WinnerRound[],
+  locale = "es-CO",
 ): Promise<Record<string, { usdt: string | null; copm: string | null }>> {
   const pending = rounds.filter(
     (r) => r.payout === "registered" && r.usdt === null && r.onchainDay !== null,
@@ -201,8 +206,8 @@ export async function fetchMissingPrizeAmounts(
   for (const { key, units } of results) {
     if (!units) continue;
     out[key] = {
-      usdt: formatTokenUnits(units.usdt, "usdt" as CurrencyId),
-      copm: formatTokenUnits(units.copm, "copm" as CurrencyId),
+      usdt: formatTokenUnits(units.usdt, "usdt" as CurrencyId, locale),
+      copm: formatTokenUnits(units.copm, "copm" as CurrencyId, locale),
     };
   }
   return out;

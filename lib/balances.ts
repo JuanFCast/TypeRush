@@ -12,6 +12,8 @@ export type TokenBalance = { symbol: string; amount: string };
 /** Saldo de cada stablecoin de una dirección. Nunca lanza: en error devuelve "—". */
 export async function fetchWalletBalances(
   address: string,
+  /** Locale de la interfaz, para los separadores de miles/decimales. */
+  locale = "es-CO",
 ): Promise<TokenBalance[]> {
   const provider = new JsonRpcProvider(CELO_MAINNET.rpc);
   return Promise.all(
@@ -25,7 +27,7 @@ export async function fetchWalletBalances(
         const n = Number(formatUnits(raw, t.decimals));
         return {
           symbol: t.symbol,
-          amount: n.toLocaleString("es-CO", {
+          amount: n.toLocaleString(locale, {
             minimumFractionDigits: t.displayDecimals,
             maximumFractionDigits: t.displayDecimals,
           }),

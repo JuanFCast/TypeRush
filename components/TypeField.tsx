@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 
 type Props = {
   passage: string;
@@ -19,6 +20,7 @@ export default function TypeField({
   mistakeIndices,
   onInput,
 }: Props) {
+  const t = useT();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
@@ -70,7 +72,13 @@ export default function TypeField({
           scrolled ? "is-scrolled" : ""
         }`}
       >
-        <p className="select-none font-mono text-[1.15rem] leading-[1.9] tracking-tight break-words sm:text-[1.35rem]">
+        {/* `translate="no"`: el pasaje se puntúa carácter a carácter contra el
+            texto canónico del servidor. Si el navegador lo tradujera, la
+            partida sería injugable (además de romper el render). */}
+        <p
+          translate="no"
+          className="notranslate select-none font-mono text-[1.15rem] leading-[1.9] tracking-tight break-words sm:text-[1.35rem]"
+        >
           {[...passage].map((char, i) => {
             let cls = "ch";
             let isCaret = false;
@@ -98,7 +106,7 @@ export default function TypeField({
       </div>
 
       <label className="sr-only" htmlFor="typeInput">
-        Campo de escritura
+        {t("race.input_label")}
       </label>
       <textarea
         id="typeInput"
@@ -124,7 +132,7 @@ export default function TypeField({
         autoCapitalize="off"
         spellCheck={false}
         inputMode="text"
-        aria-label="Campo de escritura"
+        aria-label={t("race.input_label")}
         className="absolute inset-0 h-full w-full resize-none rounded-2xl bg-transparent p-4 font-mono text-[1.15rem] text-transparent caret-transparent outline-none sm:p-5"
       />
     </div>

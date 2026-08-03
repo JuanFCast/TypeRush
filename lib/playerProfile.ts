@@ -50,9 +50,11 @@ export type PlayerGameMode = {
   updated_at: string;
 };
 
-export const ALIAS_TAKEN = "Ese alias ya está en uso. Prueba otro.";
-export const ALIAS_UNVERIFIED =
-  "No pudimos verificar disponibilidad ahora. Se guardó localmente.";
+// Los errores de este módulo son CLAVES del diccionario (lib/i18n), no frases:
+// quien los pinta los traduce con `tError` al idioma activo, e interpola las
+// variables que conoce ({min}, {name}).
+export const ALIAS_TAKEN = "error.alias_taken";
+export const ALIAS_UNVERIFIED = "error.alias_unverified";
 
 // Letras (con tildes/ñ), números, guion bajo y espacios.
 const NAME_RE = /^[\p{L}\p{N}_ ]+$/u;
@@ -69,18 +71,15 @@ export type NormalizeResult =
 export function normalizePlayerName(raw: string): NormalizeResult {
   const collapsed = raw.replace(/\s+/g, " ").trim();
   if (collapsed.length < NAME_MIN) {
-    return { ok: false, error: `El alias necesita al menos ${NAME_MIN} caracteres.` };
+    return { ok: false, error: "error.alias_too_short" };
   }
   const name = collapsed.slice(0, NAME_MAX);
   if (!NAME_RE.test(name)) {
-    return {
-      ok: false,
-      error: "Usa solo letras, números, guion bajo o espacios.",
-    };
+    return { ok: false, error: "error.alias_chars" };
   }
   const key = name.toLowerCase();
   if (key === DEFAULT_NAME.toLowerCase()) {
-    return { ok: false, error: `Elige un alias distinto de "${DEFAULT_NAME}".` };
+    return { ok: false, error: "error.alias_reserved" };
   }
   return { ok: true, name, key };
 }
@@ -440,10 +439,10 @@ export async function hasPlayerProfileInDb(): Promise<boolean | null> {
 export async function savePlayerWallet(rawAddress: string): Promise<SaveWalletResult> {
   const address = normalizeWalletAddress(rawAddress);
   if (!address) {
-    return { ok: false, error: "Dirección de wallet inválida." };
+    return { ok: false, error: "error.wallet_invalid" };
   }
   if (!supabase) {
-    return { ok: false, error: "No hay conexión con el servidor. Intenta más tarde." };
+    return { ok: false, error: "error.no_connection" };
   }
 
   const playerId = getPlayerId();
@@ -456,14 +455,14 @@ export async function savePlayerWallet(rawAddress: string): Promise<SaveWalletRe
       .eq("player_id", playerId)
       .maybeSingle();
 
-    if (fetchError) return { ok: false, error: "No se pudo guardar la wallet." };
+    if (fetchError) return { ok: false, error: "error.wallet_save_failed" };
 
     if (!profile) {
       const norm = normalizePlayerName(getPlayerName());
       if (!norm.ok) {
         return {
           ok: false,
-          error: "Primero elige un nombre de jugador válido arriba y pulsa Guardar.",
+          error: "error.name_first",
         };
       }
 
@@ -472,7 +471,7 @@ export async function savePlayerWallet(rawAddress: string): Promise<SaveWalletRe
         if (ensured.error === ALIAS_TAKEN) {
           return {
             ok: false,
-            error: `El alias «${norm.name}» ya lo usa otro jugador. Elige otro nombre, guárdalo arriba, y luego asocia tu wallet.`,
+            error: "error.alias_taken_wallet",
           };
         }
         return { ok: false, error: ensured.error };
@@ -486,11 +485,11 @@ export async function savePlayerWallet(rawAddress: string): Promise<SaveWalletRe
       .select("player_id")
       .maybeSingle();
 
-    if (updateError) return { ok: false, error: "No se pudo guardar la wallet." };
-    if (!updated) return { ok: false, error: "No se pudo guardar la wallet." };
+    if (updateError) return { ok: false, error: "error.wallet_save_failed" };
+    if (!updated) return { ok: false, error: "error.wallet_save_failed" };
 
     return { ok: true, address, verified: true };
   } catch {
-    return { ok: false, error: "No se pudo guardar la wallet." };
+    return { ok: false, error: "error.wallet_save_failed" };
   }
 }

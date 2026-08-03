@@ -9,8 +9,10 @@ import {
 import { formatScore } from "@/lib/game";
 import { getPlayerId, getPlayerName } from "@/lib/player";
 import { MODES, ModeId } from "@/lib/passages";
+import { useI18n } from "@/lib/i18n/client";
 
 export default function RankingScreen() {
+  const { t, locale } = useI18n();
   const [modeId, setModeId] = useState<ModeId>("es");
   const [resolvedModeId, setResolvedModeId] = useState<ModeId | null>(null);
   const [data, setData] = useState<ModeRankingResult | null>(null);
@@ -19,7 +21,9 @@ export default function RankingScreen() {
   useEffect(() => {
     let cancelled = false;
     const name = getPlayerName();
-    void loadModeRanking(modeId, playerId, name).then((res) => {
+    // `locale` entra en las dependencias porque la etiqueta del periodo se
+    // escribe con él: al cambiar de idioma se vuelve a pedir ya traducida.
+    void loadModeRanking(modeId, playerId, name, locale).then((res) => {
       if (cancelled) return;
       setResolvedModeId(modeId);
       setData(res);
@@ -27,17 +31,18 @@ export default function RankingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [modeId, playerId]);
+  }, [modeId, playerId, locale]);
 
   const loading = resolvedModeId !== modeId;
   const mode = MODES.find((m) => m.id === modeId);
+  const modeLabel = mode ? t(mode.labelKey) : modeId;
 
   return (
     <div className="screen-in flex flex-1 flex-col">
       <div className="mb-4">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xl leading-none">🏆</span>
-          <h2 className="text-xl font-bold">Ranking</h2>
+          <h2 className="text-xl font-bold">{t("ranking.title")}</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1 sm:max-w-md">
@@ -53,7 +58,7 @@ export default function RankingScreen() {
                   on ? "bg-surface2 text-brand shadow-card" : "text-muted"
                 }`}
               >
-                {m.icon} {m.label}
+                {m.icon} {t(m.labelKey)}
               </button>
             );
           })}
@@ -61,22 +66,20 @@ export default function RankingScreen() {
       </div>
 
       {loading ? (
-        <p className="text-center text-sm text-muted">Cargando ranking…</p>
+        <p className="text-center text-sm text-muted">{t("ranking.loading")}</p>
       ) : !data ? (
-        <p className="text-center text-sm text-muted">
-          No pudimos cargar el ranking ahora.
-        </p>
+        <p className="text-center text-sm text-muted">{t("ranking.error")}</p>
       ) : (
         // Móvil: una columna. Escritorio: Top 5 a la izquierda; periodo y tu
         // posición como columna lateral a la derecha.
         <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-              Top 5 · {mode?.label}
+              {t("ranking.top5", { mode: modeLabel })}
             </h3>
             {data.top5.length === 0 ? (
               <p className="rounded-2xl border border-line bg-surface2 p-4 text-sm text-muted">
-                Aún no hay partidas en este modo en el periodo de hoy.
+                {t("ranking.empty")}
               </p>
             ) : (
               <div className="space-y-2">
@@ -84,7 +87,8 @@ export default function RankingScreen() {
                   <RankingRow
                     key={entry.playerId}
                     entry={entry}
-                    modeId={modeId}
+                    locale={locale}
+                    youLabel={t("ranking.you")}
                     highlight={entry.playerId === playerId}
                   />
                 ))}
@@ -94,19 +98,18 @@ export default function RankingScreen() {
 
           <aside className="flex flex-col gap-5 lg:sticky lg:top-20">
             <p className="rounded-xl border border-line bg-surface2 px-3 py-2 text-center text-[0.7rem] leading-snug text-muted">
-              Periodo actual (hora Colombia)
+              {t("ranking.period")}
               <br />
               <span className="font-semibold text-ink/80">{data.periodLabel}</span>
             </p>
 
             <section>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-                Tu posición
+                {t("ranking.your_position")}
               </h3>
               {data.me.rank == null ? (
                 <div className="rounded-2xl border border-dashed border-line bg-surface2 p-4 text-sm text-muted">
-                  Aún no tienes puntaje en {mode?.label ?? "este modo"}. Juega una
-                  partida para aparecer aquí.
+                  {t("ranking.no_score_mode", { mode: modeLabel })}
                 </div>
               ) : (
                 <RankingRow
@@ -116,7 +119,8 @@ export default function RankingScreen() {
                     name: data.me.name,
                     score: data.me.score,
                   }}
-                  modeId={modeId}
+                  locale={locale}
+                  youLabel={t("ranking.you")}
                   highlight
                 />
               )}
@@ -130,11 +134,13 @@ export default function RankingScreen() {
 
 function RankingRow({
   entry,
-  modeId,
+  locale,
+  youLabel,
   highlight,
 }: {
   entry: ModeRankingEntry;
-  modeId: ModeId;
+  locale: string;
+  youLabel: string;
   highlight?: boolean;
 }) {
   return (
@@ -159,13 +165,13 @@ function RankingRow({
           {entry.name}
           {highlight && (
             <span className="ml-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-brand">
-              Tú
+              {youLabel}
             </span>
           )}
         </span>
       </div>
       <span className="shrink-0 font-mono text-sm font-bold text-ink">
-        {formatScore(entry.score, modeId)}
+        {formatScore(entry.score, locale)}
       </span>
     </div>
   );

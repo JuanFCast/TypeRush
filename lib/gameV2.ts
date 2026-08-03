@@ -39,8 +39,9 @@ export type Currency = {
   decimals: number;
   /** Decimales a mostrar (USDT con centavos; COPm como peso entero). */
   displayDecimals: number;
-  /** Etiqueta de la entrada para la UI. */
-  entryLabel: string;
+  /** Entrada de una partida, en unidades humanas. El monto real lo manda el
+   *  contrato; esto solo se usa para escribir el botón ("0,10" / "0.10"). */
+  entryAmount: number;
 };
 
 // Monedas aceptadas (Celo Mainnet). Direcciones desde env para no hardcodear.
@@ -51,8 +52,7 @@ export const PAY_CURRENCIES: Currency[] = [
     symbol: "USDT",
     decimals: 6,
     displayDecimals: 2,
-    // Etiqueta de UI (es-CO usa coma decimal); el monto real se lee del contrato.
-    entryLabel: "0,10",
+    entryAmount: 0.1,
   },
   {
     id: "copm",
@@ -60,7 +60,7 @@ export const PAY_CURRENCIES: Currency[] = [
     symbol: "COPm",
     decimals: 18,
     displayDecimals: 0,
-    entryLabel: "500",
+    entryAmount: 500,
   },
 ];
 
@@ -109,11 +109,25 @@ function readProvider(): JsonRpcProvider {
   return new JsonRpcProvider(CELO_MAINNET.rpc);
 }
 
-function formatPool(raw: bigint, c: Currency): string {
-  return Number(formatUnits(raw, c.decimals)).toLocaleString("es-CO", {
+/**
+ * Los importes se escriben con el locale de la INTERFAZ: en español "1.500,50"
+ * y en inglés "1,500.50". Quien llama pasa `useI18n().locale`; el valor por
+ * defecto mantiene el formato de siempre para el código que no lo pase.
+ */
+function formatAmount(value: number, c: Currency, locale: string): string {
+  return value.toLocaleString(locale, {
     minimumFractionDigits: c.displayDecimals,
     maximumFractionDigits: c.displayDecimals,
   });
+}
+
+function formatPool(raw: bigint, c: Currency, locale = "es-CO"): string {
+  return formatAmount(Number(formatUnits(raw, c.decimals)), c, locale);
+}
+
+/** Entrada de una partida ya escrita para el botón ("0,10" / "0.10"). */
+export function entryLabel(c: Currency, locale = "es-CO"): string {
+  return formatAmount(c.entryAmount, c, locale);
 }
 
 function getEthereum() {
@@ -178,29 +192,32 @@ export async function payEntry(
   modeId: string,
   currencyId: CurrencyId,
   onPhase?: (phase: PayPhase) => void,
+  /** Locale de la interfaz: solo para escribir el monto que falta. */
+  locale = "es-CO",
 ): Promise<PayResult> {
   const phase = (p: PayPhase) => onPhase?.(p);
-  if (!isConfigured()) return { ok: false, error: "Los pagos aún no están configurados." };
+  if (!isConfigured()) return { ok: false, error: "error.pay_not_configured" };
 
   const currency = getCurrency(currencyId);
   if (!currency || !/^0x[0-9a-fA-F]{40}$/.test(currency.address)) {
-    return { ok: false, error: "Moneda no soportada." };
+    return { ok: false, error: "error.currency_unsupported" };
   }
 
   const eth = getEthereum();
-  if (!eth) return { ok: false, error: "Abre la app en MiniPay para pagar la entrada." };
+  if (!eth) return { ok: false, error: "error.open_in_minipay_pay" };
 
   try {
     phase("preparing");
     const provider = readProvider();
     const contract = new Contract(CONTRACT, GAME_ABI, provider);
     const entry = (await contract.entryAmountOf(currency.address)) as bigint;
-    if (entry === 0n) return { ok: false, error: `${currency.symbol} no está habilitado.` };
+    if (entry === 0n)
+      return { ok: false, error: "error.token_disabled", symbol: currency.symbol };
 
     const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
     const accounts = (await eth.request({ method })) as string[];
     const from = accounts?.[0];
-    if (!from) return { ok: false, error: "No pudimos leer tu wallet." };
+    if (!from) return { ok: false, error: "error.wallet_read" };
 
     await ensureCeloMainnet();
 
@@ -221,13 +238,10 @@ export async function payEntry(
       balance = null;
     }
     if (balance !== null && balance < entry) {
-      const needed = Number(formatUnits(entry, currency.decimals)).toLocaleString("es-CO", {
-        minimumFractionDigits: currency.displayDecimals,
-        maximumFractionDigits: currency.displayDecimals,
-      });
+      const needed = formatPool(entry, currency, locale);
       return {
         ok: false,
-        error: `No tienes suficiente ${currency.symbol}.`,
+        error: "error.insufficient",
         insufficient: true,
         symbol: currency.symbol,
         needed,
@@ -261,13 +275,16 @@ export async function payEntry(
     phase("confirming");
     const receipt = await provider.waitForTransaction(payTx);
     if (!receipt || receipt.status !== 1) {
-      return { ok: false, error: "El pago no se confirmó. Intenta de nuevo." };
+      return { ok: false, error: "error.pay_unconfirmed" };
     }
     return { ok: true, txHash: payTx };
   } catch (err: unknown) {
     const e = err as { code?: number; message?: string };
     const cancelled = e?.code === 4001 || /reject|denied|cancel/i.test(e?.message ?? "");
-    return { ok: false, error: cancelled ? "Cancelaste el pago." : "No se pudo completar el pago." };
+    return {
+      ok: false,
+      error: cancelled ? "error.pay_cancelled" : "error.pay_failed",
+    };
   }
 }
 
@@ -278,17 +295,17 @@ export async function claimPrize(
   onPhase?: (phase: PayPhase) => void,
 ): Promise<PayResult> {
   const phase = (p: PayPhase) => onPhase?.(p);
-  if (!isConfigured()) return { ok: false, error: "El contrato no está configurado." };
+  if (!isConfigured()) return { ok: false, error: "error.contract_not_configured" };
 
   const eth = getEthereum();
-  if (!eth) return { ok: false, error: "Abre la app en MiniPay para cobrar tu premio." };
+  if (!eth) return { ok: false, error: "error.open_in_minipay_claim" };
 
   try {
     phase("preparing");
     const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
     const accounts = (await eth.request({ method })) as string[];
     const from = accounts?.[0];
-    if (!from) return { ok: false, error: "No pudimos leer tu wallet." };
+    if (!from) return { ok: false, error: "error.wallet_read" };
 
     await ensureCeloMainnet();
 
@@ -307,13 +324,16 @@ export async function claimPrize(
     const provider = readProvider();
     const receipt = await provider.waitForTransaction(claimTx);
     if (!receipt || receipt.status !== 1) {
-      return { ok: false, error: "El cobro no se confirmó. Intenta de nuevo." };
+      return { ok: false, error: "error.claim_unconfirmed" };
     }
     return { ok: true, txHash: claimTx };
   } catch (err: unknown) {
     const e = err as { code?: number; message?: string };
     const cancelled = e?.code === 4001 || /reject|denied|cancel/i.test(e?.message ?? "");
-    return { ok: false, error: cancelled ? "Cancelaste el cobro." : "No se pudo cobrar el premio." };
+    return {
+      ok: false,
+      error: cancelled ? "error.claim_cancelled" : "error.claim_failed",
+    };
   }
 }
 
@@ -321,6 +341,7 @@ export async function claimPrize(
 export async function fetchPoolLabel(
   modeId: string,
   currencyId: CurrencyId,
+  locale = "es-CO",
 ): Promise<string | null> {
   if (!isConfigured()) return null;
   const currency = getCurrency(currencyId);
@@ -329,25 +350,26 @@ export async function fetchPoolLabel(
     const provider = readProvider();
     const contract = new Contract(CONTRACT, GAME_ABI, provider);
     const raw = (await contract.poolOf(currentDayIndex(), id(modeId), currency.address)) as bigint;
-    return formatPool(raw, currency);
+    return formatPool(raw, currency, locale);
   } catch {
     return null;
   }
 }
 
 /**
- * Formatea unidades CRUDAS de un token (las que guarda prize_payouts) a la
- * etiqueta es-CO que usa el resto de la app ("2,40" · "7.500"). Devuelve null
- * si no hay monto, para que la UI pueda distinguir "0" de "no se sabe".
+ * Formatea unidades CRUDAS de un token (las que guarda prize_payouts) con el
+ * locale de la interfaz ("2,40" · "7.500" en español). Devuelve null si no hay
+ * monto, para que la UI pueda distinguir "0" de "no se sabe".
  */
 export function formatTokenUnits(
   units: string | bigint | null | undefined,
   currencyId: CurrencyId,
+  locale = "es-CO",
 ): string | null {
   const currency = getCurrency(currencyId);
   if (!currency || units === null || units === undefined || units === "") return null;
   try {
-    return formatPool(BigInt(units), currency);
+    return formatPool(BigInt(units), currency, locale);
   } catch {
     return null;
   }
@@ -428,7 +450,10 @@ export async function fetchConnectedAddress(): Promise<string | null> {
  *
  * Si Supabase no está disponible, cae al escaneo on-chain como respaldo.
  */
-export async function findClaimablePrizes(address: string): Promise<ClaimablePrize[]> {
+export async function findClaimablePrizes(
+  address: string,
+  locale = "es-CO",
+): Promise<ClaimablePrize[]> {
   if (!isConfigured() || !/^0x[0-9a-fA-F]{40}$/.test(address)) return [];
   const usdt = PAY_CURRENCIES.find((c) => c.id === "usdt");
   const copm = PAY_CURRENCIES.find((c) => c.id === "copm");
@@ -481,8 +506,8 @@ export async function findClaimablePrizes(address: string): Promise<ClaimablePri
           modeId,
           usdt: pu,
           copm: pc,
-          usdtLabel: formatPool(pu, usdt),
-          copmLabel: formatPool(pc, copm),
+          usdtLabel: formatPool(pu, usdt, locale),
+          copmLabel: formatPool(pc, copm, locale),
         });
       }
     } catch {

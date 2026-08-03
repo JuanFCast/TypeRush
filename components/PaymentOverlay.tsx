@@ -1,6 +1,7 @@
 "use client";
 
 import { PayPhase } from "@/lib/gameV2";
+import { useT } from "@/lib/i18n/client";
 
 type Props = {
   phase: PayPhase;
@@ -15,21 +16,26 @@ const STEP_OF: Record<PayPhase, number> = {
 };
 
 export default function PaymentOverlay({ phase }: Props) {
+  const t = useT();
   const active = STEP_OF[phase];
 
-  const steps = ["Preparando", "Confirma en tu wallet", "Confirmando en red"];
+  const steps = [
+    t("pay.step.preparing"),
+    t("pay.step.confirm_wallet"),
+    t("pay.step.confirming_network"),
+  ];
 
   const title = {
-    preparing: "Preparando el pago…",
-    approving: "Autoriza el token en tu wallet",
-    signing: "Esperando tu confirmación…",
-    confirming: "Confirmando la transacción…",
+    preparing: t("pay.title.preparing"),
+    approving: t("pay.title.approving"),
+    signing: t("pay.title.signing"),
+    confirming: t("pay.title.confirming"),
   }[phase];
 
   const hint =
     phase === "approving" || phase === "signing"
-      ? "Aprueba la solicitud en MiniPay."
-      : "Esto tarda solo unos segundos.";
+      ? t("pay.hint.wallet")
+      : t("pay.hint.wait");
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-7 bg-bg/95 px-8 text-center backdrop-blur-sm">

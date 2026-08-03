@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { playCountTick, playGo } from "@/lib/sound";
+import { useT } from "@/lib/i18n/client";
 
-// 3 · 2 · 1 · ¡YA! — cada paso dura ~0.9s, el "¡YA!" un poco menos.
-const STEPS = ["3", "2", "1", "¡YA!"];
+// 3 · 2 · 1 · ¡YA! — cada paso dura ~0.9s, el "¡YA!" un poco menos. El último
+// paso es texto ("¡YA!" / "GO!") y por eso se traduce al pintarlo.
+const STEP_COUNT = 4;
 const STEP_MS = 900;
 const GO_MS = 600;
 
@@ -21,7 +23,9 @@ export default function CountdownScreen({
   modeName,
   challengeName,
 }: Props) {
+  const t = useT();
   const [step, setStep] = useState(0);
+  const steps = ["3", "2", "1", t("countdown.go")];
 
   // onDone puede cambiar de identidad entre renders; lo leemos por ref para que
   // el effect de los timers corra una sola vez (al montar) y no se reprograme.
@@ -41,7 +45,7 @@ export default function CountdownScreen({
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  const isGo = step === STEPS.length - 1;
+  const isGo = step === STEP_COUNT - 1;
 
   // Sonido de cada paso: tick en 3·2·1 y tono ascendente en el "¡YA!". El audio
   // ya quedó desbloqueado por el gesto que abrió esta pantalla.
@@ -58,7 +62,7 @@ export default function CountdownScreen({
       {/* Contexto del reto */}
       <div className="flex flex-col items-center gap-1">
         <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand">
-          Calienta los dedos
+          {t("countdown.warmup")}
         </span>
         {challengeName && (
           <h2 className="text-xl font-bold text-ink">{challengeName}</h2>
@@ -79,7 +83,7 @@ export default function CountdownScreen({
             : "text-8xl text-ink"
         }`}
       >
-        {STEPS[step]}
+        {steps[step]}
       </span>
 
       {/* Progreso: tres marcas que avanzan con cada número. */}
@@ -95,7 +99,7 @@ export default function CountdownScreen({
       </div>
 
       <p className="max-w-xs text-balance text-sm text-muted">
-        Escribe rápido, corrige errores y completa el texto.
+        {t("countdown.hint")}
       </p>
 
       <button
@@ -103,7 +107,7 @@ export default function CountdownScreen({
         onClick={onCancel}
         className="mt-2 h-11 rounded-xl px-5 text-sm font-semibold text-muted transition active:scale-[0.98]"
       >
-        Cancelar carrera
+        {t("countdown.cancel")}
       </button>
     </div>
   );

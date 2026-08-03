@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { isSoundEnabled, setSoundEnabled } from "@/lib/sound";
+import { useT } from "@/lib/i18n/client";
 
 /** Botón para activar/silenciar los sonidos del juego (persiste en localStorage). */
 export default function SoundToggle() {
+  const t = useT();
   // Se lee en un effect para no romper la hidratación (el server no tiene localStorage).
   const [on, setOn] = useState(true);
   useEffect(() => {
@@ -23,8 +25,8 @@ export default function SoundToggle() {
       type="button"
       onClick={toggle}
       aria-pressed={on}
-      aria-label={on ? "Silenciar sonidos" : "Activar sonidos"}
-      title={on ? "Silenciar sonidos" : "Activar sonidos"}
+      aria-label={on ? t("sound.mute") : t("sound.unmute")}
+      title={on ? t("sound.mute") : t("sound.unmute")}
       className={`grid h-11 w-11 place-items-center rounded-xl border leading-none transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep active:scale-95 ${
         on
           ? "border-line bg-surface2 text-ink shadow-card"
