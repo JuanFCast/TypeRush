@@ -14,6 +14,13 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Deno Edge Function (npm: imports + Deno global): no es del proyecto Next.
     "supabase/functions/**",
+    // Foundry: dependencias y artefactos de compilación de los contratos. No es
+    // código nuestro ni del proyecto Next (OpenZeppelin trae JS que dispara
+    // cientos de errores ajenos). El .sol no lo mira ESLint de todos modos.
+    "contracts/lib/**",
+    "contracts/out/**",
+    "contracts/cache/**",
+    "contracts/broadcast/**",
   ]),
 ]);
 

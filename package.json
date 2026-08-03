@@ -10,7 +10,8 @@
     "prizes:distribute": "node scripts/distribute-prizes.mjs",
     "prizes:test": "node scripts/test-prize-payment.mjs",
     "close-day": "node scripts/close-day-v2.mjs",
-    "seed-day": "node scripts/seed-day-v2.mjs"
+    "seed-day": "node scripts/seed-day-v2.mjs",
+    "audit:v2": "node scripts/audit-v2.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
