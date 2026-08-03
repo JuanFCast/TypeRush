@@ -126,6 +126,18 @@ unchanged local `localStorage` history). Modelled on avispate.fun's `round_settl
   before `rollDay`**, in a try/catch that can never block the close. For rounds that closed before
   this existed, the UI falls back to reading `poolOf` on-chain, but ONLY for `registered` rows (in
   `claimed`/`rollover` ones the pool is legitimately 0, and showing that would be a lie).
+- Past rounds were backfilled from the contract's own events with
+  **`scripts/backfill-prize-amounts.mjs`** (one-shot, idempotent; dry run by default, `--write` to
+  apply). `PrizeClaimed` / `PoolRolledOver` carry the exact amount forever, so nothing was lost. It
+  reads logs from **Blockscout**, not Forno — Forno caps `eth_getLogs` at 5 000 blocks (~83 min of
+  chain), Blockscout pages the whole contract history in ~8 requests. It only ever writes those two
+  columns. All 37 mainnet rounds (days 20639–20666) recovered, 0 unrecoverable.
+- The select casts the amounts with **`::text`**. Without it PostgREST sends `numeric` as a JS
+  number and COPm's 18 decimals arrive as `1.5e+21` — lossy, and `BigInt()` rejects that string, so
+  the amount would silently render blank.
+- Only rows with a non-null `onchain_day` are listed, i.e. GameV2 mainnet rounds. That drops the 19
+  legacy `sent` rows of the retired **Sepolia** auto-payout (testnet money, no on-chain day) and the
+  still-open round of the current day.
 - If `winners_history.sql` hasn't been run yet, the query 42703s and **retries without those two
   columns**, so app and SQL can be deployed in any order (history works, just without amounts).
 - ⚠️ **To deploy:** (1) run `supabase/winners_history.sql` in the SQL editor; (2) redeploy the

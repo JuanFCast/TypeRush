@@ -92,7 +92,13 @@ function toPayout(status: string): WinnerPayout {
 
 function toUnits(value: string | number | null | undefined): string | null {
   if (value === null || value === undefined) return null;
-  const raw = String(value);
+  // Cinturón y tirantes: si algún día se cayera el `::text` del select, el
+  // numeric llegaría como number y String() lo daría en exponencial ("1.5e+21"),
+  // que BigInt() no acepta. Se normaliza a entero en vez de perder el monto.
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? BigInt(Math.round(value)).toString() : null;
+  }
+  const raw = value.trim();
   return raw.length > 0 ? raw : null;
 }
 
@@ -120,7 +126,12 @@ const BASE_COLUMNS =
 // no se ha corrido, la consulta con estas columnas falla (42703) y se reintenta
 // sin ellas, así el historial funciona igual (sin montos) y el orden de
 // despliegue app ↔ SQL deja de importar.
-const PRIZE_COLUMNS = "prize_usdt_units, prize_copm_units";
+//
+// El `::text` NO es cosmético: sin él PostgREST manda el `numeric` como number
+// de JavaScript y COPm (18 decimales) sale en notación exponencial —
+// 1500000000000000000000 llega como 1.5e+21, que además de perder precisión
+// rompe BigInt() y dejaría el monto en blanco. Casteado llega exacto.
+const PRIZE_COLUMNS = "prize_usdt_units::text, prize_copm_units::text";
 
 /**
  * Una página del historial, de la ronda más reciente a la más vieja. Pide una
@@ -137,6 +148,11 @@ export async function loadWinnerRounds(
       .from("prize_payouts")
       .select(columns)
       .eq("payout_type", "on_chain")
+      // Solo rondas de GameV2 en Celo MAINNET. `onchain_day` lo escribe close-day
+      // al cerrar, así que este filtro deja fuera dos cosas: las filas legado del
+      // auto-pago retirado de Sepolia (premios de TESTNET, que no fueron dinero
+      // real y no se pueden fechar on-chain) y la ronda del día que aún no cierra.
+      .not("onchain_day", "is", null)
       .order("period_start", { ascending: false })
       .order("mode_id", { ascending: true })
       .range(offset, offset + limit);
