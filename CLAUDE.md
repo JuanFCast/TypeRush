@@ -100,12 +100,33 @@ MAINNET (42220)**, paid in **USDT (0.10) or COPm (500)**, split 80/20 pool/proto
 owner=Owner Admin `0xe953…` (cold), operator=Operator Bot `0xc91A…` (only closes days),
 treasury=Treasury Fees `0xA593…`, funder/seeder=`0x46d5…`. Client wiring lives in `lib/gameV2.ts`.
 Nightly robots (Colombia time): **8:02 p.m. seed** (top-up floor 1 USDT + 1500 COPm per mode,
-today+tomorrow) and **8:05 p.m. close** (register winner with `rollDay`). Primary trigger =
+today+tomorrow, **only for modes whose just-closed round had players** — see below) and
+**8:05 p.m. close** (register winner with `rollDay`). Primary trigger =
 **Supabase pg_cron → Edge Functions `seed-day` / `close-day`** (`supabase/gamev2_robots.sql`);
 GitHub Actions workflows run as idempotent BACKUP at 8:32/8:35 p.m. (GitHub cron is unreliable).
 Prize states in Supabase: pending → registered → claimed (or rollover), see `supabase/gamev2_prizes.sql`.
 The section below describes the RETIRED Sepolia/PayToPlayMulti system (its auto-payout was turned
 off 2026-07-05); `lib/payToPlay.ts` / `lib/prizePool.ts` are orphaned.
+
+### Conditional seeding (2026-08-02) — no money added to rounds nobody played
+
+**The pot no longer grows on its own when nobody plays.** The floor enters as a *pre-seed of
+tomorrow*, and at 8:05 `close-day` rolls the closing day's pot on top of it — so an idle mode gained
+a whole floor **every night** with zero competitors. Confirmed in production: days 20657→20660 rolled
+1 → 2 → 3 → 4 USDT without a single player.
+
+`seed-day` (and its `scripts/seed-day-v2.mjs` mirror) now asks Supabase **which modes had players in
+the round that just closed** — `match_results` in `[period start, period end)`, the same source that
+decides the winner, so a free attempt counts — and seeds only those. A mode with no players gets
+nothing: `rollDay` still moves the *same* pot forward, so the prize stays exactly as it was until a
+valid round with players happens. Per mode, so `es` can be seeded while `en` is skipped (that is the
+real day-20656 case).
+
+Nothing else changed: not the close, not the rollover, not who wins, not what they claim.
+**If Supabase can't be read the seed is SKIPPED, never forced** — under-seeding self-heals on the next
+run (the model is "top up to the floor"), over-seeding cannot be undone.
+⚠️ The GitHub Actions backup now needs `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+(already added to `.github/workflows/seed-day.yml`; the secrets already existed for close-day).
 
 ### Winners history (added 2026-08-02) — READ-ONLY
 

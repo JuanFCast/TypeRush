@@ -11,6 +11,8 @@
 # Secrets requeridos (Settings → Secrets and variables → Actions):
 #   GAMEV2_CONTRACT_ADDRESS
 #   PRIVATE_KEY                       (clave de Funder Rewards; wallet con USDT/COPm + CELO)
+#   NEXT_PUBLIC_SUPABASE_URL          \ para comprobar si la ronda que cerró tuvo jugadores
+#   SUPABASE_SERVICE_ROLE_KEY         /  (sin esto la siembra se omite por seguridad)
 #   NEXT_PUBLIC_GAMEV2_USDT_ADDRESS
 #   NEXT_PUBLIC_GAMEV2_COPM_ADDRESS
 
@@ -47,5 +49,7 @@ jobs:
         env:
           GAMEV2_CONTRACT_ADDRESS: ${{ secrets.GAMEV2_CONTRACT_ADDRESS }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_GAMEV2_USDT_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_USDT_ADDRESS }}
           NEXT_PUBLIC_GAMEV2_COPM_ADDRESS: ${{ secrets.NEXT_PUBLIC_GAMEV2_COPM_ADDRESS }}

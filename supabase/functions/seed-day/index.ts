@@ -9,7 +9,18 @@
 //   - Modelo "completar hasta el piso" (1 USDT + 1.500 COPm por modalidad es/en):
 //     solo aporta lo que FALTE; si el pozo ya está en el piso no hace nada.
 //   - Siembra el día ACTIVO y el SIGUIENTE (el pozo nuevo nunca arranca en 0).
+//   - SOLO siembra las modalidades cuya ronda recién cerrada TUVO jugadores (ver abajo).
 //   - Cada moneda aislada en su try/catch + reintentos (forno a veces cuelga).
+//
+// ── Por qué la siembra es condicional (2026-08-02) ──────────────────────────
+// El piso entra como pre-carga del día SIGUIENTE, y a las 8:05 close-day le
+// vuelca encima el pozo del día que cerró. Con eso, una modalidad que nadie
+// juega crecía un piso entero CADA NOCHE sin que nadie compitiera: se vio en
+// los días 20657→20660, donde el pozo rodó 1 → 2 → 3 → 4 USDT sin un solo
+// participante. Ahora, si la ronda que acaba de cerrar no tuvo jugadores en esa
+// modalidad, no se le añade dinero: el rollover mueve el MISMO pozo y el premio
+// se queda igual hasta que haya una ronda válida con jugadores.
+// No cambia nada del cierre, ni el rollover, ni quién gana, ni cuánto cobra.
 //
 // Responde 202 de inmediato y trabaja en segundo plano (EdgeRuntime.waitUntil),
 // así el pg_net no corta la corrida por timeout. Para probar a mano y VER el
@@ -21,10 +32,12 @@
 //   GAMEV2_CONTRACT_ADDRESS   0x22bda890153f9217ABf2F5B493c2B6E06b8c9336
 //   GAMEV2_USDT_ADDRESS       0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e
 //   GAMEV2_COPM_ADDRESS       0x8A567e2aE79CA692Bd748aB832081C45de4041eA
+// SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase automáticamente.
 //
 // Despliegue: dashboard → Edge Functions → nueva función `seed-day`, pegar este
 // archivo y DESACTIVAR "Verify JWT" (la autorización es el header x-cron-secret).
 
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { Contract, JsonRpcProvider, Wallet, id } from "npm:ethers@6";
 
 const RPC = Deno.env.get("GAMEV2_RPC") ?? "https://forno.celo.org"; // Celo MAINNET
@@ -69,6 +82,39 @@ async function withRetry<T>(fn: () => Promise<T>, label = "op", attempts = 4): P
   throw lastErr;
 }
 
+/** Inicio (UTC) del periodo de juego que contiene `now`. Frontera 01:00 UTC. Igual que close-day. */
+function currentPeriodStart(now = new Date()): Date {
+  const boundaryToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 1, 0, 0);
+  const startMs = now.getTime() < boundaryToday ? boundaryToday - 86_400_000 : boundaryToday;
+  return new Date(startMs);
+}
+
+/**
+ * Modalidades que TUVIERON jugadores en la ronda que acaba de cerrar. Se mira
+ * `match_results` (toda carrera rankeada, gratis o pagada), que es la misma
+ * fuente con la que se decide el ganador.
+ *
+ * Devuelve null si no se pudo leer. En ese caso NO se siembra: preferimos
+ * quedarnos cortos un día (el modelo "completar hasta el piso" lo recupera solo
+ * en la siguiente corrida) antes que inyectar dinero sin saber si alguien jugó.
+ */
+async function modesWithPlayers(
+  supabase: SupabaseClient,
+  from: Date,
+  to: Date,
+): Promise<Set<string> | null> {
+  const { data, error } = await supabase
+    .from("match_results")
+    .select("mode_id")
+    .gte("created_at", from.toISOString())
+    .lt("created_at", to.toISOString());
+  if (error) {
+    console.error("No se pudo leer match_results:", error.message ?? error);
+    return null;
+  }
+  return new Set((data ?? []).map((r) => String(r.mode_id)));
+}
+
 /** Piso de premio por moneda (por modalidad). Editar aquí para cambiar el premio. */
 function tokensConfig() {
   return [
@@ -85,13 +131,14 @@ async function seedTokenForDay(
   wallet: Wallet,
   day: number,
   t: TokenCfg,
+  modes: string[],
   results: Array<Record<string, unknown>>,
 ) {
   const floor = t.floor * 10n ** t.decimals;
   const token = new Contract(t.address, ERC20_ABI, wallet);
 
   const seeds: Array<{ mode: string; amount: bigint }> = [];
-  for (const mode of MODES) {
+  for (const mode of modes) {
     const pool: bigint = await withRetry(
       () => contract.poolOf(day, id(mode), t.address),
       `poolOf ${t.symbol} ${mode} d${day}`,
@@ -137,19 +184,48 @@ async function seedTokenForDay(
 }
 
 async function run() {
+  const supabase = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   const provider = new JsonRpcProvider(RPC);
   const wallet = new Wallet(env("PRIVATE_KEY"), provider); // Funder Rewards
   const contract = new Contract(env("GAMEV2_CONTRACT_ADDRESS"), GAME_ABI, wallet);
 
+  const results: Array<Record<string, unknown>> = [];
+
+  // Ronda que ACABA de cerrar: [inicio del periodo anterior, inicio del activo).
+  // Esto corre a las 8:02 p.m., ya cruzada la frontera, así que el periodo activo
+  // es el nuevo y el que cerró es el inmediatamente anterior.
+  const closingEnd = currentPeriodStart();
+  const closingStart = new Date(closingEnd.getTime() - 86_400_000);
+  const played = await modesWithPlayers(supabase, closingStart, closingEnd);
+
+  if (played === null) {
+    console.error("Siembra OMITIDA: no se pudo comprobar si hubo jugadores. Se reintenta mañana.");
+    results.push({ status: "omitido-sin-datos" });
+    return results;
+  }
+
+  const modes = MODES.filter((m) => played.has(m));
+  for (const m of MODES) {
+    if (!played.has(m)) {
+      console.log(`  ↷ ${m}: la ronda que cerró no tuvo jugadores → no se le añade dinero.`);
+      results.push({ mode: m, status: "sin-jugadores" });
+    }
+  }
+  if (modes.length === 0) {
+    console.log("Ninguna modalidad tuvo jugadores: el premio se mantiene igual (solo rueda).");
+    return results;
+  }
+
   const today = Number(await withRetry(() => contract.currentDay(), "currentDay"));
   const days = [today, today + 1]; // hoy Y mañana (el pozo nuevo nunca arranca en 0)
-  console.log(`Sembrando el piso de premio de los días ${days.join(", ")} (es/en)…`);
+  console.log(`Sembrando el piso de premio de los días ${days.join(", ")} (${modes.join("/")})…`);
 
-  const results: Array<Record<string, unknown>> = [];
   for (const day of days) {
     for (const t of tokensConfig()) {
       try {
-        await seedTokenForDay(contract, wallet, day, t, results);
+        await seedTokenForDay(contract, wallet, day, t, modes, results);
       } catch (err) {
         console.error(`✗ Siembra ${t.symbol} d${day} abortada:`, (err as Error)?.message ?? err);
         results.push({ token: t.symbol, day, status: "abortado" });
