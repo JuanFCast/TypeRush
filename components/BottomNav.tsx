@@ -1,51 +1,73 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n";
 
-export type Tab = "home" | "ranking" | "history" | "you";
+export type Tab = "play" | "history" | "profile";
 
-type Props = {
-  active: Tab;
-  onChange: (tab: Tab) => void;
-};
-
-// Compartido con la navegación del header en escritorio (page.tsx).
-export const NAV_ITEMS: { id: Tab; labelKey: MessageKey }[] = [
-  { id: "home", labelKey: "nav.home" },
-  { id: "ranking", labelKey: "nav.ranking" },
-  { id: "history", labelKey: "nav.history" },
-  { id: "you", labelKey: "nav.you" },
+/**
+ * Tres destinos y no más: Jugar, Historial y Perfil.
+ *
+ * El ranking NO tiene pestaña propia a propósito — vive donde se necesita: el
+ * de la ronda en curso dentro de Jugar, y la posición del jugador dentro de
+ * Perfil. Una pestaña "Ranking" aparte obligaba a salir de la pantalla de juego
+ * para mirar algo que importa justo mientras juegas.
+ */
+export const NAV_ITEMS: {
+  id: Tab;
+  labelKey: MessageKey;
+  href: string;
+  icon: string;
+}[] = [
+  { id: "play", labelKey: "nav.play", href: "/", icon: "⌨️" },
+  { id: "history", labelKey: "nav.history", href: "/historial", icon: "🏆" },
+  { id: "profile", labelKey: "nav.profile", href: "/perfil", icon: "👤" },
 ];
 
-export default function BottomNav({ active, onChange }: Props) {
+export function activeTab(pathname: string): Tab {
+  if (pathname.startsWith("/historial")) return "history";
+  if (pathname.startsWith("/perfil")) return "profile";
+  return "play";
+}
+
+/**
+ * Barra inferior fija, solo en móvil: en escritorio la navegación vive en el
+ * header. Respeta el safe-area del notch y la home-bar.
+ */
+export default function BottomNav() {
   const t = useT();
+  const pathname = usePathname();
+  const active = activeTab(pathname);
 
   return (
-    // Franja fija de extremo a extremo (como el header); los controles van
-    // centrados dentro del mismo ancho máximo del contenido.
-    // Solo móvil: en escritorio la navegación vive en el header.
-    <div className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-line bg-surface2/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+    <nav
+      aria-label={t("nav.aria")}
+      className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-line bg-surface2/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+    >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <nav className="mx-auto grid w-full max-w-md grid-cols-4 gap-1 py-1.5">
+        <div className="mx-auto grid w-full max-w-md grid-cols-3 gap-1 py-1.5">
           {NAV_ITEMS.map((it) => {
             const on = it.id === active;
             return (
-              <button
+              <Link
                 key={it.id}
-                type="button"
-                onClick={() => onChange(it.id)}
+                href={it.href}
                 aria-current={on ? "page" : undefined}
-                className={`min-h-11 rounded-xl py-3 text-xs font-semibold transition sm:text-sm ${
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[0.7rem] font-semibold transition ${
                   on ? "bg-brand-soft text-brand" : "text-muted"
                 }`}
               >
+                <span aria-hidden className="text-base leading-none">
+                  {it.icon}
+                </span>
                 {t(it.labelKey)}
-              </button>
+              </Link>
             );
           })}
-        </nav>
+        </div>
       </div>
-    </div>
+    </nav>
   );
 }

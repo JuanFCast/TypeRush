@@ -176,8 +176,6 @@ export const es = {
   "history.title": "Historial",
   "history.clear": "Limpiar",
   "history.clear_confirm": "¿Borrar todo tu historial local?",
-  "history.tab.mine": "Tus partidas",
-  "history.tab.winners": "Ganadores",
   "history.empty": "Aún no tienes partidas. Juega una carrera para ver tu historial.",
   "history.challenge_fallback": "Reto",
   "history.record": "Récord",
@@ -257,6 +255,62 @@ export const es = {
   "dev.tx_sent": "Transacción enviada, confirmando…",
   "dev.sent": "Enviado",
   "dev.view_explorer": "Ver en el explorer",
+
+  /* --------------------- Navegación de tres secciones --------------------- */
+  "nav.play": "Jugar",
+  "nav.profile": "Perfil",
+  "nav.aria": "Navegación principal",
+
+  /* ------------------------- Sesión y conexión ---------------------------- */
+  "session.guest": "Invitado",
+  "session.hello": "Hola, {name}",
+  "session.login": "Entrar",
+  "session.login_hint": "Entra con tu correo y te creamos una wallet, o conecta la tuya.",
+  "session.connect": "Conectar wallet",
+  "session.logout": "Cerrar sesión",
+  "session.disconnect": "Desconectar wallet",
+  "session.no_privy":
+    "El acceso con correo aún no está configurado en este despliegue. Puedes conectar una wallet.",
+  "session.gas.working": "Preparando tu wallet para jugar…",
+  "session.gas.error":
+    "No pudimos preparar tu wallet para pagar las comisiones de red.",
+  "session.gas.retry": "Reintentar",
+
+  /* ------------------------ Historial (secciones) ------------------------- */
+  "history.tab.winners": "Ganadores",
+  "history.tab.mine": "Tus premios",
+  "history.filter.mode": "Modalidad",
+  "history.filter.token": "Token",
+  "history.filter.all": "Todas",
+  "history.filter.all_tokens": "Todos",
+  "history.payout.paid": "Pagado",
+  "history.payout.pending": "Por pagar",
+  "history.payout.failed": "Falló",
+  "history.payout.rollover": "Pozo acumulado",
+  "history.payout.closing": "Cerrando",
+  "history.mine_empty":
+    "Todavía no has ganado ninguna ronda. Cuando ganes, el premio llega solo a tu wallet.",
+  "history.mine_guest": "Entra o conecta tu wallet para ver tus premios.",
+  "history.round": "Ronda {day}",
+  "history.retry": "Reintentar",
+  "history.error": "No pudimos cargar el historial. Inténtalo de nuevo.",
+
+  /* -------------------------- Perfil (bloques) ---------------------------- */
+  "profile.stats.games": "Partidas",
+  "profile.stats.wins": "Victorias",
+  "profile.stats.best_wpm": "Mejor WPM",
+  "profile.stats.best_accuracy": "Mejor precisión",
+  "profile.stats.rank": "Posición de hoy",
+  "profile.stats.total_won": "Total ganado",
+  "profile.recent": "Actividad reciente",
+  "profile.recent_empty": "Aún no has jugado ninguna partida.",
+  "profile.prizes": "Tus premios",
+  "profile.prizes_note":
+    "Los premios se envían solos a tu wallet al cerrar la ronda. No hay que reclamar nada.",
+  "profile.prizes_more": "Ver historial completo",
+  "profile.guard":
+    "Entra o conecta tu wallet para ver tu perfil, tus marcas y tus premios.",
+  "profile.wallet_kind": "Tipo de wallet",
 
   /* ------------------------------- Wallet -------------------------------- */
   "wallet.kind.privy": "Wallet de TypeRush",
@@ -479,8 +533,6 @@ export const en: Record<MessageKey, string> = {
   "history.title": "History",
   "history.clear": "Clear",
   "history.clear_confirm": "Delete all of your local history?",
-  "history.tab.mine": "Your races",
-  "history.tab.winners": "Winners",
   "history.empty": "No races yet. Play one to see your history.",
   "history.challenge_fallback": "Challenge",
   "history.record": "Record",
@@ -560,6 +612,62 @@ export const en: Record<MessageKey, string> = {
   "dev.tx_sent": "Transaction sent, confirming…",
   "dev.sent": "Sent",
   "dev.view_explorer": "View on the explorer",
+
+  /* ---------------------- Three-section navigation ------------------------ */
+  "nav.play": "Play",
+  "nav.profile": "Profile",
+  "nav.aria": "Main navigation",
+
+  /* ------------------------ Session and connection ------------------------ */
+  "session.guest": "Guest",
+  "session.hello": "Hi, {name}",
+  "session.login": "Sign in",
+  "session.login_hint":
+    "Sign in with your email and we'll create a wallet for you, or connect your own.",
+  "session.connect": "Connect wallet",
+  "session.logout": "Sign out",
+  "session.disconnect": "Disconnect wallet",
+  "session.no_privy":
+    "Email sign-in isn't configured on this deployment yet. You can connect a wallet.",
+  "session.gas.working": "Getting your wallet ready to play…",
+  "session.gas.error": "We couldn't get your wallet ready to pay network fees.",
+  "session.gas.retry": "Try again",
+
+  /* -------------------------- History (sections) -------------------------- */
+  "history.tab.winners": "Winners",
+  "history.tab.mine": "Your prizes",
+  "history.filter.mode": "Mode",
+  "history.filter.token": "Token",
+  "history.filter.all": "All",
+  "history.filter.all_tokens": "All",
+  "history.payout.paid": "Paid",
+  "history.payout.pending": "To be paid",
+  "history.payout.failed": "Failed",
+  "history.payout.rollover": "Rolled over",
+  "history.payout.closing": "Closing",
+  "history.mine_empty":
+    "You haven't won a round yet. When you do, the prize arrives in your wallet on its own.",
+  "history.mine_guest": "Sign in or connect your wallet to see your prizes.",
+  "history.round": "Round {day}",
+  "history.retry": "Try again",
+  "history.error": "We couldn't load the history. Please try again.",
+
+  /* --------------------------- Profile (blocks) --------------------------- */
+  "profile.stats.games": "Races",
+  "profile.stats.wins": "Wins",
+  "profile.stats.best_wpm": "Best WPM",
+  "profile.stats.best_accuracy": "Best accuracy",
+  "profile.stats.rank": "Today's position",
+  "profile.stats.total_won": "Total won",
+  "profile.recent": "Recent activity",
+  "profile.recent_empty": "You haven't played any races yet.",
+  "profile.prizes": "Your prizes",
+  "profile.prizes_note":
+    "Prizes are sent to your wallet automatically when the round closes. Nothing to claim.",
+  "profile.prizes_more": "See full history",
+  "profile.guard":
+    "Sign in or connect your wallet to see your profile, your records and your prizes.",
+  "profile.wallet_kind": "Wallet type",
 
   /* ------------------------------- Wallet -------------------------------- */
   "wallet.kind.privy": "TypeRush wallet",

@@ -208,8 +208,37 @@ V2 still holds pots that must be won by real players first — see
 - `@x402/*` are installed only because `@coinbase/cdp-sdk` imports them through
   RainbowKit's barrel; nothing in TypeRush uses x402.
 
-**Still pending:** settlement cron for V3, the Jugar/Historial/Perfil screens, the
-3-tab navigation, and the typerush.fun domain wiring.
+### Three sections, one route each (2026-08-03)
+
+Navigation is **Jugar `/` · Historial `/historial` · Perfil `/perfil`** and nothing
+else. The old single-page tab shell is gone, and with it `HistoryScreen`,
+`RankingScreen`, `ProfileScreen` and `WinnersHistory`. **Ranking has no tab of its
+own on purpose** — the live one belongs inside Jugar and the player's position
+inside Perfil; a separate tab meant leaving the game screen to see something that
+matters while playing.
+
+- `AppShell` is the common frame (header + `BottomNav` on mobile). `chrome={false}`
+  during the race: no navigation to steal a tap mid-countdown.
+- ⚠️ `<main>` carries **`overflow-x-clip`, not `hidden`**: the home halo is 130 %
+  wide and caused 41 px of horizontal scroll on 360 px screens. `clip` trims it
+  without creating a scroll container, so the lobby's `lg:sticky` column survives.
+- `/api/history` merges `v3_settlements` (empty until V3 runs) with `prize_payouts`
+  (V2, where the real data is today). Nothing is faked; empty means empty state.
+- The settlement robot is `lib/settleV3.ts` + `/api/cron/settle-v3` +
+  `scripts/settle-v3.mjs`. **Dry-run is the default**; `--live` also needs
+  `GAMEV3_CRON_ENABLED=1`. States: pending/processing/broadcast/paid/failed/
+  rollover/skipped_no_players. `broadcast` is the important one — a transaction
+  that went out without a receipt is NOT a failure, and treating it as one would
+  pay twice on retry. Before retrying it reads `settled()` from the contract,
+  which is the last word over the database.
+- Domain lives in `lib/site.ts`. Every user-facing URL is built on typerush.fun;
+  the Vercel URL stays authorised but is never generated (`metadataBase`).
+- `npm test` (19 unit, no deps) · `npm run test:e2e` (104 checks over 4 suites) ·
+  `npm run report:dupes` (read-only, never writes).
+
+⚠️ Production has one wallet with two profiles. `scripts/dedupe-report.mjs`
+prints the merge SQL but **must not be run automatically** — merging decides
+whose history survives.
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 

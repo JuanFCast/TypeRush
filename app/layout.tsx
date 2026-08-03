@@ -3,6 +3,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { getServerLang, getServerT } from "@/lib/i18n/server";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -18,9 +19,33 @@ const jetbrainsMono = JetBrains_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
+  const title = t("meta.title");
+  const description = t("meta.description");
+
   return {
-    title: t("meta.title"),
-    description: t("meta.description"),
+    // `metadataBase` es lo que convierte cada ruta relativa (og:image,
+    // canonical…) en absoluta sobre el dominio OFICIAL. Sin esto, Next las
+    // resuelve contra el host que sirvió la petición y una visita por la URL
+    // de Vercel generaría tarjetas apuntando a *.vercel.app.
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    applicationName: SITE_NAME,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      title,
+      description,
+      url: absoluteUrl("/"),
+      images: [{ url: "/icon.png", width: 512, height: 512, alt: SITE_NAME }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/icon.png"],
+    },
     other: {
       "talentapp:project_verification":
         "f96cc2cd84974edeb9d010bfc1f7c14656b39cb6ab4adf7ea4a321c8537fdb227ede9f37e600c86c57527f91d8fdca3ca97679088e0fdf1f08233f0beaf63e11",

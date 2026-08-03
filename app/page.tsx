@@ -7,14 +7,11 @@ import ModeHome from "@/components/ModeHome";
 import ChallengeLobby from "@/components/ChallengeLobby";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
-import BottomNav, { NAV_ITEMS, Tab } from "@/components/BottomNav";
-import HistoryScreen from "@/components/HistoryScreen";
-import RankingScreen from "@/components/RankingScreen";
-import ProfileScreen from "@/components/ProfileScreen";
+import AppShell from "@/components/AppShell";
+import SessionCard from "@/components/SessionCard";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import PaymentOverlay from "@/components/PaymentOverlay";
-import SoundToggle from "@/components/SoundToggle";
 import { getPlayerId, getPlayerName, hasPlayerAlias } from "@/lib/player";
 import { unlockAudio } from "@/lib/sound";
 import { isStartRunOk, startRun, StartRunResult } from "@/lib/runs";
@@ -31,7 +28,6 @@ import {
 } from "@/lib/gameV2";
 import NeedFundsModal from "@/components/NeedFundsModal";
 import ClaimBanner from "@/components/ClaimBanner";
-import LanguageToggle from "@/components/LanguageToggle";
 import { useI18n } from "@/lib/i18n/client";
 import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
 
@@ -56,7 +52,6 @@ export default function Page() {
     onInput,
   } = useTypeRush();
 
-  const [tab, setTab] = useState<Tab>("home");
   const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
 
   const { canPlay, loading: playLoading, refresh: refreshPlayEligibility, resetCountdown } =
@@ -171,12 +166,6 @@ export default function Page() {
     }
     return reset;
   }, [status]);
-
-  const onTabChange = (next: Tab) => {
-    setTab(next);
-    // "Inicio" siempre vuelve a la pantalla de modos.
-    if (next === "home") setSelectedMode(null);
-  };
 
   // Antes de jugar exige un alias válido; si no lo hay, abre el modal.
   // Con alias listo no se inicia de inmediato: primero la cuenta regresiva.
@@ -293,125 +282,76 @@ export default function Page() {
     const mode = getChallenge(challenge)?.modeId ?? "es";
     setSelectedMode(mode);
     reset();
-    setTab("home");
     void refreshPlayEligibility(mode);
   };
 
   const onExitRace = () => {
     reset();
     setSelectedMode(null);
-    setTab("home");
     void refreshPlayEligibility();
   };
 
+  const playing = status === "countdown" || status === "racing";
+
   return (
-    // Shell exterior a pantalla completa: header y navegación van de extremo a
-    // extremo; solo el CONTENIDO interno de cada franja se centra con max-width.
-    <div className="flex min-h-dvh w-full flex-col">
-      <header className="sticky top-0 z-40 w-full border-b border-line/70 bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-          <span className="font-mono text-sm font-bold tracking-normal">
-            type<span className="text-brand">rush</span>
-          </span>
-
-          {/* Navegación de escritorio (en móvil vive abajo como tab bar). */}
-          {status === "idle" && (
-            <nav className="hidden items-center gap-1 md:flex">
-              {NAV_ITEMS.map((it) => {
-                const on = it.id === tab;
-                return (
-                  <button
-                    key={it.id}
-                    type="button"
-                    onClick={() => onTabChange(it.id)}
-                    aria-current={on ? "page" : undefined}
-                    className={`min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
-                      on ? "bg-brand-soft text-brand" : "text-muted hover:text-ink"
-                    }`}
-                  >
-                    {t(it.labelKey)}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
-
-          <div className="flex items-center gap-3">
-            <span className="hidden text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-muted min-[400px]:block md:hidden lg:block">
-              {t("header.tagline")}
-            </span>
-            {/* El idioma se puede cambiar desde CUALQUIER pestaña, no solo desde
-                la portada. Durante la carrera se oculta para no distraer (y para
-                no cambiar el idioma con el teclado abierto). */}
-            {status === "idle" && <LanguageToggle variant="compact" />}
-            <SoundToggle />
-          </div>
+    // Durante la carrera el marco desaparece: sin navegación ni header que
+    // roben un toque mientras se escribe contra el reloj.
+    <AppShell chrome={!playing}>
+      {playing && (
+        // La carrera vive en una columna legible, no a todo lo ancho.
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
+          <RaceScreen
+            passage={passage}
+            typed={typed}
+            remaining={remaining}
+            stats={liveStats}
+            mistakeIndices={mistakeIndices}
+            started={status === "racing"}
+            onInput={onInput}
+          />
         </div>
-      </header>
+      )}
 
-      <main
-        className={`mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 sm:px-6 lg:max-w-6xl ${
-          status === "idle" ? "pb-28 md:pb-10" : "pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-        }`}
-      >
-        {/* La carrera vive en una columna legible (~max-w-3xl), no a todo lo ancho. */}
-        {(status === "racing" || status === "countdown") && (
-          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-            <RaceScreen
-              passage={passage}
-              typed={typed}
-              remaining={remaining}
-              stats={liveStats}
-              mistakeIndices={mistakeIndices}
-              started={status === "racing"}
-              onInput={onInput}
+      {status === "finished" && result && (
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
+          <ResultScreen
+            result={result}
+            best={best}
+            isNewBest={isNewBest}
+            onBackToLobby={onBackToLobby}
+            onExit={onExitRace}
+          />
+        </div>
+      )}
+
+      {status === "idle" && (
+        <div className="flex flex-1 flex-col gap-4">
+          {/* Quién eres y con qué wallet juegas: lo primero de la pantalla,
+              como en Avíspate. */}
+          <SessionCard />
+
+          <ClaimBanner />
+
+          {selectedMode ? (
+            <ChallengeLobby
+              key={selectedMode}
+              modeId={selectedMode}
+              bestByChallenge={bestByChallenge}
+              canPlay={canPlay}
+              playLoading={playLoading}
+              resetCountdown={resetCountdown}
+              onBack={() => setSelectedMode(null)}
+              onPlay={onPlay}
+              payEnabled={isGameV2Configured()}
+              payState={payState}
+              payError={payError}
+              onPayAndPlay={onPayAndPlay}
             />
-          </div>
-        )}
-
-        {status === "finished" && result && (
-          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-            <ResultScreen
-              result={result}
-              best={best}
-              isNewBest={isNewBest}
-              onBackToLobby={onBackToLobby}
-              onExit={onExitRace}
-            />
-          </div>
-        )}
-
-        {status === "idle" && (
-          <>
-            {tab === "home" && <ClaimBanner />}
-            {tab === "home" &&
-              (selectedMode ? (
-                <ChallengeLobby
-                  key={selectedMode}
-                  modeId={selectedMode}
-                  bestByChallenge={bestByChallenge}
-                  canPlay={canPlay}
-                  playLoading={playLoading}
-                  resetCountdown={resetCountdown}
-                  onBack={() => setSelectedMode(null)}
-                  onPlay={onPlay}
-                  payEnabled={isGameV2Configured()}
-                  payState={payState}
-                  payError={payError}
-                  onPayAndPlay={onPayAndPlay}
-                />
-              ) : (
-                <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
-              ))}
-
-            {tab === "ranking" && <RankingScreen />}
-
-            {tab === "history" && <HistoryScreen />}
-
-            {tab === "you" && <ProfileScreen />}
-          </>
-        )}
-      </main>
+          ) : (
+            <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
+          )}
+        </div>
+      )}
 
       {/* Cebador de teclado (móvil): oculto y fuera del alcance de foco/lectores.
           Solo se enfoca por código para abrir el teclado dentro de un gesto. */}
@@ -438,8 +378,6 @@ export default function Page() {
           </span>
         </button>
       )}
-
-      {status === "idle" && <BottomNav active={tab} onChange={onTabChange} />}
 
       {pendingChallenge && (
         <AliasModal
@@ -513,6 +451,6 @@ export default function Page() {
           }}
         />
       )}
-    </div>
+    </AppShell>
   );
 }

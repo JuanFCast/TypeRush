@@ -11,7 +11,11 @@
     "prizes:test": "node scripts/test-prize-payment.mjs",
     "close-day": "node scripts/close-day-v2.mjs",
     "seed-day": "node scripts/seed-day-v2.mjs",
-    "audit:v2": "node scripts/audit-v2.mjs"
+    "audit:v2": "node scripts/audit-v2.mjs",
+    "report:dupes": "node scripts/dedupe-report.mjs",
+    "settle:v3:dry": "node scripts/settle-v3.mjs --dry-run",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "node tests/e2e/i18n.mjs && node tests/e2e/es.mjs && node tests/e2e/nav.mjs && node tests/e2e/money.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.36.1",
