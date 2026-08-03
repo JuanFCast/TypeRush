@@ -168,6 +168,49 @@ unchanged local `localStorage` history). Modelled on avispate.fun's `round_settl
   `close-day` Edge Function (paste `supabase/functions/close-day/index.ts`) so new rounds get the
   snapshot. Its backup mirror `scripts/close-day-v2.mjs` has the same change — keep both in sync.
 
+### Wallet layer & GameV3 (added 2026-08-03) — IN PROGRESS, V3 NOT LIVE
+
+**The frontend still plays against V2.** `TypeRushGameV3` is written, tested (55
+tests) and *not deployed*; `lib/contractsV3.ts` `isV3Enabled()` needs BOTH
+`NEXT_PUBLIC_GAMEV3_ENABLED=1` and a deployed address before anything switches.
+V2 still holds pots that must be won by real players first — see
+`contracts/RUNBOOK-V3.md` for the audited numbers and the shutdown plan.
+
+- **V3 pays PUSH.** The operator calls `settle(day, mode, winner, tokens)` and the
+  prize leaves for the winner's wallet in that transaction. No `claim()`. `settle`
+  requires `played[day][mode][winner]`, so a compromised operator cannot pay a
+  wallet that never played. `rollover` moves a pot forward untouched, which is how
+  a mode with no players keeps its prize without new money being seeded.
+- **The free daily play is on-chain in V3.** The contract decides free vs paid,
+  not the database. That means every play needs gas — including the free one.
+- **Identity: `lib/identity.ts` (server only).** Resolution is `privy_id` →
+  `wallet_address` → legacy `player_id`. Recognising an old profile by wallet
+  writes `privy_id` onto it. ⚠️ The wallet index is NOT unique: production has one
+  wallet with two profiles (test residue), so a unique index would break the
+  migration. `pickBest()` breaks ties (has privy_id, then newest `updated_at`).
+- **Privy is optional.** Without `NEXT_PUBLIC_PRIVY_APP_ID` the Privy layer is not
+  mounted and the app runs on external wallets + MiniPay. Privy state is read via
+  `usePrivySession()` (a context), never `usePrivy()` directly, because calling it
+  outside the provider throws and conditioning the hook would be worse.
+- **Gas has one decision point, `lib/feeCurrency.ts`:** MiniPay always pays in
+  USDT (its CELO is 0 by design), a wallet with CELO pays normally, a wallet with
+  little CELO but some USDT falls back to CIP-64, and when none work it returns
+  `none` so the UI can explain instead of spinning.
+- **Welcome gas** (`/api/welcome-gas`): 0.1 CELO once per *embedded* wallet. The
+  address is read from Privy **on the server**, never from the request body. The
+  row is reserved before the transfer so two tabs cannot both pay; rate limited
+  per IP (hashed, never stored raw) with a daily spend cap, plus Turnstile.
+- **`supabase/gamev3.sql`** is additive and idempotent: `welcome_airdrops`,
+  `v3_plays` (PK = tx hash → retries can't double-register), `v3_results`,
+  `v3_settlements` (PK = day+mode → the robot can't pay twice; states
+  pending/processing/paid/failed/rollover with attempts and last_error). Amounts
+  are `numeric(78,0)` — COPm's 18 decimals overflow bigint.
+- `@x402/*` are installed only because `@coinbase/cdp-sdk` imports them through
+  RainbowKit's barrel; nothing in TypeRush uses x402.
+
+**Still pending:** settlement cron for V3, the Jugar/Historial/Perfil screens, the
+3-tab navigation, and the typerush.fun domain wiring.
+
 ### Interface language (added 2026-08-03) — and the crash it fixed
 
 **Two different things are called "language" here; don't confuse them.**
