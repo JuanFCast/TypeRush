@@ -6,6 +6,7 @@ import { useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AppShell from "@/components/AppShell";
 import AliasEditor from "@/components/AliasEditor";
+import PrizeWalletCard from "@/components/PrizeWalletCard";
 import { useI18n } from "@/lib/i18n/client";
 import { celoscanTx } from "@/lib/chain";
 import { COPM_DECIMALS, USDT_DECIMALS } from "@/lib/contractsV3";
@@ -293,6 +294,11 @@ export default function PerfilPage() {
             )}
           </section>
         </div>
+
+        {/* Wallet para premios de V2. Sigue haciendo falta mientras V2 tenga
+            rondas: el cierre diario lee esta dirección del perfil, y sin ella un
+            ganador nuevo no puede cobrar. */}
+        <PrizeWalletCard />
 
         {/* Sesión */}
         <section className="flex flex-col gap-2 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
