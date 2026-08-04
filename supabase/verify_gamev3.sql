@@ -3,60 +3,152 @@
 -- ----------------------------------------------------------------------------
 -- Pegar en Supabase → SQL Editor → Run. No modifica nada.
 --
--- Comprueba lo que la API REST no puede ver desde fuera: las restricciones
--- CHECK, el trigger de `updated_at` y los índices. Las tablas, columnas, tipos,
--- claves primarias y foráneas ya se verifican con `npm run verify:schema`.
+-- Es UNA SOLA consulta a propósito: el editor de Supabase solo muestra el
+-- resultado del ÚLTIMO statement, así que un archivo con varias consultas
+-- sueltas esconde todas menos una.
+--
+-- Devuelve una fila por comprobación con una columna `ok`. Si las nueve dicen
+-- OK, la migración quedó completa. Aquí se mira lo que la API REST no puede ver
+-- desde fuera (restricciones, trigger, índices, RLS y políticas); las tablas,
+-- columnas, tipos y claves las verifica `npm run verify:schema`.
 -- ============================================================================
 
--- 1. Restricciones CHECK (los estados válidos de cada tabla)
-select
-  rel.relname                as tabla,
-  con.conname                as restriccion,
-  pg_get_constraintdef(con.oid) as definicion
-from pg_constraint con
-join pg_class rel on rel.oid = con.conrelid
-join pg_namespace ns on ns.oid = rel.relnamespace
-where ns.nspname = 'public'
-  and rel.relname in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
-  and con.contype = 'c'
-order by tabla, restriccion;
--- Esperado: v3_settlements con status in (pending, processing, paid, failed, rollover)
---           welcome_airdrops con status in (sending, sent, already_funded)
---           v3_results con los check de wpm/accuracy/errors/score
+with
+-- Restricciones CHECK de los estados -----------------------------------------
+constraints as (
+  select
+    rel.relname as tabla,
+    pg_get_constraintdef(con.oid) as definicion
+  from pg_constraint con
+  join pg_class rel on rel.oid = con.conrelid
+  join pg_namespace ns on ns.oid = rel.relnamespace
+  where ns.nspname = 'public'
+    and con.contype = 'c'
+    and rel.relname in ('welcome_airdrops', 'v3_settlements')
+),
+-- Trigger de updated_at -------------------------------------------------------
+triggers as (
+  select tg.tgname as nombre, tg.tgenabled as estado
+  from pg_trigger tg
+  join pg_class c on c.oid = tg.tgrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  where not tg.tgisinternal
+    and n.nspname = 'public'
+    and c.relname = 'v3_settlements'
+),
+-- Índices ---------------------------------------------------------------------
+idx as (
+  select indexname as nombre, indexdef as definicion
+  from pg_indexes
+  where schemaname = 'public'
+),
+-- RLS -------------------------------------------------------------------------
+rls as (
+  select c.relname as tabla, c.relrowsecurity as activo
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
+),
+-- Políticas -------------------------------------------------------------------
+pol as (
+  select tablename as tabla, count(*) as n
+  from pg_policies
+  where schemaname = 'public'
+    and tablename in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
+  group by tablename
+),
+resultados as (
+  select
+    1 as orden,
+    'CHECK v3_settlements.status' as prueba,
+    'pending/processing/paid/failed/rollover' as esperado,
+    coalesce((select definicion from constraints
+      where tabla = 'v3_settlements' and definicion ilike '%status%'), '(no existe)') as encontrado,
+    case when exists (
+      select 1 from constraints
+      where tabla = 'v3_settlements'
+        and definicion ilike '%pending%'    and definicion ilike '%processing%'
+        and definicion ilike '%paid%'       and definicion ilike '%failed%'
+        and definicion ilike '%rollover%'
+    ) then 'OK' else 'REVISAR' end as ok
 
--- 2. Trigger de updated_at
-select tgname as trigger, relname as tabla, tgenabled as habilitado
-from pg_trigger t
-join pg_class c on c.oid = t.tgrelid
-where not t.tgisinternal and c.relname = 'v3_settlements';
--- Esperado: v3_settlements_touch, habilitado = 'O'
+  union all
+  select 2, 'CHECK welcome_airdrops.status',
+    'sending/sent/already_funded',
+    coalesce((select definicion from constraints
+      where tabla = 'welcome_airdrops' and definicion ilike '%status%'), '(no existe)'),
+    case when exists (
+      select 1 from constraints
+      where tabla = 'welcome_airdrops'
+        and definicion ilike '%sending%' and definicion ilike '%sent%'
+        and definicion ilike '%already_funded%'
+    ) then 'OK' else 'REVISAR' end
 
--- 3. Índices
-select tablename as tabla, indexname as indice, indexdef as definicion
-from pg_indexes
-where schemaname = 'public'
-  and (tablename in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
-       or indexname in ('player_profiles_privy_id_key', 'player_profiles_wallet_lower_idx'))
-order by tabla, indice;
--- Esperado, entre otros:
---   player_profiles_privy_id_key      UNIQUE, parcial (where privy_id is not null)
---   player_profiles_wallet_lower_idx  NO único (hay una wallet con dos perfiles)
---   v3_settlements_pending_idx        parcial (pending/processing/failed)
+  union all
+  select 3, 'trigger updated_at',
+    'v3_settlements_touch habilitado',
+    coalesce((select nombre || ' (' || estado || ')' from triggers
+      where nombre = 'v3_settlements_touch'), '(no existe)'),
+    case when exists (
+      select 1 from triggers where nombre = 'v3_settlements_touch' and estado = 'O'
+    ) then 'OK' else 'REVISAR' end
 
--- 4. RLS activo en las cuatro tablas nuevas
-select relname as tabla, relrowsecurity as rls_activo
-from pg_class c
-join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public'
-  and relname in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
-order by relname;
--- Esperado: las cuatro en true
+  union all
+  select 4, 'indice privy_id',
+    'UNIQUE y parcial (where privy_id is not null)',
+    coalesce((select definicion from idx
+      where nombre = 'player_profiles_privy_id_key'), '(no existe)'),
+    case when exists (
+      select 1 from idx
+      where nombre = 'player_profiles_privy_id_key'
+        and definicion ilike '%unique%' and definicion ilike '%is not null%'
+    ) then 'OK' else 'REVISAR' end
 
--- 5. Políticas de lectura pública (welcome_airdrops NO debe tener ninguna)
-select tablename as tabla, policyname as politica, cmd as operacion, roles
-from pg_policies
-where schemaname = 'public'
-  and tablename in ('welcome_airdrops', 'v3_plays', 'v3_results', 'v3_settlements')
-order by tabla;
--- Esperado: v3_plays / v3_results / v3_settlements con su política de SELECT.
---           welcome_airdrops SIN políticas: guarda correos y no se lee del navegador.
+  union all
+  -- El único que se espera NO único: hay una wallet con dos perfiles, y un
+  -- índice único ahí habría hecho fallar la migración entera.
+  select 5, 'indice wallet (NO unico a proposito)',
+    'existe y NO dice UNIQUE',
+    coalesce((select definicion from idx
+      where nombre = 'player_profiles_wallet_lower_idx'), '(no existe)'),
+    case when exists (
+      select 1 from idx
+      where nombre = 'player_profiles_wallet_lower_idx'
+        and definicion not ilike '%unique%'
+    ) then 'OK' else 'REVISAR' end
+
+  union all
+  select 6, 'indices de las tablas nuevas',
+    '6 o mas',
+    (select count(*)::text from idx
+      where nombre like 'v3\_%' or nombre like 'welcome\_airdrops\_%'),
+    case when (select count(*) from idx
+      where nombre like 'v3\_%' or nombre like 'welcome\_airdrops\_%') >= 6
+      then 'OK' else 'REVISAR' end
+
+  union all
+  select 7, 'RLS activo en las 4 tablas nuevas',
+    '4',
+    (select count(*)::text from rls where activo),
+    case when (select count(*) from rls where activo) = 4 then 'OK' else 'REVISAR' end
+
+  union all
+  select 8, 'lectura publica en las 3 tablas de juego',
+    'v3_plays, v3_results, v3_settlements',
+    coalesce((select string_agg(tabla, ', ' order by tabla) from pol
+      where tabla <> 'welcome_airdrops'), '(ninguna)'),
+    case when (select count(*) from pol where tabla <> 'welcome_airdrops') = 3
+      then 'OK' else 'REVISAR' end
+
+  union all
+  -- El más importante: ahí hay correos de jugadores.
+  select 9, 'welcome_airdrops SIN lectura publica',
+    '0 politicas',
+    coalesce((select n::text from pol where tabla = 'welcome_airdrops'), '0'),
+    case when not exists (select 1 from pol where tabla = 'welcome_airdrops')
+      then 'OK' else 'REVISAR' end
+)
+select prueba, esperado, encontrado, ok
+from resultados
+order by orden;
