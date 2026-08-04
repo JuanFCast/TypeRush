@@ -11,11 +11,30 @@ const check = (name, ok, detail = "") => {
 // Simula el arranque de MiniPay: webview con window.ethereum.isMiniPay y, en el
 // peor caso, sin cookies (que es lo que rompía la persistencia del idioma).
 const MINIPAY_INIT = `
-  Object.defineProperty(window, "ethereum", {
-    value: { isMiniPay: true, request: async ({ method }) =>
-      method === "eth_accounts" ? ["0x1111111111111111111111111111111111111111"] : null },
-    configurable: true,
-  });
+  // Proveedor EIP-1193 COMPLETO. Los conectores de wagmi se suscriben a eventos
+  // nada más conectarse, así que un mock sin \`on\`/\`removeListener\` lanza
+  // "walletProvider?.on is not a function" — un fallo de la simulación, no de la
+  // app: MiniPay real sí los implementa, porque el estándar los exige.
+  const listeners = {};
+  const provider = {
+    isMiniPay: true,
+    request: async ({ method }) => {
+      if (method === "eth_accounts" || method === "eth_requestAccounts") {
+        return ["0x1111111111111111111111111111111111111111"];
+      }
+      if (method === "eth_chainId") return "0xa4ec"; // 42220 (Celo)
+      return null;
+    },
+    on: (event, handler) => {
+      (listeners[event] ||= []).push(handler);
+      return provider;
+    },
+    removeListener: (event, handler) => {
+      listeners[event] = (listeners[event] || []).filter((h) => h !== handler);
+      return provider;
+    },
+  };
+  Object.defineProperty(window, "ethereum", { value: provider, configurable: true });
 `;
 const BLOCK_COOKIES = `
   Object.defineProperty(document, "cookie", {

@@ -196,10 +196,14 @@ V2 still holds pots that must be won by real players first — see
   USDT (its CELO is 0 by design), a wallet with CELO pays normally, a wallet with
   little CELO but some USDT falls back to CIP-64, and when none work it returns
   `none` so the UI can explain instead of spinning.
-- **Welcome gas** (`/api/welcome-gas`): 0.1 CELO once per *embedded* wallet. The
-  address is read from Privy **on the server**, never from the request body. The
-  row is reserved before the transfer so two tabs cannot both pay; rate limited
-  per IP (hashed, never stored raw) with a daily spend cap, plus Turnstile.
+- **Welcome gas** (`/api/welcome-gas`): 0.1 CELO once per *embedded* wallet.
+  **No captcha and no extra third party** — Avíspate doesn't use one either, and
+  the owner has no Cloudflare account. What guards it: a server-verified Privy
+  session, the address read **from Privy on the server** and never from the
+  request body, one delivery per address (primary key), a prior balance check,
+  the row reserved *before* the transfer so two tabs cannot both pay, an IP limit
+  (hashed, never stored raw) and a global daily spend cap. The amount is small
+  enough (0.1 CELO ≈ 0.03 USD) that the capped worst case costs pocket change.
 - **`supabase/gamev3.sql`** is additive and idempotent: `welcome_airdrops`,
   `v3_plays` (PK = tx hash → retries can't double-register), `v3_results`,
   `v3_settlements` (PK = day+mode → the robot can't pay twice; states

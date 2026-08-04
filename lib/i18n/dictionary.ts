@@ -317,9 +317,6 @@ export const es = {
   "wallet.kind.minipay": "MiniPay",
   "wallet.kind.external": "Wallet externa",
   "wallet.kind.none": "Sin wallet",
-  "turnstile.aria": "Verificación de seguridad",
-  "turnstile.text":
-    "Confirma que no eres un robot para recibir el saldo inicial que paga las comisiones de red.",
 
   /* -------------------------------- Errores ------------------------------ */
   "error.attempt_validation":
@@ -674,9 +671,6 @@ export const en: Record<MessageKey, string> = {
   "wallet.kind.minipay": "MiniPay",
   "wallet.kind.external": "External wallet",
   "wallet.kind.none": "No wallet",
-  "turnstile.aria": "Security check",
-  "turnstile.text":
-    "Confirm you're not a robot to receive the starting balance that pays network fees.",
 
   /* -------------------------------- Errors ------------------------------- */
   "error.attempt_validation":

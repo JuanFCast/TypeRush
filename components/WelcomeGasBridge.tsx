@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { usePrivySession } from "@/lib/privySession";
-import TurnstileGate from "./TurnstileGate";
 
 /**
  * Estado del gas inicial, visible para toda la app.
@@ -25,8 +24,6 @@ export type WelcomeGasState =
   | { kind: "idle" }
   /** Pidiendo/esperando el envío. */
   | { kind: "working" }
-  /** Hace falta que el jugador resuelva el captcha. */
-  | { kind: "captcha" }
   /** Lista para firmar (recibió el gas, o ya tenía). */
   | { kind: "ready" }
   /** No se pudo. `retry` vuelve a intentar sin duplicar el envío. */
@@ -48,14 +45,16 @@ export function useWelcomeGas(): WelcomeGasValue {
 
 /**
  * Pide el gas inicial cuando un usuario de correo termina de tener su wallet
- * embebida. El endpoint es idempotente, así que repetir la llamada es seguro.
- *
- * Va en dos fases para que quien ya lo recibió nunca vea un captcha: primero un
- * preflight sin token (los ya registrados salen por ahí), y solo si el servidor
- * responde `captcha-required` se monta el widget y se reintenta con el token.
+ * embebida. El endpoint es idempotente, así que repetir la llamada es seguro y
+ * reintentar nunca envía dos veces.
  *
  * No aplica a wallets externas ni a MiniPay: ésas pagan su gas, o lo pagan en
  * USDT vía CIP-64.
+ *
+ * Sin captcha: el usuario no ve ningún paso extra. Lo que protege el reparto es
+ * la sesión verificada en el servidor, la wallet leída de Privy (no del cuerpo
+ * de la petición), la reserva idempotente por dirección, el límite por IP y el
+ * tope de gasto diario. Ver `app/api/welcome-gas/route.ts`.
  */
 export function WelcomeGasProvider({ children }: { children: ReactNode }) {
   const privy = usePrivySession();
@@ -68,69 +67,53 @@ export function WelcomeGasProvider({ children }: { children: ReactNode }) {
       ? embedded.address.toLowerCase()
       : null;
 
-  const fire = useCallback(
-    async (turnstileToken: string | null) => {
-      if (!address) return;
-      setState({ kind: "working" });
-      try {
-        const token = await privy.getAccessToken();
-        if (!token) {
-          setState({ kind: "error", reason: "no-session" });
-          return;
-        }
-        const res = await fetch("/api/welcome-gas", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ turnstileToken }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          status?: string;
-          error?: string;
-        };
-
-        if (res.status === 401 && data.error === "captcha-required") {
-          setState({ kind: "captcha" });
-          return;
-        }
-        if (!res.ok) {
-          setState({ kind: "error", reason: data.error ?? "failed" });
-          return;
-        }
-        // "not-embedded" también es un final válido: esa wallet paga su gas.
-        setState({ kind: "ready" });
-      } catch {
-        setState({ kind: "error", reason: "network" });
+  const fire = useCallback(async () => {
+    if (!address) return;
+    setState({ kind: "working" });
+    try {
+      const token = await privy.getAccessToken();
+      if (!token) {
+        setState({ kind: "error", reason: "no-session" });
+        return;
       }
-    },
-    [address, privy],
-  );
+      const res = await fetch("/api/welcome-gas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: "{}",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        setState({ kind: "error", reason: data.error ?? "failed" });
+        return;
+      }
+      // "not-embedded" también es un final válido: esa wallet paga su gas.
+      setState({ kind: "ready" });
+    } catch {
+      setState({ kind: "error", reason: "network" });
+    }
+  }, [address, privy]);
 
-  // Preflight: una vez por dirección y carga de página.
+  // Una vez por dirección y carga de página.
   useEffect(() => {
     if (!address || handledRef.current === address) return;
     handledRef.current = address;
-    void fire(null);
+    void fire();
   }, [address, fire]);
 
   const retry = useCallback(() => {
     handledRef.current = null;
-    void fire(null);
+    void fire();
   }, [fire]);
-
-  const onToken = useCallback(
-    (token: string) => {
-      void fire(token);
-    },
-    [fire],
-  );
 
   return (
     <WelcomeGasContext.Provider value={{ state, retry }}>
       {children}
-      {state.kind === "captcha" && <TurnstileGate onToken={onToken} />}
     </WelcomeGasContext.Provider>
   );
 }

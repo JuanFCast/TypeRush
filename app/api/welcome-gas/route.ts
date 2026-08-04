@@ -6,7 +6,6 @@ import { celo } from "viem/chains";
 import { CELO_TRANSPORT } from "@/lib/chain";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { hasPrivyServer, requireIdentity } from "@/lib/privyServer";
-import { turnstileEnabled, verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -18,21 +17,24 @@ export const dynamic = "force-dynamic";
  * (el contrato decide si es gratis, no la interfaz). Una wallet embebida nace
  * con 0 CELO, así que sin esto un usuario de correo no podría jugar ni una vez.
  *
- * Modelo de seguridad, en capas:
+ * Modelo de seguridad, en capas y SIN captcha (el jugador no ve ningún paso
+ * extra; nada aquí depende de un proveedor externo más):
  *
- *   1. **Sesión de Privy obligatoria.** No hay regalo anónimo.
- *   2. **La dirección se lee del servidor, no del cuerpo.** El cliente no puede
- *      pedir gas para una wallet ajena: se compara contra la embebida que Privy
- *      reporta para ESE token.
+ *   1. **Sesión de Privy verificada en el servidor.** No hay regalo anónimo.
+ *   2. **La dirección se lee de Privy, no del cuerpo.** El cliente no puede
+ *      pedir gas para una wallet ajena: se usa la embebida que Privy reporta
+ *      para ESE token, y punto.
  *   3. **Solo wallets embebidas.** Las externas y MiniPay pagan su gas (o lo
  *      pagan en USDT vía CIP-64), así que no reciben nada.
- *   4. **Idempotencia por dirección** (clave primaria en `welcome_airdrops`).
- *   5. **Turnstile** antes de gastar, solo para direcciones nuevas.
- *   6. **Rate limit por IP** y **tope de gasto diario global**, para que un
- *      script con muchas cuentas no vacíe la wallet pagadora.
+ *   4. **Comprobación de saldo previa.** Si ya tiene con qué firmar, no se
+ *      envía nada y se registra el centinela.
+ *   5. **Reserva idempotente por dirección** (clave primaria). Dos pestañas a
+ *      la vez no pueden pagar dos veces.
+ *   6. **Límite por IP** (hasheada, nunca en claro) y **tope de gasto diario
+ *      global**, para que un script con muchas cuentas no vacíe la pagadora.
  *
- * El monto es deliberadamente pequeño (0,1 CELO ≈ 0,03 USD): el peor abuso
- * posible cuesta centavos.
+ * El monto es deliberadamente pequeño (0,1 CELO ≈ 0,03 USD): con el tope diario
+ * el peor abuso posible está acotado a lo que cuesta un café.
  */
 
 /** Monto a enviar. Configurable, pero con un techo duro por seguridad. */
@@ -42,7 +44,7 @@ const MAX_AMOUNT_CELO = 0.5;
 /** Ya tiene gas suficiente: no se envía nada, se registra y listo. */
 const BALANCE_THRESHOLD = parseEther("0.005");
 
-/** Cuántos airdrops permitimos desde la misma IP por ventana. */
+/** Cuántos airdrops se permiten desde la misma IP por ventana. */
 const IP_LIMIT = Number(process.env.WELCOME_GAS_IP_LIMIT || 3);
 const IP_WINDOW_HOURS = 24;
 
@@ -94,14 +96,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "not-embedded" });
   }
   const address = embeddedAddress;
-
-  const body = (await req.json().catch(() => ({}))) as {
-    turnstileToken?: string | null;
-  };
   const db = getSupabaseAdmin();
 
-  // --- 4. Idempotencia ANTES del captcha ------------------------------------
-  // Quien ya recibió su gas nunca vuelve a ver un captcha.
+  // --- 5a. Idempotencia: quien ya recibió su gas sale por aquí --------------
   const { data: existing, error: existingError } = await db
     .from("welcome_airdrops")
     .select("address, tx_hash, amount_wei")
@@ -117,7 +114,7 @@ export async function POST(req: Request) {
     });
   }
 
-  // --- 3. ¿Ya tiene gas? ----------------------------------------------------
+  // --- 4. ¿Ya tiene gas? ----------------------------------------------------
   const pub = createPublicClient({ chain: celo, transport: CELO_TRANSPORT });
   try {
     const balance = await pub.getBalance({ address: address as `0x${string}` });
@@ -137,7 +134,7 @@ export async function POST(req: Request) {
     // RPC con hipo: seguimos. El peor caso es regalar 0,1 CELO de más.
   }
 
-  // --- 6a. Rate limit por IP ------------------------------------------------
+  // --- 6a. Límite por IP ----------------------------------------------------
   const ipHash = hashIp(clientIp(req));
   const since = new Date(Date.now() - IP_WINDOW_HOURS * 3600_000).toISOString();
   const { count: ipCount } = await db
@@ -165,25 +162,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "daily-cap" }, { status: 429 });
   }
 
-  // --- 5. Captcha, justo antes de gastar ------------------------------------
-  if (turnstileEnabled()) {
-    if (!body.turnstileToken) {
-      return NextResponse.json({ error: "captcha-required" }, { status: 401 });
-    }
-    const check = await verifyTurnstile(body.turnstileToken, clientIp(req));
-    if (!check.ok) {
-      console.warn(`welcome-gas captcha-failed reason=${check.reason}`);
-      return NextResponse.json(
-        { error: "captcha-failed", reason: check.reason },
-        { status: 403 },
-      );
-    }
-  }
-
-  // --- Envío ----------------------------------------------------------------
-  // Se reserva la fila ANTES de enviar. Si dos peticiones corren a la vez, la
-  // clave primaria hace que solo una gane, y la perdedora no envía nada. Sin
-  // esto, dos pestañas abiertas podrían pagar dos veces.
+  // --- 5b. Reserva ANTES de enviar -----------------------------------------
+  // Si dos peticiones corren a la vez, la clave primaria hace que solo una gane
+  // y la perdedora no envía nada. Sin esto, dos pestañas abiertas pagarían dos
+  // veces.
   const { error: reserveError } = await db.from("welcome_airdrops").insert({
     address,
     privy_id: privyId,
