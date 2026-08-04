@@ -45,6 +45,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "no-database" }, { status: 503 });
   }
 
+  // V3 todavía no desplegado: se responde OK y no se hace nada. Es a propósito
+  // que NO sea un error — el cron queda programado desde ya, y hasta que exista
+  // el contrato tiene que quedarse quieto sin ensuciar los registros con un 500
+  // cada noche que luego nadie sabe si es grave.
+  if (!/^0x[0-9a-fA-F]{40}$/.test(process.env.GAMEV3_CONTRACT_ADDRESS ?? "")) {
+    return NextResponse.json({
+      ok: true,
+      skipped: "v3-not-deployed",
+      note: "GAMEV3_CONTRACT_ADDRESS sin configurar; no hay ronda que cerrar.",
+    });
+  }
+
   const dryRun = params.get("dry") === "1" || !isSettleEnabled();
   const dayParam = params.get("date");
   const day = dayParam ? Number(dayParam) : undefined;
