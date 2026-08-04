@@ -204,6 +204,17 @@ V2 still holds pots that must be won by real players first — see
   the row reserved *before* the transfer so two tabs cannot both pay, an IP limit
   (hashed, never stored raw) and a global daily spend cap. The amount is small
   enough (0.1 CELO ≈ 0.03 USD) that the capped worst case costs pocket change.
+- **One Operator wallet does both gas-spending jobs** (`lib/operator.ts`), same
+  as Avíspate: the welcome gas *and* `settle()`/`rollover()`. There is no
+  separate welcome-gas wallet. Official variable: **`OPERATOR_PRIVATE_KEY`**
+  (`GAMEV3_OPERATOR_PRIVATE_KEY` and `OPERATOR_KEY` are accepted as legacy
+  fallbacks so existing environments don't break — don't duplicate the key).
+  ⚠️ **If the Operator runs dry, both stop, and the bad one is `settle()`: a
+  winner goes unpaid.** `warnIfLowBalance()` logs an error below
+  `OPERATOR_MIN_CELO` (default 5) from both call sites. It is an alert only —
+  it never blocks a send and never tops up. Other roles stay separate: Funder
+  only seeds pots, Treasury only *receives* fees and its key never lives in the
+  app, Deployer only deploys.
 - **`supabase/gamev3.sql`** is additive and idempotent: `welcome_airdrops`,
   `v3_plays` (PK = tx hash → retries can't double-register), `v3_results`,
   `v3_settlements` (PK = day+mode → the robot can't pay twice; states

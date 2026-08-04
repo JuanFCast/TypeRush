@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { createPublicClient, createWalletClient, parseEther, type Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, parseEther } from "viem";
 import { celo } from "viem/chains";
 import { CELO_TRANSPORT } from "@/lib/chain";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { hasPrivyServer, requireIdentity } from "@/lib/privyServer";
+import { hasOperator, operatorWallet, warnIfLowBalance } from "@/lib/operator";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,10 @@ export const dynamic = "force-dynamic";
  *
  * El monto es deliberadamente pequeño (0,1 CELO ≈ 0,03 USD): con el tope diario
  * el peor abuso posible está acotado a lo que cuesta un café.
+ *
+ * El CELO sale de la wallet **Operator**, la misma que firma `settle()`, igual
+ * que en Avíspate. Ver `lib/operator.ts` — incluida la advertencia de saldo
+ * bajo, porque si esta wallet se vacía tampoco se pagan los premios.
  */
 
 /** Monto a enviar. Configurable, pero con un techo duro por seguridad. */
@@ -69,8 +73,9 @@ function clientIp(req: Request): string {
 
 export async function POST(req: Request) {
   // --- Configuración mínima -------------------------------------------------
-  const pk = process.env.WELCOME_GAS_PRIVATE_KEY;
-  if (!pk) return NextResponse.json({ error: "not-configured" }, { status: 503 });
+  if (!hasOperator()) {
+    return NextResponse.json({ error: "not-configured" }, { status: 503 });
+  }
   if (!hasSupabaseAdmin()) {
     return NextResponse.json({ error: "no-database" }, { status: 503 });
   }
@@ -183,18 +188,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "db-error" }, { status: 500 });
   }
 
-  const account = privateKeyToAccount(
-    (pk.startsWith("0x") ? pk : `0x${pk}`) as Hex,
-  );
-  const wallet = createWalletClient({
-    account,
-    chain: celo,
-    transport: CELO_TRANSPORT,
-  });
+  const operator = operatorWallet();
+  if (!operator) {
+    await db.from("welcome_airdrops").delete().eq("address", address);
+    return NextResponse.json({ error: "not-configured" }, { status: 503 });
+  }
 
-  let txHash: Hex;
+  // Alerta de saldo, no barrera: si alcanza para este envío, que salga.
+  void warnIfLowBalance("welcome-gas");
+
+  let txHash: `0x${string}`;
   try {
-    txHash = await wallet.sendTransaction({
+    txHash = await operator.wallet.sendTransaction({
       to: address as `0x${string}`,
       value: amountWei,
     });

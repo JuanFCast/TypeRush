@@ -1,8 +1,8 @@
-import { createPublicClient, createWalletClient, type Hash } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, type Hash } from "viem";
 import { celo } from "viem/chains";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CELO_TRANSPORT } from "./chain";
+import { hasOperator, operatorWallet, warnIfLowBalance } from "./operator";
 import {
   GAMEV3_ABI,
   GAME_TOKENS,
@@ -79,7 +79,8 @@ export interface RoundOutcome extends RoundPlan {
 export function isSettleEnabled(): boolean {
   return (
     process.env.GAMEV3_CRON_ENABLED === "1" &&
-    /^0x[0-9a-fA-F]{40}$/.test(process.env.GAMEV3_CONTRACT_ADDRESS ?? "")
+    /^0x[0-9a-fA-F]{40}$/.test(process.env.GAMEV3_CONTRACT_ADDRESS ?? "") &&
+    hasOperator()
   );
 }
 
@@ -103,20 +104,14 @@ export function publicClient() {
 
 export type CeloClient = ReturnType<typeof publicClient>;
 
+/**
+ * La MISMA wallet Operator que envía el gas inicial (ver `lib/operator.ts`).
+ * Una sola llave para las dos tareas automáticas del backend, como Avíspate.
+ */
 function operator() {
-  const pk = process.env.GAMEV3_OPERATOR_PRIVATE_KEY;
-  if (!pk) throw new Error("GAMEV3_OPERATOR_PRIVATE_KEY no configurada");
-  const account = privateKeyToAccount(
-    (pk.startsWith("0x") ? pk : `0x${pk}`) as `0x${string}`,
-  );
-  return {
-    account,
-    wallet: createWalletClient({
-      account,
-      chain: celo,
-      transport: CELO_TRANSPORT,
-    }),
-  };
+  const op = operatorWallet();
+  if (!op) throw new Error("OPERATOR_PRIVATE_KEY no configurada");
+  return op;
 }
 
 /** Día que acaba de cerrar, según el reloj del propio contrato. */
@@ -560,6 +555,9 @@ export async function settleDay(
 
     // El nonce se pide UNA vez y se lleva a mano entre modalidades.
     if (nonce < 0) {
+      // El Operator paga tanto esto como el gas inicial: si se vacía, un
+      // ganador se queda sin cobrar. Se avisa antes de empezar la tanda.
+      await warnIfLowBalance("settle");
       const { account } = operator();
       nonce = await client.getTransactionCount({
         address: account.address,

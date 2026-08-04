@@ -147,8 +147,9 @@ Opciones:
 3. **Las dos.** Es lo que recomiendo: CIP-64 como camino normal y un colchón de CELO para cuando el
    adaptador no esté disponible.
 
-Presupuesto de la wallet de gas: `usuarios_nuevos_por_mes × monto`. Con 500 usuarios/mes a 0,5 CELO
-son 250 CELO/mes (~75 USD). Con CIP-64 funcionando, una fracción de eso.
+Presupuesto del Operator: `usuarios_nuevos × 0,1 CELO` + `~0,03 CELO por liquidación`. Con 500
+usuarios/mes son ~50 CELO/mes de gas inicial y ~2 CELO/mes de cierres. El tope diario de 25 CELO
+pone el techo duro. Recomendado: mantener **30-50 CELO** y alertar por debajo de 10.
 
 ---
 
@@ -162,11 +163,14 @@ Las de V2, ya en producción y verificadas on-chain:
 | Operator Bot | `0xc91A86fC2eb29190dC670ee750A6F748F9D8b514` |
 | Treasury Fees | `0xA59307eE3f11f08C971cb7cB3106FE9ACB899609` |
 | Funder / sembrador | `0x46d5F9fE98461928DbAd7a22B95BADE5Fa178C18` |
-| **Welcome Gas** | **falta crearla** (`WELCOME_GAS_PRIVATE_KEY`) |
 
-Reusar owner/operator/treasury en V3 es razonable: están separados y funcionando. La wallet de gas
-inicial tiene que ser **nueva y distinta del Operator**, como pediste: solo manda CELO, y si se
-filtra el daño se limita a su saldo.
+**No hace falta ninguna wallet nueva.** El Operator hace las dos tareas automáticas —enviar el gas
+inicial y firmar `settle()`— igual que en Avíspate. Variable oficial: `OPERATOR_PRIVATE_KEY`.
+
+⚠️ La contrapartida de unificarlas: **si el Operator se queda sin CELO fallan las dos a la vez**, y
+la grave es la liquidación, porque un ganador se queda sin cobrar. Con el tope diario del gas
+inicial (25 CELO) el consumo está acotado, pero hay que vigilar el saldo: el código avisa por
+debajo de `OPERATOR_MIN_CELO` (5 por defecto).
 
 ### Tokens (no cambian)
 
@@ -180,7 +184,7 @@ filtra el daño se limita a su saldo.
 ## 6. Orden de despliegue (cuando lo autorices)
 
 1. Desplegar en **Celo Sepolia** primero y jugar una ronda completa de punta a punta.
-2. Crear la wallet Welcome Gas y fondearla.
+2. Fondear el Operator (`0xc91A…`): paga el gas inicial Y las liquidaciones.
 3. Desplegar V3 en mainnet con `script/DeployGameV3.s.sol` (el deployer NO es el owner).
 4. El Owner Admin firma las 4 llamadas de arranque: `setToken` ×2, `setMode` ×2.
    Hasta que las firme, `play()` revierte: nadie puede jugar ni pagar por error.
