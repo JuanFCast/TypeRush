@@ -101,6 +101,10 @@ export default function Page() {
   // Run rankeado emitido por el servidor, lanzado en paralelo al 3·2·1 (como el
   // free-claim) para que su pasaje canónico esté listo antes del "¡YA!".
   const runPromiseRef = useRef<Promise<StartRunResult> | null>(null);
+  // Jugada de V3 verificada y lista: txHash + pasaje canónico. En V2 va null.
+  const v3PlayRef = useRef<{ txHash: string; challengeId: ChallengeId } | null>(
+    null,
+  );
 
   // Lanza (sin esperar) el consumo del tiro gratis para un reto.
   const startFreeClaim = (id: ChallengeId) => {
@@ -227,10 +231,36 @@ export default function Page() {
     arm(id);
   };
 
+  /**
+   * Arranque por V3: la transacción ya está firmada Y verificada por el
+   * servidor, y el pasaje canónico ya vino con ella. No hay tiro gratis que
+   * consumir en Supabase — de eso se encargó el contrato.
+   */
+  const beginV3Race = (r: {
+    txHash: string;
+    passage: string;
+    challengeId: ChallengeId;
+  }) => {
+    v3PlayRef.current = { txHash: r.txHash, challengeId: r.challengeId };
+    setAttemptError(null);
+    primeKeyboard();
+    arm(r.challengeId);
+    // El pasaje del servidor reemplaza al local ANTES de que corra el reloj.
+    setServerRun(r.txHash, r.passage);
+  };
+
   // Al terminar el countdown: valida/consume el tiro gratis de forma autoritativa
   // antes de iniciar una partida de ranking. Si Supabase no permite validar, no
   // arranca la carrera y muestra el aviso.
   const beginRace = async (id: ChallengeId) => {
+    // Jugada de V3: el contrato ya cobró (o dio la gratis) y el servidor ya
+    // verificó la transacción. No hay nada más que validar aquí — hacerlo
+    // sería pedir permiso por algo que la cadena ya concedió.
+    if (v3PlayRef.current?.challengeId === id) {
+      setAttemptError(null);
+      begin();
+      return;
+    }
     // Entrada pagada on-chain: arranca el reloj sin tocar el tiro gratis.
     if (paidEntryRef.current === id) {
       paidEntryRef.current = null;
@@ -266,6 +296,10 @@ export default function Page() {
   const onCancelCountdown = () => {
     paidEntryRef.current = null;
     runPromiseRef.current = null;
+    // La transacción de V3 ya se firmó y la cadena ya la cobró: cancelar el
+    // conteo NO la devuelve. Se olvida la referencia para que el siguiente
+    // intento no reutilice un hash que ya tiene su resultado.
+    v3PlayRef.current = null;
     const pending = freeClaimRef.current;
     freeClaimRef.current = null;
     if (pending) {
@@ -346,6 +380,7 @@ export default function Page() {
               payState={payState}
               payError={payError}
               onPayAndPlay={onPayAndPlay}
+              onV3Ready={beginV3Race}
             />
           ) : (
             <ModeHome onSelectMode={(m) => setSelectedMode(m)} />

@@ -312,6 +312,23 @@ export const es = {
     "Entra o conecta tu wallet para ver tu perfil, tus marcas y tus premios.",
   "profile.wallet_kind": "Tipo de wallet",
 
+  /* ------------------------- Jugada on-chain (V3) ------------------------- */
+  "v3.stage.switching": "Cambiando a Celo…",
+  "v3.stage.checking": "Comprobando tu jugada…",
+  "v3.stage.approving": "Autoriza el token en tu wallet",
+  "v3.stage.signing": "Firma la jugada en tu wallet",
+  "v3.stage.confirming": "Confirmando en la red…",
+  "v3.stage.registering": "Preparando tu texto…",
+  "v3.error.no_wallet": "Conecta una wallet para jugar.",
+  "v3.error.not_configured": "El juego on-chain aún no está activo.",
+  "v3.error.no_gas":
+    "Tu wallet no tiene CELO ni USDT para pagar la comisión de red. Agrega saldo e inténtalo de nuevo.",
+  "v3.error.rejected": "Cancelaste la firma.",
+  "v3.error.insufficient": "No te alcanza el saldo para la entrada.",
+  "v3.error.register_failed":
+    "Tu jugada se firmó, pero no pudimos registrarla. No se te cobrará de nuevo: vuelve a intentarlo.",
+  "v3.error.failed": "No se pudo iniciar la partida.",
+
   /* ------------------------------- Wallet -------------------------------- */
   "wallet.kind.privy": "Wallet de TypeRush",
   "wallet.kind.minipay": "MiniPay",
@@ -665,6 +682,23 @@ export const en: Record<MessageKey, string> = {
   "profile.guard":
     "Sign in or connect your wallet to see your profile, your records and your prizes.",
   "profile.wallet_kind": "Wallet type",
+
+  /* --------------------------- On-chain play (V3) ------------------------- */
+  "v3.stage.switching": "Switching to Celo…",
+  "v3.stage.checking": "Checking your play…",
+  "v3.stage.approving": "Approve the token in your wallet",
+  "v3.stage.signing": "Sign the play in your wallet",
+  "v3.stage.confirming": "Confirming on-chain…",
+  "v3.stage.registering": "Getting your text ready…",
+  "v3.error.no_wallet": "Connect a wallet to play.",
+  "v3.error.not_configured": "On-chain play isn't live yet.",
+  "v3.error.no_gas":
+    "Your wallet has no CELO or USDT to pay the network fee. Add funds and try again.",
+  "v3.error.rejected": "You cancelled the signature.",
+  "v3.error.insufficient": "Not enough balance for the entry.",
+  "v3.error.register_failed":
+    "Your play was signed but we couldn't register it. You won't be charged again: please retry.",
+  "v3.error.failed": "We couldn't start the race.",
 
   /* ------------------------------- Wallet -------------------------------- */
   "wallet.kind.privy": "TypeRush wallet",

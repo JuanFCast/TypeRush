@@ -223,6 +223,38 @@ V2 still holds pots that must be won by real players first — see
 - `@x402/*` are installed only because `@coinbase/cdp-sdk` imports them through
   RainbowKit's barrel; nothing in TypeRush uses x402.
 
+### V3 play flow — wired, behind the flag (2026-08-04)
+
+With V3 **every** race is a signed transaction, free ones included, and the
+contract decides which. The flow is: `usePlayV3().play()` signs → `/api/plays`
+verifies the receipt **on-chain** and only then issues the canonical passage →
+race → `/api/results` recomputes the score against that stored passage.
+
+Three things carry the weight, and each closes a different hole:
+
+- **`/api/plays` trusts nothing but the hash.** It reads the receipt, and only
+  accepts a `PlayRecorded` log emitted by *our* contract address. Without that
+  check anyone could deploy a contract that emits the same event and play free
+  forever. Player, day, mode and free/paid all come from the log, never the body.
+- **The passage is issued server-side and stored** in `v3_plays.passage`, so
+  `/api/results` scores against text the browser never chose. Same clamps as V2:
+  WPM ceiling, typed can't exceed the passage, elapsed clamped to the race
+  length, and the play expires.
+- **Idempotency is keyed on the transaction.** `v3_plays.tx_hash` is the primary
+  key and `v3_results.tx_hash` is unique, so a client retry — routine when
+  MiniPay's webview suspends — cannot register two races or two scores. A resend
+  returns the *stored* result, so it can never improve a score.
+
+Cancelling the countdown does **not** refund a V3 play: the chain already
+charged it. The reference is dropped so the next attempt can't reuse a hash that
+already has a result.
+
+⚠️ **`supabase/gamev3.sql` gained section 6** (`passage`, `started_at` on
+`v3_plays`) and must be re-run. It's additive and idempotent.
+
+Production still plays V2. `PlayV3Button` only renders when `isV3Enabled()`, and
+that needs both the flag and a deployed address.
+
 ### Three sections, one route each (2026-08-03)
 
 Navigation is **Jugar `/` · Historial `/historial` · Perfil `/perfil`** and nothing

@@ -9,6 +9,8 @@ import {
   Stats,
 } from "@/lib/game";
 import { submitRun } from "@/lib/runs";
+import { isV3Enabled } from "@/lib/contractsV3";
+import { submitResultV3 } from "@/lib/playV3";
 import { playError, playFinish, playKey, playRecord } from "@/lib/sound";
 import { saveMatchHistoryItem } from "@/lib/history";
 import { translate } from "@/lib/i18n";
@@ -102,12 +104,26 @@ export function useTypeRush() {
 
     const submitRunId = runIdRef.current;
     if (submitRunId) {
-      void submitRun({
-        runId: submitRunId,
-        typed: typedRef.current,
-        elapsedMs: elapsed,
-        mistakes: mistakeIndicesRef.current.size,
-      });
+      // Con V3 el identificador de la partida ES el hash de la transacción que
+      // la pagó, así que el resultado va atado a ella; con V2 es el id de run
+      // que emitió la Edge Function. Las dos rutas recalculan el puntaje en el
+      // servidor: lo que cambia es contra qué prueba de pago se ata.
+      if (isV3Enabled()) {
+        void submitResultV3({
+          txHash: submitRunId,
+          challengeId: id,
+          typed: typedRef.current,
+          elapsedMs: elapsed,
+          mistakes: mistakeIndicesRef.current.size,
+        });
+      } else {
+        void submitRun({
+          runId: submitRunId,
+          typed: typedRef.current,
+          elapsedMs: elapsed,
+          mistakes: mistakeIndicesRef.current.size,
+        });
+      }
     }
 
     // Historial local: solo las partidas de este navegador/jugador.

@@ -15,7 +15,9 @@ import {
   fetchPoolLabel,
 } from "@/lib/gameV2";
 import { useI18n } from "@/lib/i18n/client";
+import { isV3Enabled } from "@/lib/contractsV3";
 import ChallengeCard from "./ChallengeCard";
+import PlayV3Button from "./PlayV3Button";
 
 // Icono y clave del sublabel por moneda para la tarjeta de premio.
 const CURRENCY_META: Record<
@@ -39,6 +41,13 @@ type Props = {
   payState: "idle" | "paying" | "error";
   payError: string | null;
   onPayAndPlay: (id: ChallengeId, currencyId: CurrencyId) => void;
+  /** Jugada de V3 firmada y verificada: el pasaje ya viene del servidor. */
+  onV3Ready?: (r: {
+    txHash: string;
+    passage: string;
+    wasFree: boolean;
+    challengeId: ChallengeId;
+  }) => void;
 };
 
 export default function ChallengeLobby({
@@ -53,6 +62,7 @@ export default function ChallengeLobby({
   payState,
   payError,
   onPayAndPlay,
+  onV3Ready,
 }: Props) {
   const { t, tError, locale } = useI18n();
   const mode = getMode(modeId);
@@ -167,7 +177,15 @@ export default function ChallengeLobby({
           ))}
 
           <div className="mt-auto flex flex-col gap-2">
-          {canPlay || !payEnabled ? (
+          {isV3Enabled() && onV3Ready ? (
+            /* V3: no hay "gratis" ni "pagado" que decidir aquí — se firma y el
+               CONTRATO decide. El botón solo cuenta en qué paso va la firma. */
+            <PlayV3Button
+              mode={modeId}
+              challengeId={selectedId}
+              onReady={(r) => onV3Ready({ ...r, challengeId: selectedId })}
+            />
+          ) : canPlay || !payEnabled ? (
             <button
               type="button"
               onClick={onPlaySelected}

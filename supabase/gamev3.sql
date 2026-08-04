@@ -226,3 +226,18 @@ drop trigger if exists v3_settlements_touch on public.v3_settlements;
 create trigger v3_settlements_touch
   before update on public.v3_settlements
   for each row execute function public.touch_v3_settlements();
+
+-- ----------------------------------------------------------------------------
+-- 6. PASAJE CANÓNICO DE LA JUGADA (anti-cheat sobre V3)
+-- ----------------------------------------------------------------------------
+-- Añadido al cablear el flujo de juego. El servidor emite el texto a teclear al
+-- registrar la jugada y lo guarda AQUÍ; al terminar, recalcula el puntaje contra
+-- este texto, no contra el que mande el navegador. Sin esto el cliente podría
+-- declarar cualquier resultado.
+--
+-- `started_at` marca cuándo se emitió: una jugada caduca a los pocos minutos,
+-- así que un `txHash` viejo no sirve para enviar un resultado mucho después.
+
+alter table public.v3_plays
+  add column if not exists passage    text,
+  add column if not exists started_at timestamptz not null default now();
