@@ -61,7 +61,12 @@ async function main() {
       "welcome_airdrops",
       "address,privy_id,email,amount_wei,tx_hash,status,ip_hash,created_at",
     ],
-    ["v3_plays", "tx_hash,player_id,wallet,onchain_day,mode_id,was_free,token"],
+    // `passage` y `started_at` son de la sección 6, añadida después: sin ellas
+    // `/api/results` rechaza TODAS las partidas, así que se comprueban aquí.
+    [
+      "v3_plays",
+      "tx_hash,player_id,wallet,onchain_day,mode_id,was_free,token,passage,started_at",
+    ],
     [
       "v3_results",
       "id,tx_hash,player_id,wallet,onchain_day,mode_id,challenge_id,wpm,accuracy,errors,score",
