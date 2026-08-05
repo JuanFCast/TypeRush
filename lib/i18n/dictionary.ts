@@ -171,6 +171,25 @@ export const es = {
   "ranking.no_score_mode":
     "Aún no tienes puntaje en {mode}. Juega una partida para aparecer aquí.",
   "ranking.you": "Tú",
+  "ranking.live": "Ranking de hoy",
+  "ranking.live_sub": "Quién va ganando la ronda que cierra esta noche.",
+  "ranking.top_n": "Top {count} · {mode}",
+  "ranking.see_full": "Ver ranking completo",
+  "ranking.retry": "Reintentar",
+  "ranking.players": "{count} jugando",
+  "ranking.players_one": "1 jugando",
+  "ranking.col_player": "Jugador",
+  "ranking.col_wpm": "PPM",
+  "ranking.col_score": "Puntaje",
+  "ranking.mode_filter": "Modalidad",
+  "ranking.wallet_missing_leader":
+    "Va primero sin wallet vinculada: si la ronda cierra así, el premio se acumula para la siguiente.",
+  "ranking.wallet_missing_me":
+    "No tienes wallet vinculada: aunque ganes, el premio no se te puede pagar.",
+  "ranking.wallet_link": "Vincular wallet en Perfil",
+  "ranking.wallet_missing_badge": "sin wallet",
+  "ranking.wallet_ok_badge": "wallet lista",
+  "ranking.back_to_play": "Volver a Jugar",
 
   /* ------------------------------ Historial ------------------------------ */
   "history.title": "Historial",
@@ -542,6 +561,25 @@ export const en: Record<MessageKey, string> = {
   "ranking.no_score_mode":
     "You don't have a score in {mode} yet. Play a race to show up here.",
   "ranking.you": "You",
+  "ranking.live": "Today's ranking",
+  "ranking.live_sub": "Who's winning the round that closes tonight.",
+  "ranking.top_n": "Top {count} · {mode}",
+  "ranking.see_full": "See full ranking",
+  "ranking.retry": "Retry",
+  "ranking.players": "{count} playing",
+  "ranking.players_one": "1 playing",
+  "ranking.col_player": "Player",
+  "ranking.col_wpm": "WPM",
+  "ranking.col_score": "Score",
+  "ranking.mode_filter": "Mode",
+  "ranking.wallet_missing_leader":
+    "Leading with no linked wallet: if the round closes like this, the prize rolls over to the next one.",
+  "ranking.wallet_missing_me":
+    "You have no linked wallet: even if you win, the prize can't be paid to you.",
+  "ranking.wallet_link": "Link a wallet in Profile",
+  "ranking.wallet_missing_badge": "no wallet",
+  "ranking.wallet_ok_badge": "wallet ready",
+  "ranking.back_to_play": "Back to Play",
 
   /* ------------------------------- History ------------------------------- */
   "history.title": "History",

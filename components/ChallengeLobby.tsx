@@ -18,6 +18,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { isV3Enabled } from "@/lib/contractsV3";
 import ChallengeCard from "./ChallengeCard";
 import PlayV3Button from "./PlayV3Button";
+import RoundRanking from "./RoundRanking";
 
 // Icono y clave del sublabel por moneda para la tarjeta de premio.
 const CURRENCY_META: Record<
@@ -129,8 +130,10 @@ export default function ChallengeLobby({
       {/* Móvil: una columna (premio arriba). Escritorio: retos a la izquierda y
           premio fijo (sticky) en una columna lateral a la derecha. */}
       <div className="flex flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
-        {payEnabled && hasPrize && (
-          <aside className="lg:sticky lg:top-20 lg:order-last">
+        {/* La columna existe siempre: el premio depende de que cargue el pozo,
+            pero el ranking de la ronda se muestra igual. */}
+        <aside className="lg:sticky lg:top-20 lg:order-last">
+          {payEnabled && hasPrize && (
             <div className="rounded-2xl border border-brand/25 bg-gradient-to-br from-brand-soft to-surface2 px-4 py-3.5 shadow-card">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
@@ -162,8 +165,17 @@ export default function ChallengeLobby({
                 ))}
               </div>
             </div>
-          </aside>
-        )}
+          )}
+
+          {/* Ranking de la ronda, junto al premio: cuánto hay y quién lo va
+              ganando se leen de un vistazo. En móvil queda justo debajo. */}
+          <RoundRanking
+            modeId={modeId}
+            limit={3}
+            showFullLink
+            className={payEnabled && hasPrize ? "mt-3" : ""}
+          />
+        </aside>
 
         <div className="flex flex-1 flex-col gap-3 lg:min-h-[24rem]">
           {challenges.map((c) => (

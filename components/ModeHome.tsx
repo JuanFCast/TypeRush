@@ -14,6 +14,7 @@ import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import { useI18n } from "@/lib/i18n/client";
 import LanguageToggle from "./LanguageToggle";
 import RaceDemo from "./RaceDemo";
+import RoundRanking from "./RoundRanking";
 
 type Props = {
   onSelectMode: (id: ModeId) => void;
@@ -226,6 +227,16 @@ export default function ModeHome({ onSelectMode }: Props) {
           <p className="mt-2 text-xs text-muted">
             {freeUsed ? t("home.note.free_used") : t("home.note.default")}
           </p>
+
+          {/* Ranking de la ronda en curso: va DESPUÉS del CTA (contenido
+              secundario) pero en la misma pantalla, para no tener que entrar a
+              un modo solo para ver quién va ganando. */}
+          <RoundRanking
+            modeId={mode}
+            limit={3}
+            showFullLink
+            className="mt-5 w-full max-w-sm text-left [@media(max-height:700px)]:mt-3"
+          />
         </section>
 
         {/* Columna derecha: vista previa fiel de la pantalla de carrera. En lg

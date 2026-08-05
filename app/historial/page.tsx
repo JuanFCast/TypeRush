@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useI18n } from "@/lib/i18n/client";
@@ -124,6 +125,13 @@ export default function HistorialPage() {
             🏆
           </span>
           <h1 className="text-xl font-bold">{t("history.title")}</h1>
+          {/* Historial son rondas CERRADAS; la de hoy se sigue en el ranking. */}
+          <Link
+            href="/ranking"
+            className="ml-auto text-xs font-bold text-brand underline underline-offset-2"
+          >
+            {t("ranking.live")} ›
+          </Link>
         </div>
 
         {/* Ganadores / Tus premios */}

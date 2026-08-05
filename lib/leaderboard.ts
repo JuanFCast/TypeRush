@@ -1,4 +1,4 @@
-// Leaderboard y resultados sobre match_results en Supabase.
+// Leaderboard de la ronda EN CURSO sobre match_results en Supabase.
 
 import { getCurrentGamePeriod } from "./gamePeriod";
 import { ModeId } from "./passages";
@@ -9,21 +9,43 @@ export type ModeRankingEntry = {
   playerId: string;
   name: string;
   score: number;
+  wpm: number;
+  /** Porcentaje 0–100 ya normalizado (ver `normalizeAccuracy`). */
+  accuracy: number;
+  /**
+   * ¿Tiene wallet vinculada en `player_profiles`? Es EXACTAMENTE el campo que
+   * lee el cierre para pagar (`process_daily_prizes` → `close-day`), así que un
+   * #1 sin wallet significa que el pozo se acumula en vez de pagarse.
+   */
+  hasWallet: boolean;
 };
 
 export type ModeRankingResult = {
-  top5: ModeRankingEntry[];
-  me: {
-    rank: number | null;
-    name: string;
-    score: number;
-  };
+  /** Clasificación completa de la ronda, ya ordenada y numerada. */
+  entries: ModeRankingEntry[];
+  /** Mi posición, o null si todavía no jugué esta ronda en esta modalidad. */
+  me: ModeRankingEntry | null;
   periodLabel: string;
 };
 
 /**
- * Mejor puntaje por jugador en un modo (cualquier temática), solo partidas del
- * periodo actual (8 p.m.–8 p.m. hora Colombia). Top 5 + posición del jugador.
+ * `accuracy` se guardó como fracción (0..1) en unas filas y como porcentaje en
+ * otras. Se normaliza a porcentaje para no mostrar "0 %" en partidas antiguas.
+ * Misma regla que `app/api/me/stats`.
+ */
+function normalizeAccuracy(raw: unknown): number {
+  const value = Number(raw) || 0;
+  return value <= 1 ? value * 100 : value;
+}
+
+/**
+ * Mejor puntaje por jugador en una modalidad (cualquier reto), solo partidas del
+ * periodo actual (8 p.m.–8 p.m. hora Colombia).
+ *
+ * ⚠️ El orden replica a propósito el de `process_daily_prizes()`
+ * (`supabase/daily_prizes.sql`): mejor puntaje por jugador, y a igualdad de
+ * puntaje gana el alias menor alfabéticamente. Si esto no coincidiera, la
+ * pantalla mostraría un #1 distinto del que cobra, que es peor que no mostrarlo.
  */
 export async function loadModeRanking(
   modeId: ModeId,
@@ -37,50 +59,86 @@ export async function loadModeRanking(
     const period = getCurrentGamePeriod(new Date(), locale);
     const { data, error } = await supabase
       .from("match_results")
-      .select("player_id, player_name, score")
+      .select("player_id, player_name, score, wpm, accuracy")
       .eq("mode_id", modeId)
       .gte("created_at", period.start.toISOString())
       .lt("created_at", period.end.toISOString());
     if (error || !data) return null;
 
-    const bestByPlayer = new Map<string, { name: string; score: number }>();
+    type Best = { name: string; score: number; wpm: number; accuracy: number };
+    const bestByPlayer = new Map<string, Best>();
     for (const row of data) {
       const id = String(row.player_id);
       const score = Number(row.score) || 0;
-      const name = String(row.player_name ?? "Player");
       const prev = bestByPlayer.get(id);
-      if (!prev || score > prev.score) bestByPlayer.set(id, { name, score });
+      // Solo se reemplaza con un puntaje MEJOR, así wpm y precisión que se
+      // muestran son los de esa misma carrera y no una mezcla de varias.
+      if (prev && score <= prev.score) continue;
+      bestByPlayer.set(id, {
+        name: String(row.player_name ?? "Player"),
+        score,
+        wpm: Number(row.wpm) || 0,
+        accuracy: normalizeAccuracy(row.accuracy),
+      });
     }
 
     if (bestByPlayer.size === 0) {
-      return {
-        top5: [],
-        me: { rank: null, name: playerName, score: 0 },
-        periodLabel: period.label,
-      };
+      return { entries: [], me: null, periodLabel: period.label };
     }
 
-    const ranked = [...bestByPlayer.entries()]
-      .map(([id, { name, score }]) => ({ playerId: id, name, score }))
-      .sort(
-        (a, b) => b.score - a.score || a.name.localeCompare(b.name, "es"),
-      )
-      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+    const ids = [...bestByPlayer.keys()];
+    const wallets = await loadWalletFlags(ids);
 
-    const meEntry = ranked.find((e) => e.playerId === playerId);
+    const entries: ModeRankingEntry[] = [...bestByPlayer.entries()]
+      .map(([id, best]) => ({ playerId: id, ...best }))
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, "es"))
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        hasWallet: wallets.get(entry.playerId) ?? false,
+      }));
 
     return {
-      top5: ranked.slice(0, 5),
-      me: {
-        rank: meEntry?.rank ?? null,
-        name: meEntry?.name ?? playerName,
-        score: meEntry?.score ?? 0,
-      },
+      entries,
+      me: entries.find((e) => e.playerId === playerId) ?? null,
       periodLabel: period.label,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * ¿Cuáles de estos jugadores tienen wallet vinculada? Devuelve BOOLEANOS: la
+ * dirección de otro jugador no tiene por qué llegar a la pantalla de nadie.
+ *
+ * Si la consulta falla se devuelve un mapa vacío y el ranking se pinta igual,
+ * solo que sin el aviso de wallet: un fallo aquí no puede tumbar el ranking.
+ */
+async function loadWalletFlags(
+  playerIds: string[],
+): Promise<Map<string, boolean>> {
+  const flags = new Map<string, boolean>();
+  if (!supabase || playerIds.length === 0) return flags;
+  try {
+    const { data, error } = await supabase
+      .from("player_profiles")
+      .select("player_id, wallet_address")
+      .in("player_id", playerIds);
+    if (error || !data) return flags;
+    for (const row of data) {
+      const wallet = String(row.wallet_address ?? "").trim();
+      flags.set(String(row.player_id), wallet.length > 0);
+    }
+  } catch {
+    // Mapa vacío: el ranking se muestra sin el estado de wallet.
+  }
+  return flags;
+}
+
+/** Nombre a mostrar para mí cuando todavía no aparezco en la tabla. */
+export function fallbackName(playerName: string): string {
+  return playerName.trim() || "Player";
 }
 
 // El guardado de partidas rankeadas ya NO se hace desde el cliente: el score se
