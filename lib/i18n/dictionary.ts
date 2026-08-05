@@ -185,7 +185,7 @@ export const es = {
   "ranking.wallet_missing_leader":
     "Va primero sin wallet vinculada: si la ronda cierra así, el premio se acumula para la siguiente.",
   "ranking.wallet_missing_me":
-    "No tienes wallet vinculada: aunque ganes, el premio no se te puede pagar.",
+    "No tienes wallet vinculada. Si ganas, el premio no se te puede pagar: vincúlala desde Perfil para poder recibirlo.",
   "ranking.wallet_link": "Vincular wallet en Perfil",
   "ranking.wallet_missing_badge": "sin wallet",
   "ranking.wallet_ok_badge": "wallet lista",
@@ -575,7 +575,7 @@ export const en: Record<MessageKey, string> = {
   "ranking.wallet_missing_leader":
     "Leading with no linked wallet: if the round closes like this, the prize rolls over to the next one.",
   "ranking.wallet_missing_me":
-    "You have no linked wallet: even if you win, the prize can't be paid to you.",
+    "You have no linked wallet. If you win, the prize can't be paid to you: link one from Profile to be able to receive it.",
   "ranking.wallet_link": "Link a wallet in Profile",
   "ranking.wallet_missing_badge": "no wallet",
   "ranking.wallet_ok_badge": "wallet ready",

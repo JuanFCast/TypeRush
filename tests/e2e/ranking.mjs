@@ -13,6 +13,33 @@ const check = (n, ok, d = "") => {
 };
 const body = async (p) => (await p.locator("body").innerText()).toLowerCase();
 
+/** Ronda simulada de 4 jugadores: la suite no puede depender de que haya
+ *  partidas reales — al abrir una ronda nueva el ranking está legítimamente
+ *  vacío — ni ensuciar la ronda en curso metiendo un jugador de prueba. */
+const FAKE_ROUND = [
+  { player_id: "lider-1", player_name: "Lider", score: 900, wpm: 60, accuracy: 0.98 },
+  { player_id: "test-me", player_name: "YoMismo", score: 500, wpm: 40, accuracy: 0.95 },
+  { player_id: "otro-3", player_name: "Tercero", score: 300, wpm: 30, accuracy: 0.9 },
+  { player_id: "otro-4", player_name: "Cuarto", score: 100, wpm: 20, accuracy: 0.8 },
+];
+
+const mockRound = async (page, rows = FAKE_ROUND, flags = {}) => {
+  await page.route("**/rest/v1/match_results*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(rows),
+    }),
+  );
+  await page.route("**/api/ranking/wallets", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ flags }),
+    }),
+  );
+};
+
 const run = async () => {
   const browser = await chromium.launch();
 
@@ -26,6 +53,7 @@ const run = async () => {
     page.on("pageerror", (e) =>
       check("sin errores de página en Jugar", false, e.message.split("\n")[0]),
     );
+    await mockRound(page);
 
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
@@ -67,6 +95,7 @@ const run = async () => {
       viewport: { width: 390, height: 844 },
     });
     const page = await ctx.newPage();
+    await mockRound(page);
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
 
@@ -116,6 +145,71 @@ const run = async () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     check("/ranking sin scroll horizontal en escritorio", overflow <= 0, `overflow=${overflow}px`);
+    await ctx.close();
+  }
+
+  /* ---------- Aviso de wallet y no filtrar direcciones ---------- */
+  {
+    // Ronda simulada: se intercepta la consulta a Supabase para no depender de
+    // que haya partidas reales ni ensuciar la ronda en curso con un jugador de
+    // prueba. Yo soy "test-me" y voy segundo; el líder es otro.
+    const ctx = await browser.newContext({
+      locale: "es-CO",
+      viewport: { width: 390, height: 844 },
+    });
+    const page = await ctx.newPage();
+    await page.addInitScript(() => {
+      window.localStorage.setItem("typerush.player.id", "test-me");
+      window.localStorage.setItem("typerush.player.name", "YoMismo");
+    });
+
+    // Nadie tiene wallet: el endpoint responde booleanos, nunca direcciones.
+    await mockRound(page, FAKE_ROUND, { "lider-1": false, "test-me": false });
+
+    // Toda respuesta de nuestro origen se revisa: ninguna puede traer una
+    // dirección completa de 40 hex hasta el navegador.
+    const leaks = [];
+    page.on("response", async (res) => {
+      if (!res.url().startsWith("http://localhost:3000")) return;
+      const type = res.headers()["content-type"] ?? "";
+      if (!type.includes("json") && !type.includes("html")) return;
+      try {
+        const body = await res.text();
+        if (/0x[0-9a-fA-F]{40}/.test(body)) leaks.push(res.url());
+      } catch {
+        /* respuesta no legible: nada que revisar */
+      }
+    });
+
+    await page.goto(`${URL}/ranking?mode=es`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2500);
+
+    const text = await body(page);
+    check(
+      "el aviso dice que hay que vincular la wallet para recibir el premio",
+      text.includes("vincúlala desde perfil") && text.includes("recibirlo"),
+    );
+    // Dentro del ranking, no el enlace de la barra de navegación.
+    const link = page
+      .locator("section a[href='/perfil']")
+      .filter({ hasText: "Perfil" })
+      .first();
+    check("y ofrece el enlace a Perfil", (await link.count()) > 0);
+    if ((await link.count()) > 0) {
+      const box = await link.boundingBox();
+      check(
+        "el enlace cumple el área táctil de 44 px",
+        !!box && box.height >= 44,
+        box ? `${Math.round(box.height)}px` : "sin caja",
+      );
+    }
+    check("mi fila aparece marcada como Tú", text.includes("tú"));
+    check(
+      "ninguna respuesta trae una dirección completa",
+      leaks.length === 0,
+      leaks.join(", "),
+    );
+
     await ctx.close();
   }
 

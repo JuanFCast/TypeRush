@@ -109,8 +109,12 @@ export async function loadModeRanking(
 }
 
 /**
- * ¿Cuáles de estos jugadores tienen wallet vinculada? Devuelve BOOLEANOS: la
- * dirección de otro jugador no tiene por qué llegar a la pantalla de nadie.
+ * ¿Cuáles de estos jugadores tienen wallet vinculada?
+ *
+ * Se pregunta al SERVIDOR (`/api/ranking/wallets`), que responde solo
+ * booleanos, en vez de leer `player_profiles` desde el navegador: así ninguna
+ * dirección de otro jugador viaja hasta esta pantalla, ni siquiera en la
+ * respuesta de red.
  *
  * Si la consulta falla se devuelve un mapa vacío y el ranking se pinta igual,
  * solo que sin el aviso de wallet: un fallo aquí no puede tumbar el ranking.
@@ -119,17 +123,18 @@ async function loadWalletFlags(
   playerIds: string[],
 ): Promise<Map<string, boolean>> {
   const flags = new Map<string, boolean>();
-  if (!supabase || playerIds.length === 0) return flags;
+  if (playerIds.length === 0) return flags;
   try {
-    const { data, error } = await supabase
-      .from("player_profiles")
-      .select("player_id, wallet_address")
-      .in("player_id", playerIds);
-    if (error || !data) return flags;
-    for (const row of data) {
-      const wallet = String(row.wallet_address ?? "").trim();
-      flags.set(String(row.player_id), wallet.length > 0);
-    }
+    const res = await fetch("/api/ranking/wallets", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ playerIds }),
+    });
+    if (!res.ok) return flags;
+    const { flags: raw } = (await res.json()) as {
+      flags?: Record<string, boolean>;
+    };
+    for (const [id, has] of Object.entries(raw ?? {})) flags.set(id, has === true);
   } catch {
     // Mapa vacío: el ranking se muestra sin el estado de wallet.
   }

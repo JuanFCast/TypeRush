@@ -198,16 +198,20 @@ export default function RoundRanking({
               {t("ranking.wallet_missing_leader")}
             </p>
           )}
+          {/* Mi propio caso es accionable, así que no va en letra pequeña:
+              dice qué pasa si gano y a dónde ir a arreglarlo. */}
           {me && !me.hasWallet && (
-            <p className="mt-2 text-[0.7rem] text-muted">
-              {t("ranking.wallet_missing_me")}{" "}
+            <div className="mt-2 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2">
+              <p className="text-[0.7rem] font-semibold text-warn">
+                {t("ranking.wallet_missing_me")}
+              </p>
               <Link
                 href="/perfil"
-                className="font-bold text-brand underline underline-offset-2"
+                className="mt-1 inline-flex min-h-11 items-center font-bold text-brand underline underline-offset-2"
               >
-                {t("ranking.wallet_link")}
+                {t("ranking.wallet_link")} ›
               </Link>
-            </p>
+            </div>
           )}
 
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-2.5">
