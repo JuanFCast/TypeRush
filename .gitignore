@@ -53,3 +53,8 @@ next-env.d.ts
 # notas de trabajo personales: no son parte del proyecto y cambian a cada rato
 # (el brief de diseño SÍ se versiona; esto es la lista de pendientes de Juan)
 docs/Pendientes de TypeRush.*
+
+# archivos de bloqueo de Word/Office: los crea al abrir un documento y los borra
+# al cerrarlo ("~$informe.docx"). Solo afecta a nombres que EMPIEZAN por "~$",
+# así que ningún documento de verdad queda ignorado por esta regla.
+~$*
