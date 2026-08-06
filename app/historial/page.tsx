@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import AppShell from "@/components/AppShell";
+import { TrophyIcon, UserIcon } from "@/components/brand/icons";
 import { useI18n } from "@/lib/i18n/client";
 import { celoscanTx } from "@/lib/chain";
 import { COPM_DECIMALS, USDT_DECIMALS } from "@/lib/contractsV3";
@@ -40,7 +41,7 @@ const PAYOUT_KEY: Record<PayoutState, MessageKey> = {
 // Verde solo cuando el dinero YA está en la wallet del ganador; ámbar mientras
 // espera; rojo si falló; neutro cuando no hubo premio que entregar.
 const PAYOUT_CLASS: Record<PayoutState, string> = {
-  paid: "border-brand/30 bg-brand-soft text-brand",
+  paid: "border-brand/30 bg-brand-soft text-brand-deep",
   pending: "border-warn/30 bg-warn/10 text-warn",
   failed: "border-danger/30 bg-danger/10 text-danger",
   rollover: "border-line bg-surface text-muted",
@@ -119,16 +120,19 @@ export default function HistorialPage() {
 
   return (
     <AppShell>
-      <div className="screen-in flex flex-1 flex-col">
+      {/* Lista vertical centrada, también en escritorio: cada ronda se lee como
+          un registro completo y no como una cuadrícula apretada. */}
+      <div
+        className="screen-in mx-auto flex w-full flex-1 flex-col"
+        style={{ maxWidth: "var(--stack-w)" }}
+      >
         <div className="mb-4 flex items-center gap-2">
-          <span aria-hidden className="text-xl leading-none">
-            🏆
-          </span>
+          <TrophyIcon className="h-5 w-5 text-brand-deep" />
           <h1 className="text-xl font-bold">{t("history.title")}</h1>
           {/* Historial son rondas CERRADAS; la de hoy se sigue en el ranking. */}
           <Link
             href="/ranking"
-            className="ml-auto text-xs font-bold text-brand underline underline-offset-2"
+            className="ml-auto text-xs font-bold text-brand-deep underline underline-offset-2"
           >
             {t("ranking.live")} ›
           </Link>
@@ -143,7 +147,7 @@ export default function HistorialPage() {
               onClick={() => setTab(id)}
               aria-pressed={tab === id}
               className={`min-h-11 rounded-lg py-2.5 text-sm font-semibold transition ${
-                tab === id ? "bg-surface2 text-brand shadow-card" : "text-muted"
+                tab === id ? "bg-surface2 text-brand-deep shadow-card" : "text-muted"
               }`}
             >
               {t(id === "winners" ? "history.tab.winners" : "history.tab.mine")}
@@ -175,7 +179,7 @@ export default function HistorialPage() {
         </div>
 
         {status === "loading" ? (
-          <ul aria-hidden className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+          <ul aria-hidden className="flex flex-col gap-2.5">
             {[0, 1, 2, 3].map((i) => (
               <li
                 key={i}
@@ -195,15 +199,18 @@ export default function HistorialPage() {
             </button>
           </div>
         ) : guestOnMine ? (
-          <Empty icon="👤" text={t("history.mine_guest")} />
+          <Empty
+            icon={<UserIcon className="h-7 w-7" />}
+            text={t("history.mine_guest")}
+          />
         ) : rounds.length === 0 ? (
           <Empty
-            icon={mine ? "🏅" : "🏆"}
+            icon={<TrophyIcon className="h-7 w-7" />}
             text={mine ? t("history.mine_empty") : t("winners.empty")}
           />
         ) : (
           <>
-            <ul className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+            <ul className="flex flex-col gap-2.5">
               {rounds.map((r) => (
                 <RoundCard key={r.key} round={r} locale={locale} t={t} />
               ))}
@@ -255,10 +262,10 @@ function Filter({
   );
 }
 
-function Empty({ icon, text }: { icon: string; text: string }) {
+function Empty({ icon, text }: { icon: ReactNode; text: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-line bg-surface text-2xl">
+      <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-line bg-surface text-muted">
         {icon}
       </div>
       <p className="max-w-xs text-balance text-sm text-muted">{text}</p>
@@ -307,7 +314,7 @@ function RoundCard({
       <div className="mt-2 flex items-center gap-2">
         <span
           aria-hidden
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand-deep"
         >
           {round.payout === "rollover" ? "↻" : (winner ?? "?").slice(0, 1).toUpperCase()}
         </span>
@@ -336,7 +343,7 @@ function RoundCard({
         </p>
       )}
 
-      <p className="mt-2 font-mono text-base font-bold leading-none text-brand">
+      <p className="mt-2 font-mono text-base font-bold leading-none text-brand-deep">
         {prize.length > 0 ? prize.join(" + ") : "—"}
       </p>
 
@@ -345,7 +352,7 @@ function RoundCard({
           href={celoscanTx(round.txHash)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-block text-[0.7rem] font-semibold text-brand underline underline-offset-2"
+          className="mt-2 inline-block text-[0.7rem] font-semibold text-brand-deep underline underline-offset-2"
         >
           {t("winners.tx")} ↗
         </a>

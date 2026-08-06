@@ -40,7 +40,8 @@ Use Testnet → Load Test Page with the HTTPS URL. MiniPay testnet = Celo Sepoli
 ## Stack
 
 - **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4** (dark theme)
-- Fonts: **Space Grotesk** (UI) + **JetBrains Mono** (typing text), via `next/font`.
+- Fonts: **Sora** (identity + UI, 800 for the wordmark) + **JetBrains Mono** (typing passage and
+  numeric data only — it is NOT a brand font), via `next/font`.
 - Wallet via **ethers v6** + the injected `window.ethereum` (MiniPay). No SDK; no message signing.
 - **Supabase** (publishable key in the client; service-role only in scripts/CI) for profiles, ranking
   and prize bookkeeping.
@@ -54,14 +55,18 @@ app/
   page.tsx     — "use client"; navigation shell + game status (idle → countdown → racing → finished)
   globals.css  — Tailwind + @theme tokens + per-char highlight classes
 components/
-  ModeHome · ChallengeLobby · ChallengeCard  — lobby: modes (es/en), challenges, pools, pay buttons
+  lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · EntrySheet · HowToPlay
+                 — Jugar: ONE self-sufficient daily-challenge card (prize, mode,
+                   challenge, entry, single CTA, top 3) + the tutorial
+  brand/BrandLockup · TypeRushBolt · icons — logo, wordmark and the SVG icon set
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
-  ResultScreen · RankingScreen · HistoryScreen · ProfileScreen — results, rankings, Historial, Tú
-  WinnersHistory — public past-rounds list (the "Ganadores" sub-tab inside Historial)
-  PaymentOverlay · AliasModal · BottomNav · LanguageToggle (UI language, ES/EN)
+  ResultScreen · RoundRanking · FullRanking — result and the live ranking
+  PaymentOverlay · AliasModal · AppShell · BottomNav · LanguageToggle (UI language, ES/EN)
 hooks/
   useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
   usePlayEligibility.ts — free-attempt / pay gating per mode
+  useModeRanking.ts     — live ranking of the open round (preview + /ranking)
+  usePrizePools.ts      — on-chain pools per currency + countdown to the close
 lib/
   i18n/          — UI language: index.ts (core+detection) · dictionary.ts (es+en) ·
                    client.tsx (I18nProvider/useI18n/useT) · server.ts (getServerLang)
@@ -286,6 +291,37 @@ matters while playing.
 ⚠️ Production has one wallet with two profiles. `scripts/dedupe-report.mjs`
 prints the merge SQL but **must not be run automatically** — merging decides
 whose history survives.
+
+### Avíspate-style redesign (2026-08-05) — layers 1–4 + 6/7 partially done
+
+Following `docs/BRIEF_DISENO_TYPERUSH.md`, TypeRush now
+uses Avíspate's structure and rhythm with TypeRush's own identity. **No game logic, contract,
+payment or database rule was touched** — only composition, tokens and copy.
+
+- **Tokens** (`app/globals.css`): palette derived from the logo — electric green `#02cf83`
+  (marks/decoration ONLY, 1.9:1 on the light background), deep green `#008558` for buttons and for
+  every piece of brand-coloured TEXT, `--color-base-dark #11231d` (the icon's pedestal, used as the
+  prize block's background), soft `#ddf7ec`. **`text-brand` was swept to `text-brand-deep`
+  everywhere**: with the new electric brand, brand-coloured small text would fail AA.
+- **App scale**: `--app-w` / `--app-pad` (100 % → 680 px → 920 px) live in plain `:root` blocks, NOT
+  in `@theme` (theme tokens can't change per breakpoint). `--stack-w` 720 px is Historial's list,
+  `--read-w` 560 px is Perfil's column. Header, main and bottom nav all read `--app-w`, so the three
+  sections cannot drift apart.
+- **Shell**: header is a 3-column grid with equal sides (ES/EN pill · brand · sound), so the
+  wordmark is really centred. The desktop header nav is GONE: `BottomNav` now shows at every width.
+- **Jugar is one screen.** `ModeHome` (marketing landing) and `ChallengeLobby` (second step) were
+  deleted; mode and challenge are compact controls inside `DailyChallengeCard`. `SessionCard` was
+  removed from the lobby too — identity and wallet live in Perfil.
+- **One CTA.** With two currencies a single button can't state two prices, so when the free attempt
+  is used the CTA opens `EntrySheet` (USDT / COPm) and the existing pay flow continues untouched.
+- **`RaceDemo` moved into `HowToPlay`**, which opens automatically on the first visit
+  (`typerush.howto.v1` in localStorage) and is reopenable from "Cómo jugar".
+- ⚠️ **e2e suites assert the UI copy**, so they were updated with it: markers are now "reto diario" /
+  "daily challenge", the bottom bar is expected at ALL widths, and every context pre-sets
+  `typerush.howto.v1` (an auto-opening dialog would intercept the clicks). 123/123 pass.
+- **Still pending** (same brief): countdown/race/result polish (bolt instead of the 🏃 emoji in
+  `Track`, result hierarchy), WPM/accuracy on the Historial round cards, and the Perfil order/
+  content pass (stats, recent prizes, wallet, settings).
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 

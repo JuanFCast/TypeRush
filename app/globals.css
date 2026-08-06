@@ -1,21 +1,25 @@
 @import "tailwindcss";
 
-/* TypeRush — modo claro: un solo color de marca (verde Celo, oscurecido para
-   contraste sobre blanco) sobre neutros claros. Los mismos tokens semánticos
-   de siempre: bg (página) · surface (chips/insets) · surface2 (tarjetas). */
+/* TypeRush — paleta DERIVADA DEL LOGO (verde base oscuro, superficie blanca,
+   rayo verde eléctrico) sobre neutros claros. Tokens semánticos de siempre:
+   bg (página) · surface (chips/insets) · surface2 (tarjetas). */
 @theme {
   --color-bg: #f2f5f3;
   --color-surface: #e9efeb;
   --color-surface2: #ffffff;
-  --color-line: #dde5e0;
-  --color-ink: #15221c;
-  --color-muted: #5d6e66;
+  --color-line: #d2e5dd;
+  --color-ink: #152721;
+  --color-muted: #616c68;
   --color-faint: #b0bdb6;
-  --color-brand: #009e6d;
-  /* Verde de BOTONES con texto blanco: oscurecido a 4.67:1 contra blanco para
-     cumplir WCAG AA en texto normal (el brand base da solo 3.44:1). */
+  /* Verde ELÉCTRICO del rayo: marca, decoración, foco y fondos. Sobre fondo
+     claro da 1,9:1, así que NUNCA se usa como color de texto pequeño. */
+  --color-brand: #02cf83;
+  /* Verde de ACCIÓN: botones con texto blanco y todo el texto de marca sobre
+     fondo claro. 4,67:1 contra blanco → WCAG AA en texto normal. */
   --color-brand-deep: #008558;
-  --color-brand-soft: #d9f3e8;
+  --color-brand-soft: #ddf7ec;
+  /* Verde base oscuro del icono: el pedestal del logo y la tinta del wordmark. */
+  --color-base-dark: #11231d;
   /* Amarillo Celo (color de marca de Celo): el claro solo funciona como FONDO
      de resaltado con texto oscuro encima; para trazos/puntos pequeños sobre
      fondo claro se usa la variante profunda (si no, parece una mancha). */
@@ -24,12 +28,42 @@
   --color-danger: #d43f54;
   --color-warn: #9a6700;
 
-  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   /* Sombras suaves para tarjetas sobre fondo claro. */
-  --shadow-card: 0 1px 2px rgba(21, 34, 28, 0.05), 0 4px 14px rgba(21, 34, 28, 0.06);
-  --shadow-pop: 0 4px 10px rgba(21, 34, 28, 0.08), 0 12px 32px rgba(21, 34, 28, 0.12);
+  --shadow-card: 0 1px 2px rgba(21, 39, 33, 0.05), 0 4px 14px rgba(21, 39, 33, 0.06);
+  --shadow-pop: 0 4px 10px rgba(21, 39, 33, 0.08), 0 12px 32px rgba(21, 39, 33, 0.12);
+}
+
+/*
+ * Escala de la app: TODAS las pantallas con navegación (Jugar, Historial,
+ * Perfil, Ranking) comparten columna y margen lateral. Si una se sale de aquí,
+ * se siente de otra app. Va fuera de `@theme` a propósito: cambia por
+ * breakpoint y los tokens de tema no pueden.
+ */
+:root {
+  --app-w: 100%;
+  --app-pad: 1rem;
+  /* Listados verticales (Historial): una tarjeta por fila a cualquier ancho. */
+  --stack-w: 720px;
+  /* Columna continua del perfil. */
+  --read-w: 560px;
+}
+
+/* Tablet vertical: una columna más aireada. */
+@media (min-width: 600px) {
+  :root {
+    --app-w: 680px;
+  }
+}
+
+/* Escritorio: área de aplicación, no una portada a todo lo ancho. */
+@media (min-width: 860px) {
+  :root {
+    --app-w: 920px;
+    --app-pad: 1.25rem;
+  }
 }
 
 html {

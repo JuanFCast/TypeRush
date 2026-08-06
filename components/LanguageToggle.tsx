@@ -41,8 +41,8 @@ export default function LanguageToggle({ variant = "full" }: Props) {
               aria-checked={on}
               aria-label={NATIVE[option].label}
               onClick={() => setLang(option)}
-              className={`grid h-10 w-9 place-items-center rounded-lg font-mono text-[0.65rem] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep active:scale-95 ${
-                on ? "bg-brand-soft text-brand" : "text-muted"
+              className={`grid h-10 w-8 place-items-center rounded-lg font-mono text-[0.65rem] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep active:scale-95 ${
+                on ? "bg-brand-soft text-brand-deep" : "text-muted"
               }`}
             >
               {NATIVE[option].short}
@@ -69,12 +69,12 @@ export default function LanguageToggle({ variant = "full" }: Props) {
             aria-checked={on}
             onClick={() => setLang(option)}
             className={`flex min-h-11 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
-              on ? "bg-surface2 text-brand shadow-card" : "text-muted"
+              on ? "bg-surface2 text-brand-deep shadow-card" : "text-muted"
             }`}
           >
             <span
               className={`rounded px-1 font-mono text-[0.6rem] font-bold ${
-                on ? "bg-brand-soft text-brand" : "bg-line text-muted"
+                on ? "bg-brand-soft text-brand-deep" : "bg-line text-muted"
               }`}
             >
               {NATIVE[option].short}

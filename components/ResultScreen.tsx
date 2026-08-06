@@ -29,7 +29,12 @@ type Props = {
   best: number;
   isNewBest: boolean;
   onBackToLobby: () => void;
-  onExit: () => void;
+  /**
+   * Acción secundaria. Es opcional porque desde que Jugar es una sola pantalla
+   * "volver a los retos" y "volver al inicio" son el mismo sitio: dos botones
+   * idénticos no son una elección.
+   */
+  onExit?: () => void;
 };
 
 export default function ResultScreen({
@@ -64,7 +69,7 @@ export default function ResultScreen({
       )}
 
       {isNewBest ? (
-        <div className="success-pop mb-3 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">
+        <div className="success-pop mb-3 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand-deep">
           ✦ {t("result.new_best")}
         </div>
       ) : (
@@ -74,7 +79,7 @@ export default function ResultScreen({
       )}
 
       {/* Métrica héroe: WPM */}
-      <div className="font-mono text-7xl font-bold leading-none text-brand">
+      <div className="font-mono text-7xl font-bold leading-none text-brand-deep">
         {result.wpm}
       </div>
       <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
@@ -127,14 +132,16 @@ export default function ResultScreen({
           {t("result.back_to_challenges")}
         </button>
 
-        <button
-          type="button"
-          onClick={onExit}
-          disabled={!armed}
-          className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
-        >
-          {t("result.back_home")}
-        </button>
+        {onExit && (
+          <button
+            type="button"
+            onClick={onExit}
+            disabled={!armed}
+            className="mt-2 h-11 w-full rounded-xl text-sm font-semibold text-muted transition active:scale-[0.98] disabled:opacity-40"
+          >
+            {t("result.back_home")}
+          </button>
+        )}
       </div>
     </div>
   );

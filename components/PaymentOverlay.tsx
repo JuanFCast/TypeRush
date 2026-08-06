@@ -67,7 +67,7 @@ export default function PaymentOverlay({ phase }: Props) {
                     done
                       ? "border-brand-deep bg-brand-deep text-white"
                       : current
-                        ? "step-pulse border-brand bg-brand/15 text-brand"
+                        ? "step-pulse border-brand bg-brand/15 text-brand-deep"
                         : "border-line bg-surface2 text-muted"
                   }`}
                 >
@@ -79,7 +79,7 @@ export default function PaymentOverlay({ phase }: Props) {
               </div>
               <span
                 className={`text-[0.6rem] font-semibold leading-tight ${
-                  current ? "text-brand" : done ? "text-ink/70" : "text-muted"
+                  current ? "text-brand-deep" : done ? "text-ink/70" : "text-muted"
                 }`}
               >
                 {label}

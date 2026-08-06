@@ -1,15 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import {
-  loadModeRanking,
-  type ModeRankingEntry,
-  type ModeRankingResult,
-} from "@/lib/leaderboard";
-import { getPlayerId, getPlayerName } from "@/lib/player";
+import { type ModeRankingEntry } from "@/lib/leaderboard";
 import { getMode, type ModeId } from "@/lib/passages";
 import { useI18n } from "@/lib/i18n/client";
+import { useModeRanking } from "@/hooks/useModeRanking";
 import { formatScore } from "@/lib/game";
 
 type Props = {
@@ -23,14 +18,13 @@ type Props = {
   className?: string;
 };
 
-const REFRESH_MS = 20_000;
-
 /**
- * Ranking de la ronda EN CURSO por modalidad.
+ * Ranking de la ronda EN CURSO por modalidad, en formato tabla.
  *
- * Vive dentro de Jugar (resumen) y en `/ranking` (completo). No es una pestaña:
- * el ranking importa mientras juegas, así que se mira sin salir de la pantalla
- * de juego. Ver `components/BottomNav.tsx`.
+ * Lo usa `/ranking` (clasificación completa). El resumen de Jugar es
+ * `components/lobby/LeaderboardPreview.tsx`, con la anatomía de filas del
+ * lobby; los dos leen del mismo `useModeRanking`, así que no pueden discrepar.
+ * Ranking no es pestaña a propósito: ver `components/BottomNav.tsx`.
  */
 export default function RoundRanking({
   modeId,
@@ -43,45 +37,7 @@ export default function RoundRanking({
   const mode = getMode(modeId);
   const modeName = mode ? t(mode.labelKey) : modeId;
 
-  const [data, setData] = useState<ModeRankingResult | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-
-  const load = useCallback(async () => {
-    const result = await loadModeRanking(
-      modeId,
-      getPlayerId(),
-      getPlayerName(),
-      locale,
-    );
-    if (result === null) {
-      // Solo es error si aún no hay nada en pantalla: un fallo puntual del
-      // refresco no debe borrar un ranking que ya se está viendo.
-      setState((prev) => (prev === "ready" ? "ready" : "error"));
-      return;
-    }
-    setData(result);
-    setState("ready");
-  }, [modeId, locale]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = () => {
-      void load().catch(() => {
-        if (!cancelled) setState((p) => (p === "ready" ? "ready" : "error"));
-      });
-    };
-    run();
-    const id = setInterval(run, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [load]);
-
-  const retry = () => {
-    setState("loading");
-    void load();
-  };
+  const { state, data, retry } = useModeRanking(modeId);
 
   const entries = data?.entries ?? [];
   const visible = entries.slice(0, limit);
@@ -207,7 +163,7 @@ export default function RoundRanking({
               </p>
               <Link
                 href="/perfil"
-                className="mt-1 inline-flex min-h-11 items-center font-bold text-brand underline underline-offset-2"
+                className="mt-1 inline-flex min-h-11 items-center font-bold text-brand-deep underline underline-offset-2"
               >
                 {t("ranking.wallet_link")} ›
               </Link>
@@ -223,7 +179,7 @@ export default function RoundRanking({
             {showFullLink && entries.length > visible.length && (
               <Link
                 href={`/ranking?mode=${modeId}`}
-                className="text-xs font-bold text-brand underline underline-offset-2"
+                className="text-xs font-bold text-brand-deep underline underline-offset-2"
               >
                 {t("ranking.see_full")} ›
               </Link>
@@ -269,7 +225,7 @@ function Row({
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate">{entry.name}</span>
           {isMe && (
-            <span className="shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
+            <span className="shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand-deep">
               {youLabel}
             </span>
           )}

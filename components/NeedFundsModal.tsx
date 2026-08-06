@@ -42,7 +42,7 @@ export default function NeedFundsModal({ symbol, needed, address, onClose }: Pro
         </p>
 
         <div className="mt-4 rounded-xl border border-brand/25 bg-brand-soft/40 p-3">
-          <p className="text-[0.6rem] font-bold uppercase tracking-wide text-brand">
+          <p className="text-[0.6rem] font-bold uppercase tracking-wide text-brand-deep">
             🟢 {t("funds.deposit")}
           </p>
           <p className="mt-2 text-[0.65rem] text-muted">
@@ -54,7 +54,7 @@ export default function NeedFundsModal({ symbol, needed, address, onClose }: Pro
             className="mt-1.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface2 px-3 py-2.5 font-mono text-xs text-ink transition active:scale-[0.98]"
           >
             <span>{short}</span>
-            <span className="text-[0.6rem] font-sans font-bold uppercase text-brand">
+            <span className="text-[0.6rem] font-sans font-bold uppercase text-brand-deep">
               {copied ? t("funds.copied") : t("funds.copy")}
             </span>
           </button>

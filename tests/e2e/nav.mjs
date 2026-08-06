@@ -2,6 +2,12 @@
 import { chromium } from "playwright";
 const URL = "http://localhost:3000";
 const out = [];
+// Página con el tutorial ya marcado como visto: se abre solo la primera vez y
+// taparía el lobby. Su apertura automática se prueba aparte, en nav.mjs.
+const newPage = async (ctx) => {
+  await ctx.addInitScript(() => localStorage.setItem("typerush.howto.v1", "1"));
+  return ctx.newPage();
+};
 const check = (n, ok, d = "") => {
   out.push({ n, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? "  — " + d : ""}`);
@@ -22,7 +28,7 @@ const run = async () => {
   /* ---------- Navegación de 3 pestañas ---------- */
   {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 390, height: 844 } });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     page.on("pageerror", (e) => check("sin errores de página", false, e.message.split("\n")[0]));
 
     await page.goto(URL, { waitUntil: "networkidle" });
@@ -52,17 +58,46 @@ const run = async () => {
     await page.getByRole("link", { name: /Jugar/i }).last().click();
     await page.waitForURL(URL + "/", { timeout: 10000 });
     await page.waitForTimeout(1500);
-    check("vuelve a Jugar", (await body(page)).includes("escribe rápido"));
-    check("Jugar muestra la tarjeta de sesión",
-      (await body(page)).includes("invitado") || (await body(page)).includes("hola"));
+    check("vuelve a Jugar", (await body(page)).includes("reto diario"));
+    // La identidad y la wallet viven en Perfil: en Jugar no compiten con el
+    // reto. Solo aparecen si el CTA necesita pedir acceso, alias o confirmación.
+    check("Jugar no enseña la sesión",
+      !(await body(page)).includes("invitado"), (await body(page)).slice(0, 60));
 
+    await ctx.close();
+  }
+
+  /* ---------- Tutorial: se abre solo la primera vez ---------- */
+  {
+    const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 390, height: 844 } });
+    // A propósito SIN la marca de visto: esta es la primera visita.
+    const page = await ctx.newPage();
+    await page.goto(URL, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    const dialog = page.locator('[role="dialog"]');
+    check("primera visita: se abre Cómo jugar", await dialog.isVisible());
+    check("el tutorial explica los 45 segundos",
+      (await body(page)).includes("45 segundos"));
+
+    await page.getByRole("button", { name: /Entendido/i }).click();
+    await page.waitForTimeout(600);
+    check("se puede cerrar", !(await dialog.count()));
+
+    // Segunda carga: ya no vuelve solo, pero sigue accesible desde el lobby.
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(1800);
+    check("no vuelve a abrirse solo", !(await page.locator('[role="dialog"]').count()));
+    await page.getByRole("button", { name: /Cómo jugar/i }).click();
+    await page.waitForTimeout(600);
+    check("se reabre desde Cómo jugar", await page.locator('[role="dialog"]').isVisible());
     await ctx.close();
   }
 
   /* ---------- Historial: filtros y estado vacío ---------- */
   {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 390, height: 844 } });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     await page.goto(URL + "/historial", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
 
@@ -83,7 +118,7 @@ const run = async () => {
   /* ---------- Responsive ---------- */
   for (const vp of VIEWPORTS) {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: vp });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     for (const route of ["/", "/historial", "/perfil"]) {
       await page.goto(URL + route, { waitUntil: "networkidle" });
       await page.waitForTimeout(1200);
@@ -92,26 +127,22 @@ const run = async () => {
       );
       check(`[${vp.name}] ${route} sin scroll horizontal`, overflow <= 1, `overflow=${overflow}px`);
     }
-    // La barra inferior solo en móvil/tablet (<768px de breakpoint md)
+    // La barra inferior está en TODOS los anchos: la misma navegación en móvil
+    // y en escritorio es lo que hace que se sienta una sola app.
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     const bottomVisible = await page
       .locator("nav.fixed")
       .isVisible()
       .catch(() => false);
-    const expectBottom = vp.width < 768;
-    check(
-      `[${vp.name}] barra inferior ${expectBottom ? "visible" : "oculta"}`,
-      bottomVisible === expectBottom,
-      `visible=${bottomVisible}`,
-    );
+    check(`[${vp.name}] barra inferior visible`, bottomVisible, `visible=${bottomVisible}`);
     await ctx.close();
   }
 
   /* ---------- typerush.fun: metadatos, sitemap, robots ---------- */
   {
     const ctx = await browser.newContext({ locale: "es-CO" });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     await page.goto(URL, { waitUntil: "networkidle" });
     const html = await page.content();
     check("canonical apunta a typerush.fun", html.includes("https://typerush.fun"), "");
@@ -137,13 +168,16 @@ const run = async () => {
   /* ---------- Sin credenciales de Privy ---------- */
   {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 390, height: 844 } });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
-    check("sin PRIVY_APP_ID la app carga igual", (await body(page)).includes("escribe rápido"));
-    check("y ofrece conectar wallet", (await body(page)).includes("conectar wallet"));
+    check("sin PRIVY_APP_ID la app carga igual", (await body(page)).includes("reto diario"));
+    // Conectar wallet vive en Perfil, que es donde el brief la pone.
+    await page.goto(URL + "/perfil", { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+    check("y ofrece conectar wallet en Perfil", (await body(page)).includes("conecta tu wallet"));
     check("sin errores de página", errors.length === 0, errors[0] ?? "");
     await ctx.close();
   }

@@ -49,6 +49,11 @@ async function newPage(browser, { locale, minipay = false, blockCookies = false 
   const page = await ctx.newPage();
   if (minipay) await page.addInitScript(MINIPAY_INIT);
   if (blockCookies) await page.addInitScript(BLOCK_COOKIES);
+  // El tutorial se abre solo la primera vez y taparía el lobby: se marca como
+  // visto antes de cargar. Su apertura automática se prueba en nav.mjs.
+  await page.addInitScript(() =>
+    localStorage.setItem("typerush.howto.v1", "1"),
+  );
   page.on("pageerror", (e) => check("sin errores de página", false, e.message.split("\n")[0]));
   return { ctx, page };
 }
@@ -69,8 +74,8 @@ const run = async () => {
 
   /* ---------- 1. Detección por idioma del dispositivo ---------- */
   for (const [locale, expected, marker] of [
-    ["es-CO", "es", "escribe rápido."],
-    ["en-US", "en", "type fast."],
+    ["es-CO", "es", "reto diario"],
+    ["en-US", "en", "daily challenge"],
   ]) {
     const { ctx, page } = await newPage(browser, { locale });
     await page.goto(URL, { waitUntil: "networkidle" });
@@ -92,22 +97,22 @@ const run = async () => {
     await seedAlias(page);
     await page.reload({ waitUntil: "networkidle" });
 
-    check("arranca en español", (await bodyText(page)).includes("escribe rápido."));
+    check("arranca en español", (await bodyText(page)).includes("reto diario"));
 
     // Pastilla EN de la cabecera
     await page.getByRole("radio", { name: "English" }).first().click();
     await page.waitForTimeout(400);
-    check("tras pulsar English: UI en inglés", (await bodyText(page)).includes("type fast."));
+    check("tras pulsar English: UI en inglés", (await bodyText(page)).includes("daily challenge"));
     check("tras pulsar English: html lang = en", (await htmlLang(page)) === "en");
 
     // Persiste al RECARGAR (esto es lo que prueba que el servidor lee la cookie)
     await page.reload({ waitUntil: "networkidle" });
-    check("persiste tras recargar", (await bodyText(page)).includes("type fast."));
+    check("persiste tras recargar", (await bodyText(page)).includes("daily challenge"));
     check("html lang tras recargar = en", (await htmlLang(page)) === "en");
     const ssrHtml = await page.content();
     check(
       "el HTML del servidor ya viene en inglés (sin parpadeo)",
-      ssrHtml.includes("Type fast."),
+      ssrHtml.includes("Daily challenge"),
     );
 
     // Persiste al NAVEGAR entre las tres secciones (ahora son rutas, no pestañas)
@@ -126,7 +131,7 @@ const run = async () => {
     await page.getByRole("link", { name: /Play/i }).last().click();
     await page.waitForURL(URL + "/", { timeout: 15000 });
     await page.waitForTimeout(1500);
-    check("vuelve a Jugar en inglés", (await bodyText(page)).includes("type fast."));
+    check("vuelve a Jugar en inglés", (await bodyText(page)).includes("daily challenge"));
     await ctx.close();
   }
 
@@ -138,12 +143,10 @@ const run = async () => {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    check("CTA en inglés", (await bodyText(page)).match(/play free|play for/) !== null);
-    await page.getByRole("button", { name: /Play free|Play for/ }).first().click();
-    await page.waitForTimeout(1800);
-
+    // Sin pantalla intermedia: el reto del día y su CTA ya están al abrir.
     const lobby = await bodyText(page);
-    check("lobby en inglés", lobby.includes("your best score"), lobby.slice(0, 90));
+    check("CTA en inglés", lobby.match(/play free|play for/) !== null, lobby.slice(0, 90));
+    check("lobby en inglés", lobby.includes("daily challenge"), lobby.slice(0, 90));
     check("modalidad inglesa", lobby.includes("english") && lobby.includes("daily english"));
 
     const playBtn = page.getByRole("button", { name: /Play free/ });
@@ -205,30 +208,30 @@ const run = async () => {
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(600);
     check(`[${label}] detecta MiniPay`, await page.evaluate(() => window.ethereum?.isMiniPay === true));
-    check(`[${label}] arranca en español`, (await bodyText(page)).includes("escribe rápido."));
+    check(`[${label}] arranca en español`, (await bodyText(page)).includes("reto diario"));
 
     await page.getByRole("radio", { name: "English" }).first().click();
     await page.waitForTimeout(400);
-    check(`[${label}] cambia a inglés`, (await bodyText(page)).includes("type fast."));
+    check(`[${label}] cambia a inglés`, (await bodyText(page)).includes("daily challenge"));
     check(`[${label}] html lang = en`, (await htmlLang(page)) === "en");
 
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     check(
       `[${label}] sigue en inglés tras recargar`,
-      (await bodyText(page)).includes("type fast."),
+      (await bodyText(page)).includes("daily challenge"),
     );
     check(`[${label}] html lang = en tras recargar`, (await htmlLang(page)) === "en");
 
     // …y de vuelta a español
     await page.getByRole("radio", { name: "Español" }).first().click();
     await page.waitForTimeout(400);
-    check(`[${label}] vuelve a español`, (await bodyText(page)).includes("escribe rápido."));
+    check(`[${label}] vuelve a español`, (await bodyText(page)).includes("reto diario"));
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     check(
       `[${label}] español persiste tras recargar`,
-      (await bodyText(page)).includes("escribe rápido."),
+      (await bodyText(page)).includes("reto diario"),
     );
     await ctx.close();
   }
@@ -245,7 +248,7 @@ const run = async () => {
     // (a) Ya no hay nada que traducir: el HTML llega en el idioma del aparato.
     check(
       "[regresión] la página llega en el idioma del dispositivo",
-      (await bodyText(page)).includes("type fast."),
+      (await bodyText(page)).includes("daily challenge"),
     );
 
     // (b) Y aunque algo forzara la traducción, <html translate="no"> se lo

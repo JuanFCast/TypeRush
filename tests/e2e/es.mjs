@@ -9,6 +9,11 @@ const check = (n, ok, d = "") => {
 };
 const body = async (p) => (await p.locator("body").innerText()).toLowerCase();
 
+// El tutorial se abre solo la primera vez y taparía el lobby: se marca como
+// visto ANTES de cargar. Su apertura automática se prueba aparte, en nav.mjs.
+const skipHowTo = (page) =>
+  page.addInitScript(() => localStorage.setItem("typerush.howto.v1", "1"));
+
 const run = async () => {
   const browser = await chromium.launch();
 
@@ -17,6 +22,7 @@ const run = async () => {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 420, height: 900 } });
     const page = await ctx.newPage();
     page.on("pageerror", (e) => check("sin errores", false, e.message.split("\n")[0]));
+    await skipHowTo(page);
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.evaluate(() =>
       localStorage.setItem("typerush.player.name", "E" + Math.floor(Math.random() * 999999)),
@@ -24,14 +30,13 @@ const run = async () => {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    check("portada ES", (await body(page)).includes("escribe rápido."));
-    await page.getByRole("button", { name: /Jugar gratis|Jugar por/ }).first().click();
-    await page.waitForTimeout(1800);
+    // La app abre directamente en el reto del día: sin portada ni pantalla de
+    // modos intermedia, el CTA de jugar ya está en la primera pantalla.
     const lobby = await body(page);
-    check("lobby ES", lobby.includes("tu mejor puntaje") && lobby.includes("motivación"));
+    check("lobby ES", lobby.includes("reto diario") && lobby.includes("carrera de 45 segundos"));
     check("modalidad española", lobby.includes("español") && lobby.includes("noticias"));
 
-    await page.getByRole("button", { name: /Jugar gratis/ }).first().click();
+    await page.getByRole("button", { name: /Jugar gratis|Jugar por/ }).first().click();
     await page.waitForTimeout(1200);
     check("countdown ES", (await body(page)).includes("calienta los dedos"));
     await page.waitForTimeout(3500);
@@ -61,6 +66,7 @@ const run = async () => {
     const ctx = await browser.newContext({ locale: "es-CO", viewport: { width: 420, height: 900 } });
     const page = await ctx.newPage();
     page.on("pageerror", (e) => check("sin errores (mixto)", false, e.message.split("\n")[0]));
+    await skipHowTo(page);
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.evaluate(() =>
       localStorage.setItem("typerush.player.name", "M" + Math.floor(Math.random() * 999999)),
@@ -68,15 +74,14 @@ const run = async () => {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    await page.getByRole("button", { name: /Jugar gratis|Jugar por/ }).first().click();
-    await page.waitForTimeout(1800);
     check("entra al lobby español", (await body(page)).includes("noticias"));
 
-    // Cambia la app a inglés SIN salir del lobby.
+    // Cambia la app a inglés con la pastilla de la CABECERA: esa solo toca la
+    // interfaz, así que la modalidad (el texto que se teclea) no se mueve.
     await page.getByRole("radio", { name: "English" }).first().click();
     await page.waitForTimeout(800);
     const mixed = await body(page);
-    check("app en inglés dentro del lobby", mixed.includes("your best score"));
+    check("app en inglés dentro del lobby", mixed.includes("daily challenge"));
     check(
       "la modalidad sigue siendo la española (retos en español)",
       mixed.includes("spanish") && mixed.includes("news") && mixed.includes("crypto"),

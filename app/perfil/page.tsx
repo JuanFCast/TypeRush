@@ -7,6 +7,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AppShell from "@/components/AppShell";
 import AliasEditor from "@/components/AliasEditor";
 import PrizeWalletCard from "@/components/PrizeWalletCard";
+import TypeRushBolt from "@/components/brand/TypeRushBolt";
+import { TrophyIcon } from "@/components/brand/icons";
 import { useI18n } from "@/lib/i18n/client";
 import { celoscanTx } from "@/lib/chain";
 import { COPM_DECIMALS, USDT_DECIMALS } from "@/lib/contractsV3";
@@ -115,8 +117,9 @@ export default function PerfilPage() {
     return (
       <AppShell>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
-          <span aria-hidden className="text-4xl">
-            👤
+          {/* El rayo de la marca ocupa el sitio del avatar, no un emoji. */}
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-brand-deep">
+            <TypeRushBolt className="h-8 w-8" />
           </span>
           <h1 className="text-xl font-bold">{t("profile.title")}</h1>
           <p className="max-w-xs text-balance text-sm text-muted">
@@ -135,12 +138,16 @@ export default function PerfilPage() {
 
   return (
     <AppShell>
-      <div className="screen-in flex flex-1 flex-col gap-4">
+      {/* Una sola columna continua: encabezado y tarjetas comparten eje. */}
+      <div
+        className="screen-in mx-auto flex w-full flex-1 flex-col gap-4"
+        style={{ maxWidth: "var(--read-w)" }}
+      >
         {/* Encabezado: avatar, alias editable y wallet activa. */}
         <header className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface2 p-5 text-center shadow-card">
           <span
             aria-hidden
-            className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand"
+            className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand-deep"
           >
             {(profile.alias ?? "?").slice(0, 1).toUpperCase()}
           </span>
@@ -158,7 +165,7 @@ export default function PerfilPage() {
         {/* Estadísticas. En escritorio se reparten en una fila ancha. */}
         <section
           aria-label={t("profile.stats.games")}
-          className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5"
+          className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
         >
           <Stat label={t("profile.stats.games")} value={stats.gamesPlayed} loading={loading} />
           <Stat label={t("profile.stats.wins")} value={stats.wins} loading={loading} />
@@ -175,13 +182,13 @@ export default function PerfilPage() {
           />
         </section>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
           {/* Tus premios */}
           <section className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
             <h2 className="text-sm font-bold text-ink">{t("profile.prizes")}</h2>
             <p className="mt-1 text-xs text-muted">{t("profile.prizes_note")}</p>
 
-            <p className="mt-3 font-mono text-lg font-extrabold text-brand">
+            <p className="mt-3 font-mono text-lg font-extrabold text-brand-deep">
               {fmtUnits(stats.totalUsdt, USDT_DECIMALS, locale)} USDT
               {stats.totalCopm !== "0" && (
                 <>
@@ -214,9 +221,9 @@ export default function PerfilPage() {
                       key={`${p.periodEnd}-${p.mode}-${i}`}
                       className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2"
                     >
-                      <span aria-hidden>🏆</span>
+                      <TrophyIcon className="h-4 w-4 shrink-0 text-brand-deep" />
                       <span className="min-w-0 flex-1">
-                        <span className="block font-mono text-sm font-bold text-brand">
+                        <span className="block font-mono text-sm font-bold text-brand-deep">
                           {fmtUnits(p.usdt, USDT_DECIMALS, locale)} USDT
                         </span>
                         <span className="block text-[0.65rem] text-muted">
@@ -234,7 +241,7 @@ export default function PerfilPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label={t("winners.tx")}
-                          className="shrink-0 text-brand"
+                          className="shrink-0 text-brand-deep"
                         >
                           ↗
                         </a>
@@ -347,7 +354,7 @@ function Stat({
     <div className="rounded-2xl border border-line bg-surface2 px-3 py-3 text-center shadow-card">
       <div
         className={`font-mono text-2xl font-bold leading-none ${
-          accent ? "text-brand" : "text-ink"
+          accent ? "text-brand-deep" : "text-ink"
         }`}
       >
         {loading ? (

@@ -76,8 +76,8 @@ export default function ClaimBanner() {
     <div className="mb-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand-soft to-surface2 p-4 shadow-card">
       <div className="flex items-center gap-2">
         <span className="text-xl leading-none">🏆</span>
-        <span className="text-sm font-bold text-brand">{t("claim.title")}</span>
-        <span className="ml-auto rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand">
+        <span className="text-sm font-bold text-brand-deep">{t("claim.title")}</span>
+        <span className="ml-auto rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand-deep">
           🟢 Celo Mainnet
         </span>
       </div>
@@ -94,7 +94,7 @@ export default function ClaimBanner() {
                     return mode ? t(mode.labelKey) : p.modeId;
                   })()}
                 </span>
-                <span className="font-mono text-sm font-extrabold text-brand">
+                <span className="font-mono text-sm font-extrabold text-brand-deep">
                   {p.usdtLabel} USDT + {p.copmLabel} COPm
                 </span>
               </div>

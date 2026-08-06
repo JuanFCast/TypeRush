@@ -7,6 +7,12 @@ import { chromium } from "playwright";
 
 const URL = "http://localhost:3000";
 const out = [];
+// Página con el tutorial ya marcado como visto: se abre solo la primera vez y
+// taparía el lobby. Su apertura automática se prueba aparte, en nav.mjs.
+const newPage = async (ctx) => {
+  await ctx.addInitScript(() => localStorage.setItem("typerush.howto.v1", "1"));
+  return ctx.newPage();
+};
 const check = (n, ok, d = "") => {
   out.push({ n, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? "  — " + d : ""}`);
@@ -49,7 +55,7 @@ const run = async () => {
       locale: "es-CO",
       viewport: { width: 360, height: 740 },
     });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     page.on("pageerror", (e) =>
       check("sin errores de página en Jugar", false, e.message.split("\n")[0]),
     );
@@ -58,13 +64,14 @@ const run = async () => {
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
 
-    const ranking = page.locator("section:has-text('Ranking de hoy')").first();
+    const ranking = page.locator("section:has-text('Top 3 de hoy')").last();
     check("Jugar muestra el ranking de la ronda", await ranking.isVisible());
 
-    // Cabeceras de la tabla: posición, jugador, PPM y puntaje.
+    // Cada fila: posición, alias y sus métricas (PPM y puntaje).
     const text = (await ranking.innerText()).toLowerCase();
-    check("la tabla trae jugador, PPM y puntaje",
-      text.includes("jugador") && text.includes("ppm") && text.includes("puntaje"));
+    check("las filas traen alias, PPM y puntaje",
+      text.includes("lider") && text.includes("ppm") && text.includes("puntaje"),
+      text.slice(0, 80).replace(/\n/g, " | "));
 
     // Sin scroll horizontal en la pantalla más estrecha que soportamos.
     const overflow = await page.evaluate(
@@ -94,7 +101,7 @@ const run = async () => {
       locale: "es-CO",
       viewport: { width: 390, height: 844 },
     });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     await mockRound(page);
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
@@ -121,7 +128,7 @@ const run = async () => {
       locale: "es-CO",
       viewport: { width: 1280, height: 800 },
     });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     await page.goto(`${URL}/ranking?mode=en`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2500);
 
@@ -157,7 +164,7 @@ const run = async () => {
       locale: "es-CO",
       viewport: { width: 390, height: 844 },
     });
-    const page = await ctx.newPage();
+    const page = await newPage(ctx);
     await page.addInitScript(() => {
       window.localStorage.setItem("typerush.player.id", "test-me");
       window.localStorage.setItem("typerush.player.name", "YoMismo");

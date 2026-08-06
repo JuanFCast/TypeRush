@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlayEligibility } from "@/hooks/usePlayEligibility";
 import { useTypeRush } from "@/hooks/useTypeRush";
-import ModeHome from "@/components/ModeHome";
-import ChallengeLobby from "@/components/ChallengeLobby";
+import HomeLobby from "@/components/lobby/HomeLobby";
+import PlayV3Button from "@/components/PlayV3Button";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import AppShell from "@/components/AppShell";
-import SessionCard from "@/components/SessionCard";
 import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import PaymentOverlay from "@/components/PaymentOverlay";
@@ -28,17 +27,23 @@ import {
 } from "@/lib/gameV2";
 import NeedFundsModal from "@/components/NeedFundsModal";
 import ClaimBanner from "@/components/ClaimBanner";
+import { isV3Enabled } from "@/lib/contractsV3";
 import { useI18n } from "@/lib/i18n/client";
-import { ChallengeId, getChallenge, getMode, ModeId } from "@/lib/passages";
+import {
+  ChallengeId,
+  getChallenge,
+  getChallengesByMode,
+  getMode,
+  ModeId,
+} from "@/lib/passages";
 
 export default function Page() {
-  const { t, tError, locale } = useI18n();
+  const { t, tError, lang, setLang, locale } = useI18n();
   const {
     status,
     passage,
     typed,
     best,
-    bestByChallenge,
     result,
     isNewBest,
     mistakeIndices,
@@ -52,10 +57,26 @@ export default function Page() {
     onInput,
   } = useTypeRush();
 
-  const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
+  // Modalidad y reto viven en el lobby, no en pantallas encadenadas: la app
+  // abre directamente sobre el reto del día. La modalidad arranca en el idioma
+  // en el que se está leyendo la app, que es lo que el jugador espera teclear.
+  const [mode, setMode] = useState<ModeId>(() => lang);
+  const [challengeId, setChallengeId] = useState<ChallengeId>(
+    () => getChallengesByMode(lang)[0]?.id ?? "motivacionEs",
+  );
 
-  const { canPlay, loading: playLoading, refresh: refreshPlayEligibility, resetCountdown } =
-    usePlayEligibility(selectedMode);
+  const onModeChange = (next: ModeId) => {
+    setMode(next);
+    // El selector del lobby hace las DOS cosas que el jugador espera al pulsar
+    // "English": deja la app en inglés y prepara el texto en inglés. Quien
+    // quiera la app en un idioma y el texto en otro usa la pastilla ES/EN de la
+    // cabecera, que solo toca la interfaz.
+    setLang(next);
+    setChallengeId(getChallengesByMode(next)[0]?.id ?? "motivacionEs");
+  };
+
+  const { canPlay, loading: playLoading, refresh: refreshPlayEligibility } =
+    usePlayEligibility(mode);
   // Reto pendiente de jugar mientras el jugador elige alias.
   const [pendingChallenge, setPendingChallenge] = useState<ChallengeId | null>(
     null,
@@ -141,7 +162,7 @@ export default function Page() {
     setPayState("idle");
     setPayError(null);
     setNeedFunds(null);
-  }, [selectedMode]);
+  }, [mode]);
 
   // Durante el conteo/carrera fija el body: en iOS, al abrir el teclado el
   // documento se desplazaba hacia arriba y metía el header (el logo) bajo el
@@ -312,17 +333,13 @@ export default function Page() {
     void refreshPlayEligibility();
   };
 
+  // Del resultado se vuelve SIEMPRE al mismo lobby: ya no hay una pantalla de
+  // modos detrás. Solo se recupera la modalidad de la carrera recién jugada.
   const onBackToLobby = () => {
-    const mode = getChallenge(challenge)?.modeId ?? "es";
-    setSelectedMode(mode);
+    const played = getChallenge(challenge)?.modeId ?? mode;
+    setMode(played);
     reset();
-    void refreshPlayEligibility(mode);
-  };
-
-  const onExitRace = () => {
-    reset();
-    setSelectedMode(null);
-    void refreshPlayEligibility();
+    void refreshPlayEligibility(played);
   };
 
   const playing = status === "countdown" || status === "racing";
@@ -353,38 +370,39 @@ export default function Page() {
             best={best}
             isNewBest={isNewBest}
             onBackToLobby={onBackToLobby}
-            onExit={onExitRace}
           />
         </div>
       )}
 
       {status === "idle" && (
         <div className="flex flex-1 flex-col gap-4">
-          {/* Quién eres y con qué wallet juegas: lo primero de la pantalla,
-              como en Avíspate. */}
-          <SessionCard />
-
+          {/* Premio pendiente de cobrar: es dinero del jugador esperando, así
+              que va antes del reto. La identidad y la wallet NO viven aquí —
+              su sitio es Perfil. */}
           <ClaimBanner />
 
-          {selectedMode ? (
-            <ChallengeLobby
-              key={selectedMode}
-              modeId={selectedMode}
-              bestByChallenge={bestByChallenge}
-              canPlay={canPlay}
-              playLoading={playLoading}
-              resetCountdown={resetCountdown}
-              onBack={() => setSelectedMode(null)}
-              onPlay={onPlay}
-              payEnabled={isGameV2Configured()}
-              payState={payState}
-              payError={payError}
-              onPayAndPlay={onPayAndPlay}
-              onV3Ready={beginV3Race}
-            />
-          ) : (
-            <ModeHome onSelectMode={(m) => setSelectedMode(m)} />
-          )}
+          <HomeLobby
+            modeId={mode}
+            onModeChange={onModeChange}
+            challengeId={challengeId}
+            onChallengeChange={setChallengeId}
+            canPlay={canPlay}
+            playLoading={playLoading}
+            payEnabled={isGameV2Configured()}
+            payState={payState}
+            payError={payError}
+            onPlayFree={() => onPlay(challengeId)}
+            onPayAndPlay={(currencyId) => void onPayAndPlay(challengeId, currencyId)}
+            v3Cta={
+              isV3Enabled() ? (
+                <PlayV3Button
+                  mode={mode}
+                  challengeId={challengeId}
+                  onReady={(r) => beginV3Race({ ...r, challengeId })}
+                />
+              ) : undefined
+            }
+          />
         </div>
       )}
 
@@ -452,7 +470,7 @@ export default function Page() {
             <span className="text-5xl">✅</span>
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-brand">
+            <p className="text-2xl font-extrabold text-brand-deep">
               {t("paid.confirmed")}
             </p>
             <p className="mt-2 max-w-xs text-balance text-sm text-muted">

@@ -66,7 +66,7 @@ export default function PrizeWalletCard() {
       {loading ? (
         <p className="mt-3 text-xs text-muted">{t("profile.wallet_loading")}</p>
       ) : linked ? (
-        <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-brand">
+        <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-brand-deep">
           ✓ {t("profile.wallet_linked")}
           <span className="font-mono font-normal text-muted">
             {shortAddress(saved)}

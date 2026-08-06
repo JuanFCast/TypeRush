@@ -125,7 +125,7 @@ export default function DevTransferTool() {
                   }}
                   className={`h-11 rounded-xl border text-sm font-bold transition active:scale-[0.98] ${
                     on
-                      ? "border-brand bg-brand/10 text-brand"
+                      ? "border-brand bg-brand/10 text-brand-deep"
                       : "border-line bg-bg text-muted"
                   }`}
                 >
@@ -202,7 +202,7 @@ export default function DevTransferTool() {
             <div className="mt-4 rounded-xl border border-warn/40 bg-warn/5 px-3 py-3">
               <p className="text-sm text-ink">
                 {t("dev.review_send")}{" "}
-                <span className="font-mono font-bold text-brand">
+                <span className="font-mono font-bold text-brand-deep">
                   {amount.trim()} {symbol}
                 </span>{" "}
                 {t("dev.review_to")}{" "}
@@ -261,7 +261,7 @@ export default function DevTransferTool() {
                 href={explorerTxUrl(status.txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 inline-block text-xs font-semibold text-brand underline"
+                className="mt-1 inline-block text-xs font-semibold text-brand-deep underline"
               >
                 {t("dev.view_explorer")} ↗
               </a>
@@ -269,7 +269,7 @@ export default function DevTransferTool() {
           )}
           {status.kind === "sent" && (
             <div className="mt-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-3">
-              <p className="text-xs font-semibold text-brand">
+              <p className="text-xs font-semibold text-brand-deep">
                 ✓ {t("dev.sent")}
               </p>
               <p className="mt-1 break-all font-mono text-[0.7rem] text-muted">
@@ -279,7 +279,7 @@ export default function DevTransferTool() {
                 href={explorerTxUrl(status.txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 inline-block text-xs font-semibold text-brand underline"
+                className="mt-1 inline-block text-xs font-semibold text-brand-deep underline"
               >
                 {t("dev.view_explorer")} ↗
               </a>

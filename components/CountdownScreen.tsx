@@ -61,7 +61,7 @@ export default function CountdownScreen({
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-start gap-6 bg-bg px-6 pt-[max(14vh,env(safe-area-inset-top))] text-center">
       {/* Contexto del reto */}
       <div className="flex flex-col items-center gap-1">
-        <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand">
+        <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand-deep">
           {t("countdown.warmup")}
         </span>
         {challengeName && (
@@ -79,7 +79,7 @@ export default function CountdownScreen({
         key={step}
         className={`countdown-pop font-mono font-bold leading-none ${
           isGo
-            ? "text-9xl text-brand [text-shadow:0_0_28px_rgba(0,158,109,0.4)]"
+            ? "text-9xl text-brand-deep [text-shadow:0_0_28px_rgba(0,158,109,0.4)]"
             : "text-8xl text-ink"
         }`}
       >

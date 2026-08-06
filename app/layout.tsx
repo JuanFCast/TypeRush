@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Sora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { getServerLang, getServerT } from "@/lib/i18n/server";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+// Sora es la tipografía de identidad e interfaz (su geometría acompaña los
+// ángulos del rayo). El 800 es el del wordmark; JetBrains Mono NO es tipografía
+// de marca: se limita al pasaje de la carrera y a los datos numéricos.
+const sora = Sora({
+  variable: "--font-sora",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -85,7 +88,7 @@ export default async function RootLayout({
       // puntúa contra el texto canónico del servidor: la partida sería
       // imposible de ganar aunque no reventara.
       translate="no"
-      className={`notranslate ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`notranslate ${sora.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
         <Providers lang={lang}>{children}</Providers>

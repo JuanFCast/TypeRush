@@ -37,7 +37,7 @@ export default function RaceScreen({
           </span>
           <span
             className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-              urgent ? "timer-pulse text-danger" : "text-brand"
+              urgent ? "timer-pulse text-danger" : "text-brand-deep"
             }`}
           >
             {remaining}s
@@ -91,7 +91,7 @@ function Live({
     <div className="rounded-xl border border-line bg-surface2 px-2 py-2 text-center shadow-card">
       <div
         className={`font-mono text-xl font-bold leading-none ${
-          accent ? "text-brand" : "text-ink"
+          accent ? "text-brand-deep" : "text-ink"
         }`}
       >
         {value}

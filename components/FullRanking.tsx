@@ -74,7 +74,7 @@ export default function FullRanking({
 
         <Link
           href="/"
-          className="mt-auto self-start text-sm font-bold text-brand underline underline-offset-2"
+          className="mt-auto self-start text-sm font-bold text-brand-deep underline underline-offset-2"
         >
           ‹ {t("ranking.back_to_play")}
         </Link>

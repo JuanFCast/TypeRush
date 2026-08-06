@@ -75,7 +75,7 @@ export default function PlayV3Button({
             disabled={busy}
             className={`min-h-11 rounded-xl border text-sm font-semibold transition ${
               token === c.id
-                ? "border-brand bg-brand/10 text-brand"
+                ? "border-brand bg-brand/10 text-brand-deep"
                 : "border-line bg-surface text-muted"
             }`}
           >

@@ -11,7 +11,7 @@ export default function StatBlock({ label, value, accent, big }: Props) {
       <div
         className={`font-mono font-bold leading-none ${
           big ? "text-4xl" : "text-2xl"
-        } ${accent ? "text-brand" : "text-ink"}`}
+        } ${accent ? "text-brand-deep" : "text-ink"}`}
       >
         {value}
       </div>

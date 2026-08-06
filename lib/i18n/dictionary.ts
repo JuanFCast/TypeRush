@@ -105,6 +105,40 @@ export const es = {
   "card.your_best": "Tu mejor puntaje",
   "card.no_score": "Aún no tienes puntaje",
 
+  /* ------------------- Tarjeta del reto diario (Jugar) ------------------- */
+  "play.tag": "Reto diario",
+  "play.title": "Carrera de {seconds} segundos",
+  "play.support":
+    "Escribe el texto exacto antes de que se acabe el tiempo. El puntaje más alto al cierre se lleva el pozo.",
+  "play.prize.preparing": "Preparando el premio de hoy…",
+  "play.closes_in": "Cierra en {time}",
+  "play.mode.label": "Idioma del texto",
+  "play.challenge.label": "Reto",
+  "play.entry.checking": "Comprobando tu entrada…",
+  "play.entry.free": "Tienes tu intento gratis de hoy",
+  "play.entry.paid": "Intento gratis usado · entrada {amount}",
+  "play.entry.practice": "Partida de práctica, sin premio",
+  "play.cta.paid": "Jugar por {amount}",
+  "play.howto": "Cómo jugar",
+  "entry.title": "¿Con qué quieres pagar?",
+  "entry.sub": "Tu entrada entra al pozo de hoy. El #1 al cierre se lo lleva.",
+  "entry.choose": "Pagar y jugar",
+  "top3.title": "Top 3 de hoy",
+  "top3.full": "Ver ranking completo",
+  "top3.empty": "Todavía no ha jugado nadie esta ronda. Sé el primero.",
+
+  /* --------------------------- Cómo jugar -------------------------------- */
+  "howto.title": "Cómo jugar",
+  "howto.close": "Cerrar",
+  "howto.got_it": "Entendido",
+  "howto.step1": "Elige el idioma del texto y el reto.",
+  "howto.step2": "Tienes {seconds} segundos.",
+  "howto.step3": "Escribe exactamente el texto que ves.",
+  "howto.step4":
+    "Los aciertos, los errores y las correcciones se distinguen por color.",
+  "howto.step5": "Tu WPM, tu precisión y tu progreso se calculan en vivo.",
+  "howto.step6": "Tu mejor resultado válido entra al ranking del día.",
+
   /* ---------------------------- Cuenta regresiva ------------------------- */
   "countdown.warmup": "Calienta los dedos",
   "countdown.go": "¡YA!",
@@ -216,7 +250,7 @@ export const es = {
   "winners.points": "{score} pts",
 
   /* -------------------------------- Perfil ------------------------------- */
-  "profile.title": "Tú",
+  "profile.title": "Tu perfil",
   "profile.name_label": "Nombre del jugador",
   "profile.name_hint": "Así aparecerás en los rankings de cada reto.",
   "profile.name_too_short": "El nombre necesita al menos {min} caracteres.",
@@ -493,6 +527,39 @@ export const en: Record<MessageKey, string> = {
   "card.your_best": "Your best score",
   "card.no_score": "No score yet",
 
+  /* ------------------- Daily challenge card (Play) ----------------------- */
+  "play.tag": "Daily challenge",
+  "play.title": "{seconds}-second race",
+  "play.support":
+    "Type the exact text before time runs out. The highest score at closing time takes the pot.",
+  "play.prize.preparing": "Getting today's prize ready…",
+  "play.closes_in": "Closes in {time}",
+  "play.mode.label": "Text language",
+  "play.challenge.label": "Challenge",
+  "play.entry.checking": "Checking your entry…",
+  "play.entry.free": "You still have today's free attempt",
+  "play.entry.paid": "Free attempt used · entry {amount}",
+  "play.entry.practice": "Practice race, no prize",
+  "play.cta.paid": "Play for {amount}",
+  "play.howto": "How to play",
+  "entry.title": "How do you want to pay?",
+  "entry.sub": "Your entry goes into today's pot. The #1 at closing takes it.",
+  "entry.choose": "Pay and play",
+  "top3.title": "Today's top 3",
+  "top3.full": "See full ranking",
+  "top3.empty": "Nobody has played this round yet. Be the first.",
+
+  /* ----------------------------- How to play ----------------------------- */
+  "howto.title": "How to play",
+  "howto.close": "Close",
+  "howto.got_it": "Got it",
+  "howto.step1": "Pick the text language and the challenge.",
+  "howto.step2": "You get {seconds} seconds.",
+  "howto.step3": "Type exactly the text you see.",
+  "howto.step4": "Hits, mistakes and corrections each have their own colour.",
+  "howto.step5": "Your WPM, accuracy and progress are computed live.",
+  "howto.step6": "Your best valid result goes into the daily ranking.",
+
   /* ------------------------------ Countdown ------------------------------ */
   "countdown.warmup": "Warm up your fingers",
   "countdown.go": "GO!",
@@ -606,7 +673,7 @@ export const en: Record<MessageKey, string> = {
   "winners.points": "{score} pts",
 
   /* ------------------------------- Profile ------------------------------- */
-  "profile.title": "You",
+  "profile.title": "Your profile",
   "profile.name_label": "Player name",
   "profile.name_hint": "This is how you'll appear in each challenge's ranking.",
   "profile.name_too_short": "The name needs at least {min} characters.",
