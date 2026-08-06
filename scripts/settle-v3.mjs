@@ -13,6 +13,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { register } from "node:module";
+
+// `lib/settleV3.ts` importa `./chain` sin extensión y el resolutor de ESM no la
+// completa, así que este script moría con ERR_MODULE_NOT_FOUND antes de hacer
+// nada. El hook solo añade el `.ts` que falta: se sigue ejecutando EL MISMO
+// código de liquidación que usa el endpoint, sin copiarlo ni adaptarlo.
+register("./_ts-resolve.mjs", import.meta.url);
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -37,6 +44,18 @@ const day = dayArg >= 0 ? Number(args[dayArg + 1]) : undefined;
 if (live && process.env.GAMEV3_CRON_ENABLED !== "1") {
   console.error(
     "--live pedido pero GAMEV3_CRON_ENABLED != 1. No se transmite nada.",
+  );
+  process.exit(1);
+}
+
+// Sin dirección no hay ronda que mirar. Se dice en una línea en vez de dejar
+// que reviente con una traza: a este script se recurre de madrugada, cuando el
+// cron ya falló, y ahí un mensaje claro vale más que un stack.
+if (!/^0x[0-9a-fA-F]{40}$/.test(process.env.GAMEV3_CONTRACT_ADDRESS ?? "")) {
+  console.error(
+    "Falta GAMEV3_CONTRACT_ADDRESS (variable de SERVIDOR).\n" +
+      "Ponla en .env.local, o pásala en la misma línea:\n" +
+      "  GAMEV3_CONTRACT_ADDRESS=0x… npm run settle:v3:dry",
   );
   process.exit(1);
 }
