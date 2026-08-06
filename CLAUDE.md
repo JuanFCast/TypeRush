@@ -327,8 +327,13 @@ payment or database rule was touched** — only composition, tokens and copy.
 - ⚠️ **`tests/e2e/money.mjs` checks the thousands separator in Historial, not in the day's pot.**
   With automatic seeding off, a freshly opened round legitimately reads 0 and a zero proves no
   formatting. Paid prizes do carry real thousands (1.500 COPm / 1,500 COPm).
-- **Still pending** (same brief): WPM/accuracy on the Historial round cards, and the Perfil order/
-  content pass (stats, recent prizes, wallet, settings).
+- **Historial and Perfil** close the pass: Historial is a single centred 720 px list with a short
+  lead, Perfil a 560 px column with the bolt as avatar, the address copyable, and the **"Idioma de
+  la app" block back** (it existed before the three-route refactor and was lost in it). The round
+  card already showed WPM/accuracy where they exist — V2 never stored them, and printing a 0 would
+  be a lie, so those rounds show points instead.
+- **Deliberately NOT built**: `/stats`, `/terminos` and `/privacidad`. The brief lists them, but
+  TypeRush has no such routes and inventing screens to fill a slot is exactly what it forbids.
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 

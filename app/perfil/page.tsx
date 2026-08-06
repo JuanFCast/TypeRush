@@ -6,6 +6,7 @@ import { useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AppShell from "@/components/AppShell";
 import AliasEditor from "@/components/AliasEditor";
+import LanguageToggle from "@/components/LanguageToggle";
 import PrizeWalletCard from "@/components/PrizeWalletCard";
 import TypeRushBolt from "@/components/brand/TypeRushBolt";
 import { TrophyIcon } from "@/components/brand/icons";
@@ -14,7 +15,6 @@ import { celoscanTx } from "@/lib/chain";
 import { COPM_DECIMALS, USDT_DECIMALS } from "@/lib/contractsV3";
 import { getMode, type ModeId } from "@/lib/passages";
 import { usePrivySession } from "@/lib/privySession";
-import { useProfile } from "@/lib/profileContext";
 import {
   WALLET_KIND_KEY,
   shortAddress,
@@ -72,12 +72,24 @@ function fmtUnits(units: string, decimals: number, locale: string): string {
 export default function PerfilPage() {
   const { t, locale } = useI18n();
   const privy = usePrivySession();
-  const profile = useProfile();
   const wallet = useWalletSession();
   const { disconnect } = useDisconnect();
 
   const [stats, setStats] = useState<Stats>(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = async (address: string) => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Portapapeles bloqueado (webview restringido): no se avisa de un éxito
+      // que no ocurrió; la dirección sigue visible para copiarla a mano.
+    }
+  };
 
   const loggedIn = privy.authenticated || wallet.isConnected;
 
@@ -145,16 +157,21 @@ export default function PerfilPage() {
       >
         {/* Encabezado: avatar, alias editable y wallet activa. */}
         <header className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface2 p-5 text-center shadow-card">
-          <span
-            aria-hidden
-            className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand-deep"
-          >
-            {(profile.alias ?? "?").slice(0, 1).toUpperCase()}
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-brand-deep">
+            <TypeRushBolt className="h-8 w-8" />
           </span>
           <AliasEditor />
           {wallet.address && (
             <p className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted">
-              <span className="font-mono">{shortAddress(wallet.address)}</span>
+              {/* Abreviada y copiable: la dirección entera no se lee, pero hace
+                  falta entera para recibir el premio. */}
+              <button
+                type="button"
+                onClick={() => void copyAddress(wallet.address ?? "")}
+                className="min-h-11 rounded-lg px-1.5 font-mono text-brand-deep underline underline-offset-2"
+              >
+                {copied ? t("profile.copied") : shortAddress(wallet.address)}
+              </button>
               <span className="rounded-full border border-line px-1.5 py-0.5 text-[0.6rem] font-semibold">
                 {t(WALLET_KIND_KEY[wallet.kind])}
               </span>
@@ -306,6 +323,17 @@ export default function PerfilPage() {
             rondas: el cierre diario lee esta dirección del perfil, y sin ella un
             ganador nuevo no puede cobrar. */}
         <PrizeWalletCard />
+
+        {/* Ajustes: el idioma de la APP (no el del texto que se teclea, que se
+            elige en el reto). Vivía aquí antes del refactor de tres rutas y se
+            perdió por el camino. */}
+        <section className="rounded-2xl border border-line bg-surface2 p-4 shadow-card">
+          <h2 className="text-sm font-bold text-ink">{t("profile.language")}</h2>
+          <p className="mt-1 text-xs text-muted">{t("profile.language_hint")}</p>
+          <div className="mt-3">
+            <LanguageToggle />
+          </div>
+        </section>
 
         {/* Sesión */}
         <section className="flex flex-col gap-2 rounded-2xl border border-line bg-surface2 p-4 shadow-card">

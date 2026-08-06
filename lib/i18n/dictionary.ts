@@ -231,6 +231,8 @@ export const es = {
 
   /* ------------------------------ Historial ------------------------------ */
   "history.title": "Historial",
+  "history.lead":
+    "Rondas ya cerradas: quién ganó cada día y si el premio se pagó, con su transacción en Celo.",
   "history.clear": "Limpiar",
   "history.clear_confirm": "¿Borrar todo tu historial local?",
   "history.empty": "Aún no tienes partidas. Juega una carrera para ver tu historial.",
@@ -658,6 +660,8 @@ export const en: Record<MessageKey, string> = {
 
   /* ------------------------------- History ------------------------------- */
   "history.title": "History",
+  "history.lead":
+    "Closed rounds: who won each day and whether the prize was paid, with its transaction on Celo.",
   "history.clear": "Clear",
   "history.clear_confirm": "Delete all of your local history?",
   "history.empty": "No races yet. Play one to see your history.",

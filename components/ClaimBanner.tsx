@@ -9,6 +9,7 @@ import {
 } from "@/lib/gameV2";
 import { useI18n } from "@/lib/i18n/client";
 import { getMode, type ModeId } from "@/lib/passages";
+import { TrophyIcon } from "./brand/icons";
 
 // Estado por premio: pendiente → reclamando → reclamado (o error).
 type RowState = "pending" | "claiming" | "claimed" | "error";
@@ -75,7 +76,7 @@ export default function ClaimBanner() {
   return (
     <div className="mb-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand-soft to-surface2 p-4 shadow-card">
       <div className="flex items-center gap-2">
-        <span className="text-xl leading-none">🏆</span>
+        <TrophyIcon className="h-5 w-5 shrink-0 text-brand-deep" />
         <span className="text-sm font-bold text-brand-deep">{t("claim.title")}</span>
         <span className="ml-auto rounded-full bg-brand/15 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand-deep">
           🟢 Celo Mainnet

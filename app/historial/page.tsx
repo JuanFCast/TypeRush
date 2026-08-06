@@ -138,6 +138,8 @@ export default function HistorialPage() {
           </Link>
         </div>
 
+        <p className="mb-4 text-sm text-muted">{t("history.lead")}</p>
+
         {/* Ganadores / Tus premios */}
         <div className="mb-3 grid max-w-md grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-1">
           {(["winners", "mine"] as const).map((id) => (
