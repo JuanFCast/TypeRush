@@ -67,6 +67,29 @@ export const PLAY_ERROR_KEY: Record<PlayError, MessageKey> = {
   failed: "v3.error.failed",
 };
 
+/** Qué se le puede prometer al jugador sobre la entrada de la siguiente partida. */
+export type EntryState = "checking" | "free" | "paid";
+
+/**
+ * Traduce lo que dice el CONTRATO (`hasFreePlay`) al estado del botón.
+ *
+ * La regla que importa es la de la duda: mientras la lectura no haya respondido
+ * —o no haya wallet a la que preguntarle— el estado es `checking`, nunca
+ * `free`. Prometer una partida gratis y cobrar 0,10 USDT al firmar es la clase
+ * de mentira que hace que alguien no vuelva.
+ */
+export function resolveEntryState(input: {
+  noWallet: boolean;
+  /** `undefined` = la lectura del contrato todavía no respondió. */
+  free: boolean | undefined;
+  loading: boolean;
+}): EntryState {
+  if (input.noWallet || input.free === undefined || input.loading) {
+    return "checking";
+  }
+  return input.free ? "free" : "paid";
+}
+
 export type PlayResult =
   | {
       ok: true;

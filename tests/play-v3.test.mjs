@@ -38,14 +38,58 @@ function computeStats(typed, passage, elapsedMs, mistakeCount) {
  * "base" de mentira. `plays` y `results` son las tablas; `receipts` es lo que
  * la cadena respondería.
  */
-function makeApi() {
+/** Alias de reserva, igual que `/api/results`. */
+function walletAlias(wallet) {
+  return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
+}
+
+function makeApi({ mirrorFails = false } = {}) {
   const plays = new Map();
   const results = new Map();
   const receipts = new Map();
+  // `player_profiles` y `match_results`, que es de donde leen el ranking en
+  // vivo y las estadísticas del perfil.
+  const profiles = new Map();
+  const ranking = [];
+
+  /** Réplica de `mirrorToRanking` en `/api/results`. */
+  function mirrorToRanking(play, challengeId, stats) {
+    try {
+      if (mirrorFails) throw new Error("supabase caído");
+      const wallet = String(play.wallet ?? "").toLowerCase();
+      const profile = profiles.get(wallet) ?? null;
+      const playerId = play.playerId ?? profile?.player_id ?? wallet;
+      if (!playerId) return;
+      ranking.push({
+        player_id: playerId,
+        player_name: profile?.player_name ?? walletAlias(wallet),
+        mode_id: play.mode,
+        challenge_id: challengeId,
+        score: stats.score,
+        wpm: stats.wpm,
+        accuracy: stats.accuracy, // fracción 0..1, como la columna
+        errors: stats.errors,
+        mistakes: stats.mistakes,
+        progress: stats.progress,
+      });
+    } catch {
+      // Nunca tumba el resultado: la carrera ya se cobró en la cadena.
+    }
+  }
 
   return {
     plays,
     results,
+    profiles,
+    ranking,
+    /** Da de alta un perfil con wallet vinculada. */
+    linkProfile(wallet, playerId, playerName) {
+      profiles.set(wallet.toLowerCase(), {
+        player_id: playerId,
+        player_name: playerName,
+      });
+    },
+    mirrorToRanking,
     /** Registra un recibo como si la transacción estuviera minada. */
     mine(txHash, { status = "success", logs = [] } = {}) {
       receipts.set(txHash, { status, logs });
@@ -70,9 +114,13 @@ function makeApi() {
       const passage = `pasaje-canonico-de-${challengeId}`;
       plays.set(txHash, {
         txHash,
+        // Solo hay `playerId` si la sesión de Privy lo resolvió; con wallet
+        // externa se queda en null y la wallet hace de identidad.
+        playerId: null,
         wallet: log.player,
         day: log.day,
         mode,
+        challengeId,
         wasFree: log.free,
         passage,
         startedAt: Date.now(),
@@ -105,6 +153,8 @@ function makeApi() {
       );
       if (stats.wpm > MAX_WPM) return { ok: false, error: "implausible" };
       results.set(txHash, stats);
+      // Primero lo que decide el premio, después lo que ve el jugador.
+      mirrorToRanking(play, play.challengeId, stats);
       return { ok: true, status: "saved", stats };
     },
   };
@@ -271,6 +321,127 @@ test("una jugada vieja ya no acepta resultado", async () => {
     ageMs: MAX_PLAY_AGE_MS + 1,
   });
   assert.equal(r.error, "play-expired");
+});
+
+// ---------------------------------------------------------------------------
+// La partida de V3 tiene que verse en el ranking y en el perfil
+// ---------------------------------------------------------------------------
+
+/** Juega una partida completa y devuelve la API con su estado. */
+async function playOnce(api, { txHash = "0xr1", typed, challengeId = "motivacionEs" } = {}) {
+  api.mine(txHash, { logs: [playLog()] });
+  const { passage } = await api.registerPlay({ txHash, challengeId });
+  const r = await api.submitResult({
+    txHash,
+    typed: typed ?? passage,
+    elapsedMs: 30000,
+  });
+  return { passage, result: r };
+}
+
+test("una partida de V3 entra al ranking con el MISMO puntaje", async () => {
+  const api = makeApi();
+  const { result } = await playOnce(api);
+  assert.equal(api.ranking.length, 1, "la carrera tiene que verse en el ranking");
+  assert.equal(api.ranking[0].score, result.stats.score);
+  assert.equal(api.ranking[0].wpm, result.stats.wpm);
+  assert.equal(api.ranking[0].mode_id, "es");
+});
+
+test("la precisión va al ranking como fracción, no como porcentaje", async () => {
+  const api = makeApi();
+  await playOnce(api);
+  const acc = api.ranking[0].accuracy;
+  assert.ok(acc >= 0 && acc <= 1, `debía ser 0..1 y fue ${acc}`);
+});
+
+test("sin perfil, la wallet hace de identidad", async () => {
+  const api = makeApi();
+  await playOnce(api);
+  assert.equal(api.ranking[0].player_id, WALLET);
+  assert.equal(api.ranking[0].player_name, walletAlias(WALLET));
+});
+
+test("con perfil vinculado se usan su id y su alias", async () => {
+  const api = makeApi();
+  api.linkProfile(WALLET, "jugador-1", "Juank");
+  await playOnce(api);
+  assert.equal(api.ranking[0].player_id, "jugador-1");
+  assert.equal(api.ranking[0].player_name, "Juank");
+});
+
+test("reenviar el resultado no duplica la fila del ranking", async () => {
+  const api = makeApi();
+  const { passage } = await playOnce(api);
+  for (let i = 0; i < 5; i += 1) {
+    await api.submitResult({ txHash: "0xr1", typed: passage, elapsedMs: 30000 });
+  }
+  assert.equal(api.ranking.length, 1, "el ranking contaría cinco carreras");
+});
+
+test("si la copia al ranking falla, el resultado NO se pierde", async () => {
+  // La carrera ya se cobró en la cadena: perder la fila del ranking es malo,
+  // rechazar la partida pagada es peor. La liquidación lee `results`.
+  const api = makeApi({ mirrorFails: true });
+  const { result } = await playOnce(api);
+  assert.equal(result.ok, true);
+  assert.equal(api.results.size, 1, "el resultado que decide el premio sigue ahí");
+  assert.equal(api.ranking.length, 0);
+});
+
+test("dos jugadores distintos son dos filas del ranking", async () => {
+  const api = makeApi();
+  const otra = "0xdddddddddddddddddddddddddddddddddddddddd";
+  api.mine("0xa1", { logs: [playLog()] });
+  api.mine("0xa2", { logs: [playLog({ player: otra })] });
+  const p1 = await api.registerPlay({ txHash: "0xa1" });
+  const p2 = await api.registerPlay({ txHash: "0xa2" });
+  await api.submitResult({ txHash: "0xa1", typed: p1.passage, elapsedMs: 30000 });
+  await api.submitResult({ txHash: "0xa2", typed: p2.passage.slice(0, 20), elapsedMs: 30000 });
+  assert.equal(api.ranking.length, 2);
+  assert.notEqual(api.ranking[0].player_id, api.ranking[1].player_id);
+});
+
+// ---------------------------------------------------------------------------
+// Qué se le puede prometer al jugador antes de firmar
+// ---------------------------------------------------------------------------
+
+/** Réplica de `resolveEntryState` en `lib/playV3.ts`. */
+function resolveEntryState({ noWallet, free, loading }) {
+  if (noWallet || free === undefined || loading) return "checking";
+  return free ? "free" : "paid";
+}
+
+test("mientras el contrato no responda NO se promete gratis", () => {
+  assert.equal(
+    resolveEntryState({ noWallet: false, free: undefined, loading: true }),
+    "checking",
+  );
+  assert.equal(
+    resolveEntryState({ noWallet: false, free: undefined, loading: false }),
+    "checking",
+  );
+});
+
+test("sin wallet tampoco se promete gratis", () => {
+  assert.equal(
+    resolveEntryState({ noWallet: true, free: true, loading: false }),
+    "checking",
+  );
+});
+
+test("gratis solo cuando el contrato dice que queda partida gratis", () => {
+  assert.equal(
+    resolveEntryState({ noWallet: false, free: true, loading: false }),
+    "free",
+  );
+});
+
+test("gastada la gratis, se muestra el precio real", () => {
+  assert.equal(
+    resolveEntryState({ noWallet: false, free: false, loading: false }),
+    "paid",
+  );
 });
 
 // ---------------------------------------------------------------------------

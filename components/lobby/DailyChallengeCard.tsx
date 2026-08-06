@@ -196,19 +196,26 @@ export default function DailyChallengeCard({
         </Field>
 
         {/* Estado de la entrada. Altura reservada para que el CTA no salte al
-            pasar de "comprobando" a gratis/pagada. */}
-        <p
-          aria-live="polite"
-          className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-3 py-2 text-center text-sm font-bold text-ink"
-        >
-          {!payEnabled
-            ? t("play.entry.practice")
-            : playLoading
-              ? t("play.entry.checking")
-              : canPlay
-                ? t("play.entry.free")
-                : t("play.entry.paid", { amount: entry })}
-        </p>
+            pasar de "comprobando" a gratis/pagada.
+
+            Con V3 esta línea NO se pinta: allí quien decide si la partida es
+            gratis es el contrato, no la base de datos, y el propio CTA de V3
+            trae su mensaje leído de la cadena. Dos fuentes para lo mismo acaban
+            contradiciéndose delante del jugador justo antes de cobrarle. */}
+        {!v3Cta && (
+          <p
+            aria-live="polite"
+            className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-3 py-2 text-center text-sm font-bold text-ink"
+          >
+            {!payEnabled
+              ? t("play.entry.practice")
+              : playLoading
+                ? t("play.entry.checking")
+                : canPlay
+                  ? t("play.entry.free")
+                  : t("play.entry.paid", { amount: entry })}
+          </p>
+        )}
 
         {v3Cta ?? (
           <button

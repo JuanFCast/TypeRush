@@ -57,6 +57,11 @@ export async function GET(req: Request) {
 
   if (!playerId && !wallet) return NextResponse.json(EMPTY);
 
+  // Sin perfil, la wallet ES la identidad con la que se guardó la partida de V3
+  // (ver la copia al ranking en `/api/results`). Sin esta línea, quien juega con
+  // wallet externa y todavía no eligió alias vería 0 partidas habiendo jugado.
+  if (!playerId && wallet) playerId = wallet;
+
   try {
     // --- Partidas y marcas -------------------------------------------------
     // `match_results` (V2) es la fuente con datos reales hoy.

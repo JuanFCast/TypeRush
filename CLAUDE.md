@@ -260,6 +260,37 @@ already has a result.
 Production still plays V2. `PlayV3Button` only renders when `isV3Enabled()`, and
 that needs both the flag and a deployed address.
 
+### V3 gets seen: ranking mirror + an honest CTA (2026-08-05)
+
+Two gaps found while auditing V3 for launch. Neither touches settlement: the
+robot still decides on `v3_results` only.
+
+- **`/api/results` now mirrors each result into `match_results`.** The prize and
+  the screen read different tables on purpose — the robot needs the row tied to
+  the transaction hash, the live ranking (`lib/leaderboard.ts`) and Perfil
+  (`/api/me/stats`) read the table that already holds V2's history. Without the
+  mirror a V3 race registered and paid correctly while **the ranking showed
+  nobody and the profile showed zero**. Identity: profile `player_id` when there
+  is one, else the profile found by wallet, else **the wallet itself** as
+  `player_id` (stable, unique, and what the contract recognises) with a
+  shortened alias. `/api/me/stats` applies the same fallback. ⚠️ Accuracy goes in
+  as a FRACTION here (`v3_results` stores a percentage) or the UI reads "9700 %".
+  The mirror can never fail the request: the race was already charged on-chain
+  and `v3_results` is already saved, so a failure is logged and swallowed.
+- **`PlayV3Button` asks the contract, not the database.** It reads
+  `hasFreePlay(mode, wallet)` and only says "Jugar gratis" when the chain says
+  so; otherwise it shows the real entry price. While the read is pending it says
+  "Verificando…" — `resolveEntryState()` in `lib/playV3.ts` encodes that rule and
+  is unit-tested. The free play still costs gas, so it reads **"Sin costo de
+  entrada · solo gas de red"**. The currency chips only appear when there is
+  something to charge, and the card's own Supabase-based entry line is hidden
+  whenever the V3 CTA is present — two sources for the same claim end up
+  contradicting each other right before charging someone.
+
+⚠️ **Still V2-sourced with V3 on: the prize block.** `usePrizePools` reads
+`lib/gameV2.fetchPoolLabel`, so with V3 enabled the lobby would show V2's pot
+instead of V3's. Not fixed yet — it needs its own pass before launch.
+
 ### Three sections, one route each (2026-08-03)
 
 Navigation is **Jugar `/` · Historial `/historial` · Perfil `/perfil`** and nothing

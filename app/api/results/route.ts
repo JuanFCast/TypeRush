@@ -28,6 +28,97 @@ const MAX_PLAY_AGE_MS = 10 * 60_000; // una jugada caduca a los 10 minutos
 
 const TX_RE = /^0x[0-9a-fA-F]{64}$/;
 
+/** Alias de reserva para quien juega con wallet y todavía no tiene perfil. */
+function walletAlias(wallet: string): string {
+  return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
+}
+
+/**
+ * Copia el resultado a `match_results`, que es de donde leen el ranking en vivo
+ * (`lib/leaderboard.ts`) y las estadísticas del perfil (`/api/me/stats`).
+ *
+ * Hace falta porque la liquidación y lo que ve el jugador miran tablas
+ * distintas a propósito: el robot decide sobre `v3_results` —su fuente, ligada
+ * al hash de la transacción— y la pantalla lee `match_results`, que ya tiene
+ * cinco meses de historia de V2. Sin esta copia la partida se registra y se
+ * paga bien, pero el ranking sale vacío y el perfil en cero.
+ *
+ * ⚠️ **Nunca puede tumbar el resultado.** La carrera ya se cobró en la cadena y
+ * `v3_results` ya está guardado, que es lo que decide quién cobra; si esta copia
+ * falla, se registra el error y se sigue. Perder una fila del ranking es malo,
+ * rechazar una partida pagada es peor.
+ *
+ * NO toca la liquidación: `lib/settleV3.ts` sigue leyendo solo `v3_results`.
+ */
+async function mirrorToRanking(
+  db: ReturnType<typeof getSupabaseAdmin>,
+  play: { player_id: string | null; wallet: string; mode_id: string },
+  challengeId: string,
+  stats: {
+    wpm: number;
+    accuracy: number;
+    errors: number;
+    mistakes: number;
+    score: number;
+    progress: number;
+  },
+): Promise<void> {
+  try {
+    const wallet = String(play.wallet ?? "").toLowerCase();
+    let playerId = play.player_id;
+    let playerName: string | null = null;
+
+    if (playerId) {
+      const { data } = await db
+        .from("player_profiles")
+        .select("player_name")
+        .eq("player_id", playerId)
+        .maybeSingle();
+      playerName = (data?.player_name as string) ?? null;
+    } else if (wallet) {
+      // Sin Privy la jugada igual cuenta: el perfil se busca por la wallet, que
+      // es lo único que la cadena garantiza. `/api/me/stats` resuelve igual.
+      const { data } = await db
+        .from("player_profiles")
+        .select("player_id, player_name")
+        .ilike("wallet_address", wallet)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      playerId = (data?.[0]?.player_id as string) ?? null;
+      playerName = (data?.[0]?.player_name as string) ?? null;
+    }
+
+    // Sin perfil, la wallet ES la identidad: estable, única y la misma que el
+    // contrato reconoce. Así el jugador se ve en el ranking desde su primera
+    // carrera, aunque todavía no haya elegido alias.
+    if (!playerId) {
+      if (!wallet) return;
+      playerId = wallet;
+    }
+    if (!playerName) playerName = walletAlias(wallet || playerId);
+
+    const { error } = await db.from("match_results").insert({
+      player_id: playerId,
+      player_name: playerName,
+      mode_id: play.mode_id,
+      challenge_id: challengeId,
+      score: stats.score,
+      wpm: stats.wpm,
+      // `match_results.accuracy` es fracción 0..1 (en `v3_results` va en
+      // porcentaje). Guardar el porcentaje aquí mostraría "9700 %".
+      accuracy: stats.accuracy,
+      errors: stats.errors,
+      mistakes: stats.mistakes,
+      progress: stats.progress,
+    });
+    if (error) {
+      console.error("[results] copia al ranking falló:", error.message);
+    }
+  } catch (e) {
+    console.error("[results] copia al ranking falló:", e);
+  }
+}
+
 /** MISMA fórmula que `lib/game.ts` (computeStats). Si una cambia, cambia la otra. */
 function computeStats(
   typed: string,
@@ -147,6 +238,20 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: "db-error" }, { status: 500 });
   }
+
+  // Ya está lo que decide el premio; ahora, lo que ve el jugador. Va DESPUÉS y
+  // solo cuando el insert anterior salió bien, así que un reenvío (que sale por
+  // "already-submitted") tampoco puede duplicar la fila del ranking.
+  await mirrorToRanking(
+    db,
+    {
+      player_id: (play.player_id as string) ?? null,
+      wallet: (play.wallet as string) ?? "",
+      mode_id: play.mode_id as string,
+    },
+    body.challengeId ?? "",
+    stats,
+  );
 
   return NextResponse.json({ status: "saved", stats });
 }
