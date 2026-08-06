@@ -55,7 +55,10 @@ const run = async () => {
     const res = await body(page);
     check(
       "resultado ES",
-      res.includes("palabras por minuto") && res.includes("volver a retos"),
+      // El CTA dice "volver al reto" o "jugar otra vez" según la entrada real.
+      res.includes("palabras por minuto") &&
+        (res.includes("volver al reto") || res.includes("jugar otra vez")) &&
+        res.includes("ranking de la ronda"),
       res.slice(0, 90).replace(/\n/g, " | "),
     );
     await ctx.close();

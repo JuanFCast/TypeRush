@@ -22,21 +22,41 @@ const run = async () => {
   await page.goto(URL, { waitUntil: "networkidle" });
   await page.waitForTimeout(2500);
   const es = await page.locator("body").innerText();
-  // El pozo COPm ronda el millar: en español lleva PUNTO de miles.
-  const esCopm = es.match(/([\d.,]+)\s*\n?COPm/i)?.[1] ?? "";
   const esUsdt = es.match(/([\d.,]+)\s*\n?USDT/i)?.[1] ?? "";
-  console.log("   ES →", { esUsdt, esCopm });
+  console.log("   ES →", { esUsdt });
   check("ES: USDT con coma decimal", /^\d+,\d{2}$/.test(esUsdt), esUsdt);
-  check("ES: COPm con punto de miles", /^\d{1,3}(\.\d{3})+$/.test(esCopm), esCopm);
 
   await page.getByRole("radio", { name: "English" }).first().click();
   await page.waitForTimeout(2500);
   const en = await page.locator("body").innerText();
-  const enCopm = en.match(/([\d.,]+)\s*\n?COPm/i)?.[1] ?? "";
   const enUsdt = en.match(/([\d.,]+)\s*\n?USDT/i)?.[1] ?? "";
-  console.log("   EN →", { enUsdt, enCopm });
+  console.log("   EN →", { enUsdt });
   check("EN: USDT con punto decimal", /^\d+\.\d{2}$/.test(enUsdt), enUsdt);
-  check("EN: COPm con coma de miles", /^\d{1,3}(,\d{3})+$/.test(enCopm), enCopm);
+
+  // El separador de MILES se comprueba en Historial y no en el pozo del día:
+  // desde que la siembra automática está apagada, una ronda recién abierta
+  // empieza legítimamente en 0 y un cero no prueba ningún formato. Los premios
+  // ya pagados sí traen miles de verdad (1.500 COPm / 1,500 COPm).
+  for (const [lang, label, re] of [
+    ["es", "ES", /^\d{1,3}(\.\d{3})+$/],
+    ["en", "EN", /^\d{1,3}(,\d{3})+$/],
+  ]) {
+    await page.goto(URL + "/historial", { waitUntil: "networkidle" });
+    await page.waitForTimeout(3000);
+    await page
+      .getByRole("radio", { name: lang === "es" ? "Español" : "English" })
+      .first()
+      .click();
+    await page.waitForTimeout(2000);
+    const txt = await page.locator("body").innerText();
+    const copm = txt.match(/([\d.,]+)\s*\n?COPm/i)?.[1] ?? "";
+    console.log(`   ${label} historial →`, { copm });
+    check(
+      `${label}: COPm con separador de miles propio del idioma`,
+      re.test(copm),
+      copm,
+    );
+  }
 
   // Botón de pago (entryLabel) — solo aparece si ya no hay tiro gratis; se
   // comprueba el texto del CTA de la portada, que sí está siempre.

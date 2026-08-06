@@ -154,7 +154,11 @@ export const es = {
   "result.best_label": "Mejor puntaje:",
   "result.no_best": "Aún no tienes récord",
   "result.wait": "Mira tu puntaje un momento…",
-  "result.back_to_challenges": "Volver a retos",
+  "result.back_to_challenges": "Volver al reto",
+  "result.play_again": "Jugar otra vez",
+  "result.entry_free": "Te queda tu intento gratis de hoy.",
+  "result.entry_paid": "La siguiente carrera cuesta {amount}.",
+  "result.see_ranking": "Ver el ranking de la ronda",
   "result.back_home": "Volver al inicio",
 
   /* ------------------------------- Pago ---------------------------------- */
@@ -575,7 +579,11 @@ export const en: Record<MessageKey, string> = {
   "result.best_label": "Best score:",
   "result.no_best": "No record yet",
   "result.wait": "Take a moment to look at your score…",
-  "result.back_to_challenges": "Back to challenges",
+  "result.back_to_challenges": "Back to the challenge",
+  "result.play_again": "Play again",
+  "result.entry_free": "You still have today's free attempt.",
+  "result.entry_paid": "The next race costs {amount}.",
+  "result.see_ranking": "See the round ranking",
   "result.back_home": "Back to home",
 
   /* ------------------------------- Payment ------------------------------- */

@@ -319,8 +319,15 @@ payment or database rule was touched** — only composition, tokens and copy.
 - ⚠️ **e2e suites assert the UI copy**, so they were updated with it: markers are now "reto diario" /
   "daily challenge", the bottom bar is expected at ALL widths, and every context pre-sets
   `typerush.howto.v1` (an auto-opening dialog would intercept the clicks). 123/123 pass.
-- **Still pending** (same brief): countdown/race/result polish (bolt instead of the 🏃 emoji in
-  `Track`, result hierarchy), WPM/accuracy on the Historial round cards, and the Perfil order/
+- **Countdown / race / result** follow the same system: the bolt is the track marker (it was a
+  generic runner) and the watermark behind the 3·2·1, the confetti only uses palette colours, and
+  the result's primary CTA reads the REAL entry state — "Jugar otra vez" only when a free attempt
+  is actually left, otherwise "Volver al reto" plus the real price. Its secondary action is now the
+  round's ranking: "volver al inicio" pointed at the screen you were already on.
+- ⚠️ **`tests/e2e/money.mjs` checks the thousands separator in Historial, not in the day's pot.**
+  With automatic seeding off, a freshly opened round legitimately reads 0 and a zero proves no
+  formatting. Paid prizes do carry real thousands (1.500 COPm / 1,500 COPm).
+- **Still pending** (same brief): WPM/accuracy on the Historial round cards, and the Perfil order/
   content pass (stats, recent prizes, wallet, settings).
 
 ### Interface language (added 2026-08-03) — and the crash it fixed

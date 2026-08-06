@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { playCountTick, playGo } from "@/lib/sound";
 import { useT } from "@/lib/i18n/client";
+import TypeRushBolt from "./brand/TypeRushBolt";
 
 // 3 · 2 · 1 · ¡YA! — cada paso dura ~0.9s, el "¡YA!" un poco menos. El último
 // paso es texto ("¡YA!" / "GO!") y por eso se traduce al pintarlo.
@@ -74,17 +75,25 @@ export default function CountdownScreen({
         )}
       </div>
 
-      {/* Número grande; el "¡YA!" se agranda y brilla en color de marca. */}
-      <span
-        key={step}
-        className={`countdown-pop font-mono font-bold leading-none ${
-          isGo
-            ? "text-9xl text-brand-deep [text-shadow:0_0_28px_rgba(0,158,109,0.4)]"
-            : "text-8xl text-ink"
-        }`}
-      >
-        {steps[step]}
-      </span>
+      {/* Número grande sobre el rayo: energía de marca, no una animación pesada
+          (el halo es estático y el pop dura menos de medio segundo). */}
+      <div className="relative flex items-center justify-center">
+        <TypeRushBolt
+          className={`absolute h-40 w-40 transition-colors ${
+            isGo ? "text-brand/25" : "text-brand/10"
+          }`}
+        />
+        <span
+          key={step}
+          className={`countdown-pop relative font-mono font-bold leading-none ${
+            isGo
+              ? "text-9xl text-brand-deep [text-shadow:0_0_28px_rgba(2,207,131,0.45)]"
+              : "text-8xl text-ink"
+          }`}
+        >
+          {steps[step]}
+        </span>
+      </div>
 
       {/* Progreso: tres marcas que avanzan con cada número. */}
       <div className="flex items-center gap-2">

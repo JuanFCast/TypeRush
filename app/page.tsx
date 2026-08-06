@@ -370,6 +370,8 @@ export default function Page() {
             best={best}
             isNewBest={isNewBest}
             onBackToLobby={onBackToLobby}
+            entry={playLoading ? "checking" : canPlay ? "free" : "paid"}
+            modeId={getChallenge(challenge)?.modeId ?? mode}
           />
         </div>
       )}
