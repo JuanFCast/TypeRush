@@ -111,6 +111,8 @@ export const es = {
   "play.support":
     "Escribe el texto exacto antes de que se acabe el tiempo. El puntaje más alto al cierre se lleva el pozo.",
   "play.prize.preparing": "Preparando el premio de hoy…",
+  "play.prize.error": "No pudimos leer el premio de hoy.",
+  "play.prize.retry": "Reintentar",
   "play.closes_in": "Cierra en {time}",
   "play.mode.label": "Idioma del texto",
   "play.challenge.label": "Reto",
@@ -541,6 +543,8 @@ export const en: Record<MessageKey, string> = {
   "play.support":
     "Type the exact text before time runs out. The highest score at closing time takes the pot.",
   "play.prize.preparing": "Getting today's prize ready…",
+  "play.prize.error": "We couldn't read today's prize.",
+  "play.prize.retry": "Try again",
   "play.closes_in": "Closes in {time}",
   "play.mode.label": "Text language",
   "play.challenge.label": "Challenge",

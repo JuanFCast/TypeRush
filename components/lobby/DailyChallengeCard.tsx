@@ -65,7 +65,14 @@ export default function DailyChallengeCard({
   children,
 }: Props) {
   const { t, tError, locale } = useI18n();
-  const { enabled: poolsEnabled, pools, present, closesIn } = usePrizePools(modeId);
+  const {
+    enabled: poolsEnabled,
+    state: poolsState,
+    pools,
+    present,
+    closesIn,
+    retry: retryPools,
+  } = usePrizePools(modeId);
   const challenges = getChallengesByMode(modeId);
   // Elección de moneda: solo aparece cuando ya no hay intento gratis.
   const [askCurrency, setAskCurrency] = useState(false);
@@ -99,9 +106,41 @@ export default function DailyChallengeCard({
         </p>
 
         {/* Premio real de la ronda. Altura reservada: el monto llega async y no
-            debe empujar el CTA hacia abajo cuando aparece. */}
+            debe empujar el CTA hacia abajo cuando aparece.
+
+            Un pozo en CERO se muestra como cero: una ronda recién abierta vale
+            0 de verdad. Lo que nunca se pinta es un número inventado cuando la
+            lectura falló — para eso está el estado de error con reintento. */}
         <div className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1 rounded-2xl border border-base-dark bg-base-dark px-4 py-3 text-center text-white">
-          {poolsEnabled && present.length > 0 ? (
+          {!poolsEnabled ? (
+            <span className="text-sm font-semibold text-white/80">
+              {t("play.prize.preparing")}
+            </span>
+          ) : poolsState === "error" ? (
+            <>
+              <span className="text-sm font-semibold text-white/80">
+                {t("play.prize.error")}
+              </span>
+              <button
+                type="button"
+                onClick={retryPools}
+                className="mt-1 min-h-11 rounded-xl border border-white/30 px-4 text-sm font-bold text-white transition active:scale-95"
+              >
+                {t("play.prize.retry")}
+              </button>
+            </>
+          ) : poolsState === "loading" || present.length === 0 ? (
+            <>
+              <span className="text-[0.7rem] font-bold uppercase tracking-[0.05em] text-white/80">
+                {t("lobby.prize")}
+              </span>
+              <span
+                aria-hidden
+                className="h-8 w-40 animate-pulse rounded-lg bg-white/15"
+              />
+              <span className="sr-only">{t("play.prize.preparing")}</span>
+            </>
+          ) : (
             <>
               <span className="text-[0.7rem] font-bold uppercase tracking-[0.05em] text-white/80">
                 {t("lobby.prize")}
@@ -127,10 +166,6 @@ export default function DailyChallengeCard({
                   : t("home.prize.close")}
               </span>
             </>
-          ) : (
-            <span className="text-sm font-semibold text-white/80">
-              {t("play.prize.preparing")}
-            </span>
           )}
         </div>
 

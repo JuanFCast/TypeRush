@@ -287,9 +287,16 @@ robot still decides on `v3_results` only.
   whenever the V3 CTA is present — two sources for the same claim end up
   contradicting each other right before charging someone.
 
-⚠️ **Still V2-sourced with V3 on: the prize block.** `usePrizePools` reads
-`lib/gameV2.fetchPoolLabel`, so with V3 enabled the lobby would show V2's pot
-instead of V3's. Not fixed yet — it needs its own pass before launch.
+- **The prize block reads whichever contract is actually being played.**
+  `usePrizePools` picks its source from `isV3Enabled()`: V3's pot via
+  `lib/poolsV3.ts` when V3 is on, V2's exactly as before when it is off — never
+  both. The day comes from the contract's own `currentDay()`, not the phone's
+  clock. `fetchPoolsV3` returns **both token amounts or none**: half a read
+  would display a smaller prize than there is. The hook now has three honest
+  states — `loading` (nothing shown), `error` (message + Reintentar, and *no*
+  zero, because a zero would be an invented figure) and `ready` (an amount,
+  including a legitimate 0 on a round nobody has played). A refresh failure
+  never wipes a pot already on screen.
 
 ### Three sections, one route each (2026-08-03)
 
