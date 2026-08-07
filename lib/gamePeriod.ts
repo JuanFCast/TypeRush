@@ -1,10 +1,17 @@
 // Ventana diaria de TypeRush en hora Colombia (America/Bogota, UTC−5).
-// Cada "día" del juego va de 8:00 p.m. a 8:00 p.m. del día siguiente.
+// Cada "día" del juego va de 7:00 p.m. a 7:00 p.m. del día siguiente.
 // Coincide con el reinicio del tiro gratis y el ranking visible.
 
 export const GAME_TIMEZONE = "America/Bogota";
-/** Debe coincidir con reset_hour_bogota en supabase/daily_reset.sql */
-export const PERIOD_RESET_HOUR = 20;
+/**
+ * Hora de cierre en Colombia. Debe coincidir con TRES cosas o el ranking y el
+ * premio dejan de hablar del mismo día:
+ *   - `DAY_OFFSET` en contracts/src/TypeRushGameV3.sol (0 = medianoche UTC = 7 p.m. Col),
+ *   - `reset_hour_bogota` en supabase/daily_reset.sql y daily_prizes.sql,
+ *   - la hora del cron en vercel.json (en UTC: 19 + 5 = 00:00).
+ * Cambió de 20 a 19 el 2026-08-06, con el contrato V3 nuevo.
+ */
+export const PERIOD_RESET_HOUR = 19;
 
 type BogotaParts = {
   year: number;
@@ -65,7 +72,7 @@ export type GamePeriod = {
 };
 
 /**
- * Periodo activo: desde las 8 p.m. de ayer/hoy hasta las 8 p.m. siguientes.
+ * Periodo activo: desde las 7 p.m. de ayer/hoy hasta las 7 p.m. siguientes.
  * `locale` solo afecta a `label` (el texto para mostrar), nunca a las fechas.
  */
 export function getCurrentGamePeriod(
@@ -95,7 +102,7 @@ export function getCurrentGamePeriod(
   };
 }
 
-/** Milisegundos hasta el próximo reinicio (8 p.m. Colombia = fin del periodo). */
+/** Milisegundos hasta el próximo reinicio (7 p.m. Colombia = fin del periodo). */
 export function getMsUntilNextReset(now = new Date()): number {
   const end = getCurrentGamePeriod(now).end;
   return Math.max(0, end.getTime() - now.getTime());
@@ -111,7 +118,7 @@ export function formatResetCountdown(ms: number): string {
 }
 
 /**
- * "3 ago, 8:00 p. m. – 4 ago, 8:00 p. m.". El periodo SIEMPRE se expresa en
+ * "3 ago, 7:00 p. m. – 4 ago, 7:00 p. m.". El periodo SIEMPRE se expresa en
  * hora Colombia (es cuando cierra la ronda), pero se escribe en el idioma de la
  * interfaz, así que el locale se pasa desde fuera.
  */

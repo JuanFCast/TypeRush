@@ -68,7 +68,7 @@ export const es = {
   "home.sub.paid": "Carreras de {seconds} segundos · entrada 0,10 USDT",
   "home.sub.free": "Carreras de {seconds} segundos · primer intento gratis",
   "home.prize.title": "Premio real de hoy · el #1 se lo lleva todo",
-  "home.prize.close": "Cierre diario 8:00 p. m. (Colombia)",
+  "home.prize.close": "Cierre diario 7:00 p. m. (Colombia)",
   "home.prize.remaining": "quedan {time}",
   "home.free_used": "Intento gratis utilizado",
   "home.cta.free": "Jugar gratis",
@@ -250,7 +250,7 @@ export const es = {
   "winners.error":
     "No pudimos cargar el historial de ganadores ahora. Inténtalo de nuevo en un momento.",
   "winners.empty":
-    "Todavía no hay rondas cerradas. La primera aparecerá tras el cierre de las 8:00 p. m. (Colombia).",
+    "Todavía no hay rondas cerradas. La primera aparecerá tras el cierre de las 7:00 p. m. (Colombia).",
   "winners.more": "Ver {count} más",
   "winners.no_winner": "Sin ganador",
   "winners.rolled": "Nadie pudo cobrarlo: el pozo pasó al día siguiente.",
@@ -500,7 +500,7 @@ export const en: Record<MessageKey, string> = {
   "home.sub.paid": "{seconds}-second races · 0.10 USDT entry",
   "home.sub.free": "{seconds}-second races · first try free",
   "home.prize.title": "Today's real prize · #1 takes it all",
-  "home.prize.close": "Daily close at 8:00 p.m. (Colombia)",
+  "home.prize.close": "Daily close at 7:00 p.m. (Colombia)",
   "home.prize.remaining": "{time} left",
   "home.free_used": "Free try already used",
   "home.cta.free": "Play free",
@@ -683,7 +683,7 @@ export const en: Record<MessageKey, string> = {
   "winners.error":
     "We couldn't load the winners history right now. Please try again in a moment.",
   "winners.empty":
-    "No closed rounds yet. The first one will show up after the 8:00 p.m. (Colombia) close.",
+    "No closed rounds yet. The first one will show up after the 7:00 p.m. (Colombia) close.",
   "winners.more": "Show {count} more",
   "winners.no_winner": "No winner",
   "winners.rolled": "Nobody claimed it: the pot rolled over to the next day.",

@@ -75,7 +75,7 @@ lib/
   payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
   prizePool.ts    — read pool/period helpers (periodId from period start)
   runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
-  gamePeriod.ts   — daily window (8 p.m. Bogota, PERIOD_RESET_HOUR=20, UTC−5 fixed)
+  gamePeriod.ts   — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19, UTC−5 fixed)
   winners.ts      — READ-ONLY winners history: paginated `prize_payouts` (see below)
   leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
@@ -173,7 +173,37 @@ unchanged local `localStorage` history). Modelled on avispate.fun's `round_settl
   `close-day` Edge Function (paste `supabase/functions/close-day/index.ts`) so new rounds get the
   snapshot. Its backup mirror `scripts/close-day-v2.mjs` has the same change — keep both in sync.
 
-### Wallet layer & GameV3 (added 2026-08-03) — IN PROGRESS, V3 NOT LIVE
+### ⚠️ GameV3 deployed to mainnet, closing at 7 p.m. (2026-08-06) — read this first
+
+**`TypeRushGameV3` @ `0xD8287809e0D68E7e50D0D962f11Eb72150F48d39`, Celo mainnet, verified.**
+Deployed by the Funder `0x46d5…8C18`; owner `0xe953…7058`, operator `0xc91A…b514`, treasury
+`0xA593…9609`, fee 20 %. The Owner Admin already signed the four start-up calls, so the two modes
+are enabled and the entries live on-chain: **0.10 USDT / 300 COPm**.
+
+- **The day now closes at 7 p.m. Colombia**, not 8. On-chain that is `DAY_OFFSET = 0` — 7 p.m.
+  Colombia *is* midnight UTC, so the offset disappears. It is a `constant`: **the closing hour
+  cannot be changed without deploying another contract.** That is exactly why the previous V3 was
+  replaced. Four things must agree or ranking and prize stop describing the same day:
+  `DAY_OFFSET` (contract) · `PERIOD_RESET_HOUR=19` (`lib/gamePeriod.ts`) · `reset_hour_bogota=19`
+  (`supabase/daily_reset.sql`) · the Vercel cron, now `10 0 * * *` (00:10 UTC = 7:10 p.m. Col).
+- ⚠️ **V2 and V3 day numbers are no longer comparable** — same integer, different boundary.
+- ⚠️ **The abandoned V3 `0xEca5C8073d75212b2d43eDe464d67137159E529D`** (8 p.m.) still holds
+  **0.10 USDT stranded in day 20670, mode `es`**. Pot money can only leave via `settle` to someone
+  who played, so recovering it is rollover → play → settle. Nothing else is in there.
+- **There is no seeding robot for V3 and that is deliberate** (Juan, 2026-08-06): if nobody plays,
+  `rollover` carries the same pot forward untouched and no new money is ever added. Seeding is
+  manual `fundPot`, and the floor he chose is **0.30 USDT + 1 000 COPm per mode**.
+- The COPm price lives in TWO constants that must match the chain — `GAME_TOKENS`
+  (`lib/contractsV3.ts`) and `PAY_CURRENCIES` (`lib/gameV2.ts`, which is what the V3 button
+  prints). The actual charge always comes from the contract's `entryAmountOf`.
+- ⚠️ **Celoscan's V1 verify endpoint is dead.** `foundry.toml` now points at Etherscan API V2
+  (`https://api.etherscan.io/v2/api?chainid=42220`); without the `chainid` in the query forge fails
+  with "Missing chainid parameter".
+- Still pending to reach players: `supabase/daily_reset.sql` re-run by hand, the pots seeded, and
+  the public flags `NEXT_PUBLIC_GAMEV3_CONTRACT_ADDRESS` + `NEXT_PUBLIC_GAMEV3_ENABLED=1` with a
+  redeploy. Private env before public, always.
+
+### Wallet layer & GameV3 (added 2026-08-03) — the design; see the section above for what shipped
 
 **The frontend still plays against V2.** `TypeRushGameV3` is written, tested (55
 tests) and *not deployed*; `lib/contractsV3.ts` `isV3Enabled()` needs BOTH
@@ -421,8 +451,9 @@ browser invented one and broke React.
 
 ### Daily period & the on-chain prize (the money flow)
 
-- The game "day" runs **8 p.m. → 8 p.m. Colombia** (`lib/gamePeriod.ts`, `PERIOD_RESET_HOUR=20`; must
-  match `supabase/daily_reset.sql` and the script). `periodId` = the unix start, hex-padded.
+- The game "day" ran **8 p.m. → 8 p.m. Colombia** back then. Since 2026-08-06 it is **7 p.m. → 7
+  p.m.** (`lib/gamePeriod.ts`, `PERIOD_RESET_HOUR=19`; must match `supabase/daily_reset.sql` and the
+  contract's `DAY_OFFSET`). `periodId` = the unix start, hex-padded.
 - **Contract:** `TypeRushPayToPlayMulti` @ `0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1` (Celo Sepolia,
   verified). `payToPlay(periodId, modeId, token)` splits the entry 50/50 (dev half out instantly, pool
   half accumulates in `pool[periodId][modeId][token]`). Owner = distributor = devWallet = `0x46d5…`

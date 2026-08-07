@@ -107,7 +107,7 @@ export function usePrizePools(modeId: ModeId) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  // Cuenta regresiva al cierre (8 p. m. Colombia) en formato humano: sin
+  // Cuenta regresiva al cierre (7 p. m. Colombia) en formato humano: sin
   // segundos corriendo que compitan con el premio. Solo en cliente, para no
   // romper la hidratación.
   const [closesIn, setClosesIn] = useState<string | null>(null);

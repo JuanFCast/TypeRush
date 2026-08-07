@@ -73,7 +73,11 @@ export const GAME_TOKENS: GameToken[] = [
     address: COPM_ADDRESS as `0x${string}`,
     decimals: COPM_DECIMALS,
     displayDecimals: 0,
-    entry: parseUnits("500", COPM_DECIMALS),
+    // 300 desde el contrato del 2026-08-06. Tiene que ser IDÉNTICO a
+    // `entryAmountOf(COPm)` on-chain y a PAY_CURRENCIES en lib/gameV2.ts, que es
+    // lo que ve el jugador: si difieren, la app le promete un precio y el
+    // contrato le cobra otro.
+    entry: parseUnits("300", COPM_DECIMALS),
   },
 ];
 

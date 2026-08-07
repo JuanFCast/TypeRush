@@ -32,8 +32,9 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 ///         5. CONTABILIDAD SEPARADA (igual que V2). `pool` = premios, intocables para el owner;
 ///            `protocolAccrued` = comisión, único retirable y solo hacia `treasury`.
 ///
-/// @dev El "día" se deriva on-chain con frontera a las 01:00 UTC = 8 p. m. Colombia (UTC-5), igual
-///      que V2 y que `lib/gamePeriod.ts`. `modeId` = keccak256("es"|"en").
+/// @dev El "día" se deriva on-chain con frontera a las 00:00 UTC = 7 p. m. Colombia (UTC-5), igual
+///      que `lib/gamePeriod.ts`. `modeId` = keccak256("es"|"en"). OJO: V2 cerraba a las 8 p. m.
+///      (01:00 UTC); los números de día de los dos contratos NO son comparables.
 ///
 ///      Sobre allowances: el contrato solo tira `entryAmountOf[token]` por partida, así que el
 ///      cliente debe aprobar EXACTAMENTE ese monto (nunca `type(uint256).max`). El contrato no
@@ -49,8 +50,10 @@ contract TypeRushGameV3 is ReentrancyGuard, Pausable {
     uint256 public constant MAX_PROTOCOL_BPS = 3000;
     uint256 private constant BPS_DENOMINATOR = 10_000;
     uint256 private constant DAY_SECONDS = 86_400;
-    /// @notice Desfase para que la frontera del día caiga a las 01:00 UTC = 8 p. m. Colombia.
-    uint256 private constant DAY_OFFSET = 3_600;
+    /// @notice Desfase para que la frontera del día caiga a las 00:00 UTC = 7 p. m. Colombia
+    ///         (UTC-5, sin horario de verano). Justo ahí el desfase es cero: medianoche UTC ES la
+    ///         frontera. Se deja la constante para que el cálculo siga siendo explícito.
+    uint256 private constant DAY_OFFSET = 0;
     /// @notice Tope de tokens que se pueden liquidar de una vez (anti gas-bomb en settle/rollover).
     uint256 public constant MAX_TOKENS_PER_CALL = 8;
 
@@ -219,7 +222,7 @@ contract TypeRushGameV3 is ReentrancyGuard, Pausable {
     // Días
     // --------------------------------------------------------------------- //
 
-    /// @notice Día activo. Cambia a las 8 p. m. Colombia (01:00 UTC).
+    /// @notice Día activo. Cambia a las 7 p. m. Colombia (00:00 UTC).
     function currentDay() public view returns (uint256) {
         return (block.timestamp - DAY_OFFSET) / DAY_SECONDS;
     }

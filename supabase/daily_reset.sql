@@ -24,8 +24,9 @@
 
 do $$
 declare
-  -- ═══ Única constante de hora (Colombia, 24 h). Default: 20 = 8:00 p.m. ═══
-  reset_hour_bogota integer := 20;
+  -- ═══ Única constante de hora (Colombia, 24 h). 19 = 7:00 p.m. ═══
+  -- Cambió de 20 a 19 el 2026-08-06, junto con el contrato V3 nuevo.
+  reset_hour_bogota integer := 19;
   -- ═══ Pago instantáneo (déjalos en '' para desactivarlo) ═══
   edge_url    text := '';  -- ej: 'https://TU-REF.supabase.co/functions/v1/distribute-prizes'
   cron_secret text := '';  -- = secreto CRON_SECRET de la Edge Function

@@ -60,7 +60,10 @@ export const PAY_CURRENCIES: Currency[] = [
     symbol: "COPm",
     decimals: 18,
     displayDecimals: 0,
-    entryAmount: 500,
+    // Este número es SOLO para mostrar; el cobro real sale de `entryAmountOf`
+    // del contrato. Debe coincidir con GAME_TOKENS en lib/contractsV3.ts: es el
+    // precio que imprime el botón de V3 antes de cobrar.
+    entryAmount: 300,
   },
 ];
 

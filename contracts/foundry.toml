@@ -9,6 +9,10 @@ evm_version = "cancun"
 celo = "https://forno.celo.org"
 celo_sepolia = "https://forno.celo-sepolia.celo-testnet.org"
 
+# Etherscan API V2: un solo host para todas las cadenas, con `chainid` en la URL. Los endpoints
+# V1 de Celoscan (api.celoscan.io) quedaron obsoletos y responden NOTOK "deprecated V1 endpoint";
+# sin el `chainid` en la query, forge falla con "Missing chainid parameter". Ambas cosas mordieron
+# al desplegar V3 el 2026-08-06.
 [etherscan]
-celo = { key = "${CELOSCAN_API_KEY}", url = "https://api.celoscan.io/api" }
-celo_sepolia = { key = "${CELOSCAN_API_KEY}", url = "https://api-sepolia.celoscan.io/api" }
+celo = { key = "${CELOSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api?chainid=42220" }
+celo_sepolia = { key = "${CELOSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api?chainid=11142220" }

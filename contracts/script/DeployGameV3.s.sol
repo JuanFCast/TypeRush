@@ -26,7 +26,7 @@ import "../src/TypeRushGameV3.sol";
 ///           GAMEV3_COPM           — COPm  (mainnet 0x8A567e2aE79CA692Bd748aB832081C45de4041eA, 18 dec).
 ///           GAMEV3_PROTOCOL_BPS   — opcional, comisión en bps (default 2000 = 20%; techo 3000).
 ///           GAMEV3_USDT_ENTRY     — opcional, entrada USDT (default 100000 = 0.10 USDT).
-///           GAMEV3_COPM_ENTRY     — opcional, entrada COPm (default 500e18).
+///           GAMEV3_COPM_ENTRY     — opcional, entrada COPm (default 300e18).
 ///
 ///         Ejemplo (testnet primero):
 ///           forge script script/DeployGameV3.s.sol --rpc-url celo_sepolia --broadcast --verify
@@ -42,7 +42,7 @@ contract DeployTypeRushGameV3 is Script {
 
         uint256 protocolBps = vm.envOr("GAMEV3_PROTOCOL_BPS", uint256(2000));
         uint256 usdtEntry = vm.envOr("GAMEV3_USDT_ENTRY", uint256(100_000));
-        uint256 copmEntry = vm.envOr("GAMEV3_COPM_ENTRY", uint256(500 ether));
+        uint256 copmEntry = vm.envOr("GAMEV3_COPM_ENTRY", uint256(300 ether));
 
         address deployer = vm.addr(deployerPrivateKey);
 

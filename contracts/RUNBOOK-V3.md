@@ -177,11 +177,20 @@ debajo de `OPERATOR_MIN_CELO` (5 por defecto).
 | Token | Dirección | Decimales | Entrada |
 |---|---|---|---|
 | USDT | `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e` | 6 | 100000 (= 0,10) |
-| COPm | `0x8A567e2aE79CA692Bd748aB832081C45de4041eA` | 18 | 500e18 (= 500) |
+| COPm | `0x8A567e2aE79CA692Bd748aB832081C45de4041eA` | 18 | 300e18 (= 300) |
+
+> Bajado de 500 a 300 el 2026-08-06 por decisión de Juan, avisado de que a ese precio pagar en
+> pesos sale más barato que los 0,10 USDT (~400 COP) y casi todos elegirán COPm.
 
 ---
 
 ## 6. Orden de despliegue (cuando lo autorices)
+
+> **Hecho el 2026-08-06.** V3 vive en `0xD8287809e0D68E7e50D0D962f11Eb72150F48d39` (mainnet,
+> verificado), cierra a las **7 p.m.** Colombia y el Owner ya firmó los pasos 4. Juan decidió
+> **saltarse el paso 1** (testnet) e ir directo a mainnet, advertido. Quedan los pasos 6 en
+> adelante. El V3 anterior (`0xEca5…529D`, cierre a las 8 p.m.) está abandonado con 0,10 USDT
+> atrapados en el día 20670.
 
 1. Desplegar en **Celo Sepolia** primero y jugar una ronda completa de punta a punta.
 2. Fondear el Operator (`0xc91A…`): paga el gas inicial Y las liquidaciones.

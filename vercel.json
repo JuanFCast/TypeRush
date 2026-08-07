@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/settle-v3",
-      "schedule": "10 1 * * *"
+      "schedule": "10 0 * * *"
     }
   ]
 }

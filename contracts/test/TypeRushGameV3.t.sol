@@ -799,18 +799,25 @@ contract TypeRushGameV3Test is Test {
     // Días
     // ------------------------------------------------------------------ //
 
-    function test_dayBoundaryIs8pmColombia() public view {
-        // 2026-08-03 00:59:59 UTC = 7:59:59 p. m. Colombia → todavía el día anterior.
-        uint256 justBefore = 1_785_459_599; // 2026-08-03T00:59:59Z
-        uint256 justAfter = justBefore + 1; // 01:00:00Z = 8:00 p. m. Colombia
+    function test_dayBoundaryIs7pmColombia() public view {
+        // 2026-08-02 23:59:59 UTC = 6:59:59 p. m. Colombia → todavía el día anterior.
+        uint256 justBefore = 1_785_455_999; // 2026-08-02T23:59:59Z
+        uint256 justAfter = justBefore + 1; // 2026-08-03T00:00:00Z = 7:00 p. m. Colombia
         assertEq(game.dayOf(justAfter), game.dayOf(justBefore) + 1);
+    }
+
+    /// La frontera cae en medianoche UTC exacta: una hora ANTES (donde estaba el cierre de V2)
+    /// tiene que seguir siendo el mismo día, o el cambio de horario no habría entrado.
+    function test_oldEightPmBoundaryNoLongerSplitsTheDay() public view {
+        uint256 startOfDay = 1_785_456_000; // 2026-08-03T00:00:00Z = 7 p. m. Colombia
+        assertEq(game.dayOf(startOfDay + 1 hours), game.dayOf(startOfDay));
     }
 
     function test_currentDayAdvancesEvery24h() public {
         // Hay que arrancar en la frontera exacta: el setUp cae a media tarde, así que medir
         // "+23 h" desde ahí cruzaría de día por el desfase, no por la duración.
         uint256 d = game.currentDay();
-        vm.warp(d * 1 days + 1 hours); // inicio exacto del día d (8 p. m. Colombia)
+        vm.warp(d * 1 days); // inicio exacto del día d (7 p. m. Colombia = medianoche UTC)
         assertEq(game.currentDay(), d);
 
         vm.warp(block.timestamp + 23 hours);
