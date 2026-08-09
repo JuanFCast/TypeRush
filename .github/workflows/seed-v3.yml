@@ -22,11 +22,16 @@
 # variables → Actions → Variables), no un secreto: así se enciende y se apaga sin tocar
 # código, y mientras no esté puesta este workflow solo informa de lo que haría.
 #
-# Secrets requeridos (Settings → Secrets and variables → Actions → Secrets):
-#   GAMEV3_CONTRACT_ADDRESS
-#   PRIVATE_KEY                (clave del Funder 0x46d5…8C18; wallet con USDT/COPm + CELO)
-# Variable requerida para que siembre de verdad (→ Variables):
-#   GAMEV3_SEED_ENABLED = 1
+# PARA ENCENDERLO HACEN FALTA LAS TRES COSAS, no solo la variable:
+#
+#   Settings → Secrets and variables → Actions → Secrets
+#     GAMEV3_CONTRACT_ADDRESS   0xD8287809e0D68E7e50D0D962f11Eb72150F48d39
+#                               (⚠️ existe en Vercel, pero NO en GitHub: son
+#                                almacenes distintos y este workflow lee el de aquí)
+#     PRIVATE_KEY               clave del Funder 0x46d5…8C18, con USDT/COPm + CELO
+#
+#   Settings → Secrets and variables → Actions → Variables
+#     GAMEV3_SEED_ENABLED = 1   el interruptor
 
 name: Seed pot (GameV3)
 
@@ -46,6 +51,16 @@ concurrency:
 
 jobs:
   seed:
+    # ⚠️ Sin el interruptor puesto, el trabajo NI SIQUIERA ARRANCA.
+    #
+    # No basta con que el script se quede en simulacro: al desplegarlo así, el
+    # cron se despertaba cada hora, moría por falta del secreto
+    # `GAMEV3_CONTRACT_ADDRESS` y mandaba un correo de fallo. Es el mismo ruido
+    # que tenía `Close day (GameV2)` — un robot que solo sirve para avisar de que
+    # no puede hacer su trabajo. Saltado no manda correo.
+    #
+    # A mano sí corre siempre, para poder hacer el simulacro cuando se quiera.
+    if: vars.GAMEV3_SEED_ENABLED == '1' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

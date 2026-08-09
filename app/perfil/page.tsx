@@ -240,8 +240,23 @@ export default function PerfilPage() {
                     >
                       <TrophyIcon className="h-4 w-4 shrink-0 text-brand-deep" />
                       <span className="min-w-0 flex-1">
+                        {/* Las dos monedas. Cada ronda se gana en USDT Y en
+                            COPm, pero aquí solo se pintaba el USDT: el total de
+                            arriba decía "8,16 USDT + 13.140 COPm" y las filas de
+                            abajo solo "0,46 USDT", así que los COPm parecían no
+                            existir. Se omite la moneda que valga 0 —hay rondas
+                            que se cierran con una sola— en vez de escribir un
+                            cero que no significa nada. */}
                         <span className="block font-mono text-sm font-bold text-brand-deep">
-                          {fmtUnits(p.usdt, USDT_DECIMALS, locale)} USDT
+                          {[
+                            p.usdt !== "0" &&
+                              `${fmtUnits(p.usdt, USDT_DECIMALS, locale)} USDT`,
+                            p.copm !== "0" &&
+                              `${fmtUnits(p.copm, COPM_DECIMALS, locale)} COPm`,
+                          ]
+                            .filter(Boolean)
+                            .join(" + ") ||
+                            `${fmtUnits("0", USDT_DECIMALS, locale)} USDT`}
                         </span>
                         <span className="block text-[0.65rem] text-muted">
                           {mode ? t(mode.labelKey) : p.mode}
