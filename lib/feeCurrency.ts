@@ -1,11 +1,11 @@
 "use client";
 
-import { parseEther } from "viem";
 import {
   CIP64_USDT_FEE_ADAPTER,
   ERC20_ABI,
   USDT_ADDRESS,
 } from "./contractsV3";
+import { decideGasSource, MIN_CELO_FOR_GAS, type GasChoice } from "./gasChoice";
 import { isMiniPay } from "./minipay";
 
 /**
@@ -19,9 +19,6 @@ import { isMiniPay } from "./minipay";
  * cualquier firma futura tienen que resolverlo igual, o un día una de ellas se
  * queda sin gas mientras el resto funciona.
  */
-
-/** Por debajo de esto damos el CELO por insuficiente y buscamos alternativa. */
-const MIN_CELO_FOR_GAS = parseEther("0.005");
 
 /** Lo mínimo que necesitamos de un cliente público para decidir. */
 interface BalanceReader {
@@ -50,51 +47,60 @@ export function feeOverrides(source: GasSource): { feeCurrency?: `0x${string}` }
   return source.kind === "usdt" ? { feeCurrency: source.feeCurrency } : {};
 }
 
-/**
- * Decide de dónde sale el gas, en el orden que pidió el producto:
- *
- *   1. MiniPay        → siempre USDT (su CELO es 0 por diseño).
- *   2. CELO suficiente→ gas normal en CELO.
- *   3. Poco CELO + USDT → CIP-64 en USDT.
- *   4. Ni lo uno ni lo otro → "none", y la UI explica qué falta.
- *
- * Nunca lanza: un RPC con hipo devuelve el camino más probable en vez de
- * romper la partida. Si no se puede leer el saldo de CELO se asume que hay
- * (caso de la wallet externa normal), porque bloquear a alguien que sí tenía
- * gas es peor que dejar que la wallet le muestre su propio error.
- */
-export async function resolveGasSource(
+/** Lee el saldo de USDT sin lanzar. `null` = no se pudo saber. */
+async function readUsdt(
   publicClient: BalanceReader,
   address: `0x${string}`,
-): Promise<GasSource> {
-  const usdtAdapter = CIP64_USDT_FEE_ADAPTER as `0x${string}`;
-
-  if (isMiniPay()) return { kind: "usdt", feeCurrency: usdtAdapter };
-
-  let celoBalance: bigint | null = null;
+): Promise<bigint | null> {
   try {
-    celoBalance = await publicClient.getBalance({ address });
-  } catch {
-    celoBalance = null;
-  }
-  if (celoBalance === null || celoBalance >= MIN_CELO_FOR_GAS) {
-    return { kind: "celo" };
-  }
-
-  // Poco CELO: ¿se puede pagar en USDT?
-  try {
-    const usdtBalance = (await publicClient.readContract({
+    return (await publicClient.readContract({
       address: USDT_ADDRESS as `0x${string}`,
       abi: ERC20_ABI,
       functionName: "balanceOf",
       args: [address],
     })) as bigint;
-    if (usdtBalance > 0n) return { kind: "usdt", feeCurrency: usdtAdapter };
   } catch {
-    // Sin lectura fiable de USDT, se intenta igual con CELO y que la wallet
-    // hable: es preferible a declarar imposible algo que quizá funcione.
-    return { kind: "celo" };
+    return null;
+  }
+}
+
+/** Le pone dirección a la decisión de `lib/gasChoice.ts`. */
+function toSource(choice: GasChoice): GasSource {
+  if (choice === "usdt") {
+    return { kind: "usdt", feeCurrency: CIP64_USDT_FEE_ADAPTER as `0x${string}` };
+  }
+  return { kind: choice };
+}
+
+/**
+ * Lee lo que haga falta y decide. Nunca lanza.
+ *
+ * La decisión en sí vive en `lib/gasChoice.ts`, probada aparte; aquí solo está
+ * la lectura. Solo se piden los saldos que esa decisión necesita: en MiniPay el
+ * CELO no se consulta porque es 0 por diseño, y fuera de MiniPay el USDT solo se
+ * mira cuando el CELO no alcanza.
+ */
+export async function resolveGasSource(
+  publicClient: BalanceReader,
+  address: `0x${string}`,
+): Promise<GasSource> {
+  const inMiniPay = isMiniPay();
+
+  if (inMiniPay) {
+    const usdt = await readUsdt(publicClient, address);
+    return toSource(decideGasSource({ inMiniPay, celo: null, usdt }));
   }
 
-  return { kind: "none" };
+  let celo: bigint | null = null;
+  try {
+    celo = await publicClient.getBalance({ address });
+  } catch {
+    celo = null;
+  }
+  if (celo === null || celo >= MIN_CELO_FOR_GAS) {
+    return toSource(decideGasSource({ inMiniPay, celo, usdt: null }));
+  }
+
+  const usdt = await readUsdt(publicClient, address);
+  return toSource(decideGasSource({ inMiniPay, celo, usdt }));
 }

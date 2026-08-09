@@ -8,18 +8,27 @@ type EthereumProvider = {
   isMiniPay?: boolean;
 };
 
-declare global {
-  interface Window {
-    ethereum?: EthereumProvider;
-  }
+/**
+ * El proveedor inyectado, leído con un cast local.
+ *
+ * ⚠️ Aquí había un `declare global { interface Window { ethereum?: ... } }`.
+ * Se quitó porque colisiona: alguna dependencia de la capa de wallets declara
+ * `ethereum` como `any`, y dos declaraciones del mismo global con tipos
+ * distintos rompen la compilación ("Subsequent property declarations must have
+ * the same type"). Un cast local no le impone nada al resto del proyecto — es
+ * el mismo patrón que ya usaba `lib/minipay.ts`.
+ */
+function injectedProvider(): EthereumProvider | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { ethereum?: EthereumProvider }).ethereum;
 }
 
 export function isMiniPay(): boolean {
-  return typeof window !== "undefined" && window.ethereum?.isMiniPay === true;
+  return injectedProvider()?.isMiniPay === true;
 }
 
 export function hasEthereumProvider(): boolean {
-  return typeof window !== "undefined" && Boolean(window.ethereum);
+  return Boolean(injectedProvider());
 }
 
 /** Valida y normaliza una dirección EVM (checksum EIP-55). */
@@ -35,9 +44,10 @@ export function normalizeWalletAddress(raw: string): string | null {
 
 /** Cuentas ya autorizadas en el proveedor (sin popup). */
 export async function getConnectedWallet(): Promise<string | null> {
-  if (!hasEthereumProvider()) return null;
+  const provider = injectedProvider();
+  if (!provider) return null;
   try {
-    const accounts = (await window.ethereum!.request({
+    const accounts = (await provider.request({
       method: "eth_accounts",
     })) as string[];
     if (!accounts?.length) return null;
@@ -57,13 +67,14 @@ export type ConnectWalletResult =
  * pinta la traduce al idioma activo con `tError`.
  */
 export async function connectWallet(): Promise<ConnectWalletResult> {
-  if (!hasEthereumProvider()) {
+  const provider = injectedProvider();
+  if (!provider) {
     return { ok: false, error: "error.no_wallet" };
   }
 
   try {
     const method = isMiniPay() ? "eth_accounts" : "eth_requestAccounts";
-    const accounts = (await window.ethereum!.request({ method })) as string[];
+    const accounts = (await provider.request({ method })) as string[];
     if (!accounts?.length) {
       return {
         ok: false,

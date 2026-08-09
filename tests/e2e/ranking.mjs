@@ -21,27 +21,33 @@ const body = async (p) => (await p.locator("body").innerText()).toLowerCase();
 
 /** Ronda simulada de 4 jugadores: la suite no puede depender de que haya
  *  partidas reales — al abrir una ronda nueva el ranking está legítimamente
- *  vacío — ni ensuciar la ronda en curso metiendo un jugador de prueba. */
+ *  vacío — ni ensuciar la ronda en curso metiendo un jugador de prueba.
+ *
+ *  ⚠️ La forma es la de `/api/ranking/round`, que desde el 2026-08-09 es la
+ *  fuente del ranking en vivo: sale de `v3_results` por `onchain_day`, igual
+ *  que la liquidación. Antes se simulaba `match_results` de Supabase, que era
+ *  precisamente el problema — ahí escribía cualquiera desde internet.
+ *
+ *  Fíjate en lo que NO trae: direcciones. `playerId` es un id opaco y el
+ *  "eres tú" viene resuelto del servidor. */
 const FAKE_ROUND = [
-  { player_id: "lider-1", player_name: "Lider", score: 900, wpm: 60, accuracy: 0.98 },
-  { player_id: "test-me", player_name: "YoMismo", score: 500, wpm: 40, accuracy: 0.95 },
-  { player_id: "otro-3", player_name: "Tercero", score: 300, wpm: 30, accuracy: 0.9 },
-  { player_id: "otro-4", player_name: "Cuarto", score: 100, wpm: 20, accuracy: 0.8 },
+  { rank: 1, playerId: "op-lider", name: "Lider", score: 900, wpm: 60, accuracy: 98, hasWallet: true, you: false },
+  { rank: 2, playerId: "op-yo", name: "YoMismo", score: 500, wpm: 40, accuracy: 95, hasWallet: true, you: true },
+  { rank: 3, playerId: "op-3", name: "Tercero", score: 300, wpm: 30, accuracy: 90, hasWallet: true, you: false },
+  { rank: 4, playerId: "op-4", name: "Cuarto", score: 100, wpm: 20, accuracy: 80, hasWallet: true, you: false },
 ];
 
-const mockRound = async (page, rows = FAKE_ROUND, flags = {}) => {
-  await page.route("**/rest/v1/match_results*", (route) =>
+const mockRound = async (page, entries = FAKE_ROUND) => {
+  await page.route("**/api/ranking/round", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(rows),
-    }),
-  );
-  await page.route("**/api/ranking/wallets", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ flags }),
+      body: JSON.stringify({
+        day: 20674,
+        mode: "es",
+        entries,
+        me: entries.find((e) => e.you) ?? null,
+      }),
     }),
   );
 };
@@ -155,23 +161,14 @@ const run = async () => {
     await ctx.close();
   }
 
-  /* ---------- Aviso de wallet y no filtrar direcciones ---------- */
+  /* ---------- Mi fila, y que no se filtren direcciones ---------- */
   {
-    // Ronda simulada: se intercepta la consulta a Supabase para no depender de
-    // que haya partidas reales ni ensuciar la ronda en curso con un jugador de
-    // prueba. Yo soy "test-me" y voy segundo; el líder es otro.
     const ctx = await browser.newContext({
       locale: "es-CO",
       viewport: { width: 390, height: 844 },
     });
     const page = await newPage(ctx);
-    await page.addInitScript(() => {
-      window.localStorage.setItem("typerush.player.id", "test-me");
-      window.localStorage.setItem("typerush.player.name", "YoMismo");
-    });
-
-    // Nadie tiene wallet: el endpoint responde booleanos, nunca direcciones.
-    await mockRound(page, FAKE_ROUND, { "lider-1": false, "test-me": false });
+    await mockRound(page);
 
     // Toda respuesta de nuestro origen se revisa: ninguna puede traer una
     // dirección completa de 40 hex hasta el navegador.
@@ -192,29 +189,55 @@ const run = async () => {
     await page.waitForTimeout(2500);
 
     const text = await body(page);
-    check(
-      "el aviso dice que hay que vincular la wallet para recibir el premio",
-      text.includes("vincúlala desde perfil") && text.includes("recibirlo"),
-    );
-    // Dentro del ranking, no el enlace de la barra de navegación.
-    const link = page
-      .locator("section a[href='/perfil']")
-      .filter({ hasText: "Perfil" })
-      .first();
-    check("y ofrece el enlace a Perfil", (await link.count()) > 0);
-    if ((await link.count()) > 0) {
-      const box = await link.boundingBox();
-      check(
-        "el enlace cumple el área táctil de 44 px",
-        !!box && box.height >= 44,
-        box ? `${Math.round(box.height)}px` : "sin caja",
-      );
-    }
     check("mi fila aparece marcada como Tú", text.includes("tú"));
+
+    // El aviso de "vincula tu wallet" era de V2, donde se jugaba sin wallet y
+    // el premio del #1 podía quedarse sin cobrar. En V3 aparecer en la lista
+    // exige haber firmado la partida, así que ese aviso sería mentira.
+    check(
+      "ya no se avisa de wallet sin vincular",
+      !text.includes("vincúlala desde perfil"),
+      text.slice(0, 60).replace(/\n/g, " | "),
+    );
     check(
       "ninguna respuesta trae una dirección completa",
       leaks.length === 0,
       leaks.join(", "),
+    );
+
+    await ctx.close();
+  }
+
+  /* ---------- El endpoint REAL tampoco devuelve direcciones ---------- */
+  {
+    // Sin simulacro: se llama a `/api/ranking/round` de verdad. Es la comprobación
+    // que importa, porque ese endpoint lee wallets de `v3_results` y tiene que
+    // convertirlas en ids opacos antes de responder.
+    const ctx = await browser.newContext({ locale: "es-CO" });
+    const page = await newPage(ctx);
+    await page.goto(URL, { waitUntil: "domcontentloaded" });
+
+    const res = await page.evaluate(async () => {
+      const r = await fetch("/api/ranking/round", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "es",
+          wallet: "0x1111111111111111111111111111111111111111",
+        }),
+      });
+      return { status: r.status, body: await r.text() };
+    });
+
+    check(
+      "/api/ranking/round responde",
+      res.status === 200 || res.status === 503,
+      `HTTP ${res.status}`,
+    );
+    check(
+      "y su respuesta no contiene ninguna dirección",
+      !/0x[0-9a-fA-F]{40}/.test(res.body),
+      res.body.slice(0, 80),
     );
 
     await ctx.close();

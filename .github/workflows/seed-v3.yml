@@ -1,0 +1,75 @@
+# Recarga del pozo de TypeRush GameV3 (Celo Mainnet). Lo corre el FUNDER: completa el
+# suelo del día ACTIVO (0,30 USDT + 1.000 COPm por modalidad) SOLO en las modalidades
+# donde hay jugadores de verdad. La regla vive en `scripts/_seed-rules.mjs` y está
+# probada en `tests/seed-v3.test.mjs`.
+#
+# ── Por qué cada hora y no una vez de noche ───────────────────────────────────
+# Aportar es "completar hasta el suelo", no "sumar": si el pozo ya llega, el aporte es
+# 0. Por eso repetirlo no puede acumular, y correrlo cada hora compra algo que una
+# pasada nocturna no da — una modalidad dormida recupera su suelo dentro de la hora
+# siguiente a que alguien la juegue, en vez de al día siguiente.
+# El primer disparo del día es a las 00:20 UTC, después del cierre de las 00:10 UTC
+# (`/api/cron/settle-v3`, cron de Vercel), porque la primera guarda exige que la ronda
+# anterior conste cerrada.
+#
+# ── Por qué aquí y no en Vercel ───────────────────────────────────────────────
+# Firma el FUNDER, que es quien tiene el dinero. Su clave nunca debe vivir en la app:
+# los roles están separados a propósito (Operator solo liquida, Treasury solo cobra).
+#
+# ── Interruptor ───────────────────────────────────────────────────────────────
+# No basta con que este archivo exista. El script solo transmite si recibe `--live` Y
+# `GAMEV3_SEED_ENABLED=1`. Ese 1 es una VARIABLE de repositorio (Settings → Secrets and
+# variables → Actions → Variables), no un secreto: así se enciende y se apaga sin tocar
+# código, y mientras no esté puesta este workflow solo informa de lo que haría.
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions → Secrets):
+#   GAMEV3_CONTRACT_ADDRESS
+#   PRIVATE_KEY                (clave del Funder 0x46d5…8C18; wallet con USDT/COPm + CELO)
+# Variable requerida para que siembre de verdad (→ Variables):
+#   GAMEV3_SEED_ENABLED = 1
+
+name: Seed pot (GameV3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Transmitir de verdad (si no, solo simulacro)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "20 * * * *" # cada hora en el minuto 20 UTC; el primero tras el cierre
+
+concurrency:
+  group: seed-v3
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # 24, el mismo que se usa en local. No es un detalle: Node 22 trae npm 10 y Node 24
+          # trae npm 11, y npm 11 escribe un lock que npm 10 rechaza en `npm ci`. Eso es lo que
+          # tuvo `Close day` cayendo todas las noches desde el 2026-08-04. Con la misma versión
+          # en los dos sitios, el lock que se genera es el mismo que se valida.
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A mano el simulacro es el valor por defecto; hay que pedir `live` explícitamente.
+      # Aun pidiéndolo, sin GAMEV3_SEED_ENABLED=1 el script se queda en simulacro.
+      - name: Seed the pot up to the floor
+        run: npm run ${{ (github.event_name == 'schedule' || inputs.live) && 'seed:v3' || 'seed:v3:dry' }}
+        env:
+          GAMEV3_CONTRACT_ADDRESS: ${{ secrets.GAMEV3_CONTRACT_ADDRESS }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          GAMEV3_SEED_ENABLED: ${{ vars.GAMEV3_SEED_ENABLED }}

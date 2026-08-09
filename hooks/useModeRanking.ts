@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { loadModeRanking, type ModeRankingResult } from "@/lib/leaderboard";
-import { getPlayerId, getPlayerName } from "@/lib/player";
 import { useI18n } from "@/lib/i18n/client";
+import { useWalletSession } from "@/lib/walletSession";
 import type { ModeId } from "@/lib/passages";
 
 const REFRESH_MS = 20_000;
@@ -17,9 +17,14 @@ export type RankingState = "loading" | "ready" | "error";
  * y la clasificación completa de `/ranking`. Si el refresco falla NO se borra
  * lo que ya está en pantalla — un fallo puntual de red no debe dejar al jugador
  * sin el ranking que ya estaba viendo.
+ *
+ * La identidad aquí es la WALLET, no el `player_id` de localStorage: en V3 se
+ * compite con la que firma, que es la que el contrato reconoce y a la que se
+ * paga. Sin wallet conectada la lista se ve entera, solo que sin "tú".
  */
 export function useModeRanking(modeId: ModeId) {
   const { locale } = useI18n();
+  const { address } = useWalletSession();
   // La modalidad viaja CON los datos: al cambiar de es a en, el ranking
   // anterior deja de valer al instante y la vista vuelve a "cargando" en vez de
   // enseñar durante un segundo el podio de la otra modalidad.
@@ -30,19 +35,14 @@ export function useModeRanking(modeId: ModeId) {
   const [state, setState] = useState<RankingState>("loading");
 
   const load = useCallback(async () => {
-    const result = await loadModeRanking(
-      modeId,
-      getPlayerId(),
-      getPlayerName(),
-      locale,
-    );
+    const result = await loadModeRanking(modeId, address || null, locale);
     if (result === null) {
       setState((prev) => (prev === "ready" ? "ready" : "error"));
       return;
     }
     setLoaded({ modeId, result });
     setState("ready");
-  }, [modeId, locale]);
+  }, [modeId, address, locale]);
 
   useEffect(() => {
     let cancelled = false;

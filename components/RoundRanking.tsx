@@ -44,7 +44,6 @@ export default function RoundRanking({
   const me = data?.me ?? null;
   // Mi fila se añade aparte solo si no entré en el recorte visible.
   const meOutside = me && me.rank > visible.length ? me : null;
-  const leader = entries[0] ?? null;
 
   return (
     <section
@@ -123,9 +122,7 @@ export default function RoundRanking({
                 <Row
                   key={entry.playerId}
                   entry={entry}
-                  isMe={entry.playerId === me?.playerId}
                   youLabel={t("ranking.you")}
-                  noWalletLabel={t("ranking.wallet_missing_badge")}
                   locale={locale}
                 />
               ))}
@@ -138,9 +135,7 @@ export default function RoundRanking({
                   </tr>
                   <Row
                     entry={meOutside}
-                    isMe
                     youLabel={t("ranking.you")}
-                    noWalletLabel={t("ranking.wallet_missing_badge")}
                     locale={locale}
                   />
                 </>
@@ -148,27 +143,10 @@ export default function RoundRanking({
             </tbody>
           </table>
 
-          {/* Avisos de wallet: solo cuando cambian lo que pasa con el premio. */}
-          {leader && !leader.hasWallet && (
-            <p className="mt-2.5 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-1.5 text-[0.7rem] font-semibold text-warn">
-              {t("ranking.wallet_missing_leader")}
-            </p>
-          )}
-          {/* Mi propio caso es accionable, así que no va en letra pequeña:
-              dice qué pasa si gano y a dónde ir a arreglarlo. */}
-          {me && !me.hasWallet && (
-            <div className="mt-2 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2">
-              <p className="text-[0.7rem] font-semibold text-warn">
-                {t("ranking.wallet_missing_me")}
-              </p>
-              <Link
-                href="/perfil"
-                className="mt-1 inline-flex min-h-11 items-center font-bold text-brand-deep underline underline-offset-2"
-              >
-                {t("ranking.wallet_link")} ›
-              </Link>
-            </div>
-          )}
+          {/* Ya no hay aviso de "sin wallet vinculada": en V3 para estar en esta
+              lista hubo que firmar la partida, así que todo el que aparece tiene
+              wallet y el #1 siempre se puede pagar. Era un aviso de V2, donde se
+              jugaba sin wallet y el premio del #1 podía quedarse sin cobrar. */}
 
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-2.5">
             <span className="text-[0.65rem] text-muted">
@@ -199,17 +177,16 @@ export default function RoundRanking({
 
 function Row({
   entry,
-  isMe,
   youLabel,
-  noWalletLabel,
   locale,
 }: {
   entry: ModeRankingEntry;
-  isMe: boolean;
   youLabel: string;
-  noWalletLabel: string;
   locale: string;
 }) {
+  // Quién soy lo decide el servidor comparando wallets, no el navegador
+  // comparando ids: así no hay dos criterios que puedan discrepar.
+  const isMe = entry.you;
   return (
     <tr
       className={
@@ -227,17 +204,6 @@ function Row({
           {isMe && (
             <span className="shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand-deep">
               {youLabel}
-            </span>
-          )}
-          {/* La marca de "sin wallet" solo donde cambia algo: en quien va
-              ganando (el premio se acumularía) y en mi propia fila. En los
-              demás sería ruido sobre gente que no está optando al premio. */}
-          {!entry.hasWallet && (entry.rank === 1 || isMe) && (
-            <span
-              className="shrink-0 rounded-full border border-warn/30 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-warn"
-              title={noWalletLabel}
-            >
-              {noWalletLabel}
             </span>
           )}
         </span>

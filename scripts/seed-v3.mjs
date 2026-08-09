@@ -1,22 +1,33 @@
 /**
- * Siembra manual del pozo de TypeRushGameV3 (Celo Mainnet).
+ * Recarga del pozo de TypeRushGameV3 (Celo Mainnet), condicionada a que haya jugadores.
  *
- * V3 NO tiene robot de siembra, y es a propósito (decisión de Juan, 2026-08-06): si nadie
- * juega, `rollover` mueve el MISMO pozo al día siguiente y no entra dinero nuevo nunca. El
- * premio solo crece con las entradas de quienes juegan. Este script existe para poner el
- * suelo inicial a mano, no para correr cada noche.
+ * Sirve para las dos cosas: sembrar a mano, y correr cada hora como robot. Es el MISMO
+ * camino de decisión en ambos casos, que vive en `_seed-rules.mjs` y está probado en
+ * `tests/seed-v3.test.mjs`.
  *
- * Modelo "completar hasta el suelo" (idempotente): mira el pozo actual de (día, modalidad,
- * token) y aporta SOLO lo que falte. Correrlo dos veces no duplica; si el pozo ya está por
- * encima del suelo —porque alguien jugó, o por un rollover— no aporta nada.
+ * ⚠️ Historia, para que no se repita ninguno de los dos errores:
+ *   · V2 tenía robot y acumulaba: sembraba el día siguiente ANTES de que el cierre volcara
+ *     encima el pozo del día que cerraba, así que un modo sin jugadores ganaba un suelo cada
+ *     noche (20657→20660: 1→2→3→4 USDT sin nadie jugando).
+ *   · V3 se desplegó sin robot para evitarlo, y cayó en lo contrario: el día 20672 se sembró
+ *     a mano, se jugó, se ganó, el premio salió entero y el pozo se quedó en 0 con gente
+ *     jugando por nada.
+ *
+ * Modelo "completar hasta el suelo" DESPUÉS del cierre (idempotente): aporta SOLO lo que
+ * falte, y solo cuando la ronda anterior ya rodó o se liquidó. Correrlo dos veces, o cada
+ * hora, no duplica, y una modalidad que nadie juega no recibe nada porque su pozo llega
+ * rodado y ya está en el suelo. Ver `_seed-rules.mjs`.
  *
  * Firma con PRIVATE_KEY (el Funder). Necesita un `approve` por token: `fundPot` cobra con
  * `transferFrom`. Se aprueba EXACTAMENTE lo que se va a sembrar, nunca ilimitado.
  *
- * DRY RUN POR DEFECTO. No transmite nada hasta que le pases `--live`:
+ * DRY RUN POR DEFECTO, y para transmitir hacen falta DOS cosas a la vez (igual que el robot
+ * de liquidación): el flag `--live` y `GAMEV3_SEED_ENABLED=1`. Así, tener el código
+ * desplegado no mueve dinero por sí solo.
  *   node scripts/seed-v3.mjs            → dice qué haría
- *   node scripts/seed-v3.mjs --live     → lo hace
- *   node scripts/seed-v3.mjs --live --day 20673   → siembra un día concreto
+ *   node scripts/seed-v3.mjs --live     → lo hace (si GAMEV3_SEED_ENABLED=1)
+ *   node scripts/seed-v3.mjs --day 20673          → simula un día concreto
+ *   node scripts/seed-v3.mjs --ignore-gates       → simula saltándose las guardas (solo simulacro)
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -24,6 +35,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Contract, JsonRpcProvider, Wallet, formatUnits, id } from "ethers";
 import { withRetry } from "./_retry.mjs";
+import { planSeed } from "./_seed-rules.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const file of [".env.local", ".env"]) {
@@ -48,6 +60,10 @@ const TOKENS = [
     decimals: 6n,
     floor: 300_000n, // 0,30 USDT
     floorLabel: "0,30",
+    // Tope por ejecución. El aporte legítimo máximo es el suelo entero por modalidad, así que
+    // esto solo salta si algo está mal (un suelo mal escrito, una lectura absurda). No es un
+    // presupuesto: es un fusible para que un error no vacíe la Funder.
+    cap: 300_000n * 2n,
   },
   {
     symbol: "COPm",
@@ -55,6 +71,7 @@ const TOKENS = [
     decimals: 18n,
     floor: 1000n * 10n ** 18n, // 1.000 COPm
     floorLabel: "1.000",
+    cap: 1000n * 10n ** 18n * 2n,
   },
 ];
 
@@ -63,6 +80,12 @@ const GAME_ABI = [
   "function poolOf(uint256 day, bytes32 modeId, address token) view returns (uint256)",
   "function currentDay() view returns (uint256)",
   "function paused() view returns (bool)",
+  // Las dos lecturas que condicionan la siembra. Vienen del MISMO contrato que guarda el
+  // pozo y que valida al ganador, así que "hubo jugadores" y "puede haber ganador" son el
+  // mismo hecho. V2 tenía que preguntárselo a Supabase, con lo que eso implicaba: una
+  // segunda fuente que podía discrepar y un modo de fallo más.
+  "function playerCount(uint256 day, bytes32 modeId) view returns (uint256)",
+  "function settled(uint256 day, bytes32 modeId) view returns (bool)",
 ];
 
 const ERC20_ABI = [
@@ -83,7 +106,12 @@ function arg(flag) {
 }
 
 async function main() {
-  const live = process.argv.includes("--live");
+  // Dos llaves para mover dinero, igual que el robot de liquidación: el flag y la variable.
+  // Tener el código desplegado no siembra nada por sí solo.
+  const wantsLive = process.argv.includes("--live");
+  const enabled = process.env.GAMEV3_SEED_ENABLED === "1";
+  const live = wantsLive && enabled;
+  const ignoreGates = process.argv.includes("--ignore-gates");
   const address = requireEnv("GAMEV3_CONTRACT_ADDRESS");
   const key = requireEnv("PRIVATE_KEY");
 
@@ -93,58 +121,133 @@ async function main() {
 
   console.log(`Contrato : ${address}`);
   console.log(`Sembrador: ${wallet.address}`);
-  console.log(live ? "Modo     : EN VIVO (transmite)\n" : "Modo     : simulacro (no transmite)\n");
+  console.log(live ? "Modo     : EN VIVO (transmite)" : "Modo     : simulacro (no transmite)");
+  if (wantsLive && !enabled) {
+    console.log("           (--live ignorado: falta GAMEV3_SEED_ENABLED=1)");
+  }
+  if (ignoreGates && live) throw new Error("--ignore-gates no se admite en vivo.");
+  if (ignoreGates) console.log("           (guardas ignoradas: solo para ver el potencial)");
+  console.log("");
 
   if (await withRetry(() => game.paused(), "paused")) {
     throw new Error("El contrato está pausado: fundPot revertiría.");
   }
 
   const day = Number(arg("--day") ?? (await withRetry(() => game.currentDay(), "currentDay")));
-  console.log(`Día a sembrar: ${day}\n`);
+  console.log(`Día a sembrar: ${day}  (anterior: ${day - 1})\n`);
 
+  // ── Lectura de la guarda del cierre, por modalidad ───────────────────────
+  // `playerCount` se sigue imprimiendo porque es útil para entender la ronda,
+  // pero YA NO decide nada: ver la nota larga en `_seed-rules.mjs` sobre por qué
+  // la guarda de jugadores sobraba y hacía que el primer jugador viera 0,00.
+  const modes = [];
+  for (const mode of MODES) {
+    const [prevSettled, prevPlayers, currPlayers] = await Promise.all([
+      withRetry(() => game.settled(day - 1, id(mode)), `settled ${mode}`),
+      withRetry(() => game.playerCount(day - 1, id(mode)), `playerCount prev ${mode}`),
+      withRetry(() => game.playerCount(day, id(mode)), `playerCount curr ${mode}`),
+    ]);
+    console.log(
+      `  ${mode}: ronda ${day - 1} cerrada=${prevSettled} jugadores=${prevPlayers} · ` +
+        `ronda ${day} jugadores=${currPlayers}`,
+    );
+    modes.push({
+      mode,
+      // `--ignore-gates` solo existe para poder mirar cuánto se sembraría si la
+      // guarda pasara. Nunca llega a firmar: arriba se rechaza junto con --live.
+      prevSettled: ignoreGates ? true : prevSettled,
+    });
+  }
+  console.log("");
+
+  // ── Pozos actuales ──────────────────────────────────────────────────────
+  const pools = new Map();
+  for (const t of TOKENS) {
+    for (const mode of MODES) {
+      pools.set(
+        `${mode}|${t.symbol}`,
+        await withRetry(() => game.poolOf(day, id(mode), t.address), `poolOf ${t.symbol} ${mode}`),
+      );
+    }
+  }
+
+  // ── La decisión, en un solo sitio y sin cadena de por medio ─────────────
+  const result = planSeed({
+    day,
+    modes,
+    tokens: TOKENS,
+    poolOf: (mode, symbol) => pools.get(`${mode}|${symbol}`),
+  });
+
+  for (const row of result.rows) {
+    const t = TOKENS.find((x) => x.symbol === row.token);
+    if (row.token === null) {
+      console.log(`  ${row.mode}: NO se siembra → ${row.reason}`);
+    } else if (row.action === "skip") {
+      console.log(
+        `  ${row.mode} ${row.token}: ya tiene ${formatUnits(row.pool, t.decimals)} ` +
+          `(suelo ${t.floorLabel}) → ${row.reason}`,
+      );
+    } else if (row.action === "abort") {
+      console.log(
+        `  ${row.mode} ${row.token}: ABORTA → ${row.reason} ` +
+          `(pedía ${formatUnits(row.amount, t.decimals)})`,
+      );
+    } else {
+      console.log(
+        `  ${row.mode} ${row.token}: tiene ${formatUnits(row.pool, t.decimals)} → ` +
+          `aporta ${formatUnits(row.amount, t.decimals)} (hasta el suelo ${t.floorLabel})`,
+      );
+    }
+  }
+  console.log("");
+
+  if (result.aborted) {
+    throw new Error("Alguna fila superó el tope por ejecución. No se sembró nada.");
+  }
+
+  // ── Saldo de la Funder y plan por token ─────────────────────────────────
   const plan = [];
   for (const t of TOKENS) {
-    const erc = new Contract(t.address, ERC20_ABI, wallet);
-    const balance = await withRetry(() => erc.balanceOf(wallet.address), `balanceOf ${t.symbol}`);
-
-    let needed = 0n;
-    const rows = [];
-    for (const mode of MODES) {
-      const pool = await withRetry(
-        () => game.poolOf(day, id(mode), t.address),
-        `poolOf ${t.symbol} ${mode}`,
-      );
-      const missing = pool >= t.floor ? 0n : t.floor - pool;
-      needed += missing;
-      rows.push({ mode, pool, missing });
-      const has = formatUnits(pool, t.decimals);
-      console.log(
-        missing === 0n
-          ? `  ${t.symbol} ${mode}: ya tiene ${has} (suelo ${t.floorLabel}) → nada que hacer`
-          : `  ${t.symbol} ${mode}: tiene ${has} → aporta ${formatUnits(missing, t.decimals)}`,
-      );
-    }
-
+    const needed = result.total[t.symbol];
     if (needed === 0n) {
-      console.log(`  ${t.symbol}: nada que sembrar.\n`);
+      console.log(`  ${t.symbol}: nada que sembrar.`);
       continue;
     }
+    const erc = new Contract(t.address, ERC20_ABI, wallet);
+    const balance = await withRetry(() => erc.balanceOf(wallet.address), `balanceOf ${t.symbol}`);
+    console.log(
+      `  ${t.symbol}: total a aportar ${formatUnits(needed, t.decimals)} ` +
+        `(la Funder tiene ${formatUnits(balance, t.decimals)})`,
+    );
     if (balance < needed) {
       throw new Error(
         `Saldo insuficiente de ${t.symbol}: tiene ${formatUnits(balance, t.decimals)}, ` +
           `necesita ${formatUnits(needed, t.decimals)}. No se sembró nada de este token.`,
       );
     }
-    console.log(`  ${t.symbol}: total a aportar ${formatUnits(needed, t.decimals)}\n`);
+    const rows = result.rows
+      .filter((r) => r.token === t.symbol && r.action === "seed")
+      .map((r) => ({ mode: r.mode, missing: r.amount }));
     plan.push({ token: t, erc, rows, needed });
   }
+  console.log("");
 
   if (plan.length === 0) {
-    console.log("Todo en el suelo. Nada que hacer.");
+    console.log("Nada que hacer.");
     return;
   }
   if (!live) {
-    console.log("Simulacro: no se transmitió nada. Vuelve a correrlo con --live para sembrar.");
+    console.log("Transacciones que se firmarían:");
+    for (const { token: t, rows, needed } of plan) {
+      console.log(`  approve(${address}, ${formatUnits(needed, t.decimals)} ${t.symbol})`);
+      for (const { mode, missing } of rows) {
+        console.log(
+          `  fundPot(${day}, keccak("${mode}"), ${t.symbol}, ${formatUnits(missing, t.decimals)})`,
+        );
+      }
+    }
+    console.log("\nSimulacro: no se transmitió nada.");
     return;
   }
 

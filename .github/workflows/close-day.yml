@@ -8,6 +8,14 @@
 # de GitHub es impuntual (se retrasa o se salta), por eso dejó de ser el principal.
 # También se puede lanzar a mano (Actions → Close day → Run workflow).
 #
+# ⚠️ RETIRADO (2026-08-09). El juego se mudó a GameV3 el 2026-08-06 y V2 ya no recibe
+# partidas, así que no hay rondas que cerrar: este workflow se despertaba cada noche solo
+# para fallar. El cron está QUITADO a propósito, no comentado a medias — sin `schedule` no
+# puede dispararse solo. Se deja el archivo, y `workflow_dispatch`, por una razón concreta:
+# V2 todavía guarda premios sin reclamar (dinero de jugadores reales), y si alguna vez hay
+# que tocar una ronda vieja a mano, la herramienta tiene que seguir existiendo.
+# Se deja además DESACTIVADO en GitHub (Actions → Close day (GameV2) → ··· → Disable).
+#
 # Secrets requeridos (Settings → Secrets and variables → Actions):
 #   GAMEV2_CONTRACT_ADDRESS
 #   OPERATOR_KEY                      (clave del Operator Bot; solo cierra días, no maneja fondos)
@@ -20,8 +28,6 @@ name: Close day (GameV2)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "35 1 * * *"   # 01:35 UTC = 8:35 p.m. Colombia (RESPALDO del cron de Supabase)
 
 concurrency:
   group: close-day
@@ -38,7 +44,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24" # el mismo que en local; ver la nota en seed-v3.yml
           cache: npm
 
       - name: Install dependencies

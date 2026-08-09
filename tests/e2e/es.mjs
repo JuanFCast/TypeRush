@@ -36,30 +36,20 @@ const run = async () => {
     check("lobby ES", lobby.includes("reto diario") && lobby.includes("carrera de 45 segundos"));
     check("modalidad española", lobby.includes("español") && lobby.includes("noticias"));
 
-    await page.getByRole("button", { name: /Jugar gratis|Jugar por/ }).first().click();
-    await page.waitForTimeout(1200);
-    check("countdown ES", (await body(page)).includes("calienta los dedos"));
-    await page.waitForTimeout(3500);
-    const race = await body(page);
-    check("carrera ES", race.includes("tiempo") && race.includes("precisión"));
-    const passage = await page.evaluate(
-      () => document.querySelector("#typeInput")?.closest("div")?.querySelector("p")?.innerText ?? "",
-    );
-    check("pasaje en español", /que|los|una|de /i.test(passage), passage.slice(0, 55));
-    await page.locator("#typeInput").type(passage.slice(0, 50), { delay: 12 });
-    await page.waitForTimeout(800);
-    check("sigue viva tras teclear", (await body(page)).includes("tiempo"));
-
-    console.log("   (esperando el cierre, 45 s)…");
-    await page.waitForTimeout(46000);
-    const res = await body(page);
+    // ⚠️ Aquí se jugaba una carrera entera. Ya no se puede: desde el 2026-08-09
+    // toda partida es una transacción firmada contra GameV3 —también la
+    // gratis— y este navegador no tiene wallet. La cobertura de la carrera se
+    // pierde hasta que haya una wallet de pruebas; no se sustituye por un
+    // camino sin firma, que era exactamente el agujero que se cerró.
     check(
-      "resultado ES",
-      // El CTA dice "volver al reto" o "jugar otra vez" según la entrada real.
-      res.includes("palabras por minuto") &&
-        (res.includes("volver al reto") || res.includes("jugar otra vez")) &&
-        res.includes("ranking de la ronda"),
-      res.slice(0, 90).replace(/\n/g, " | "),
+      "el CTA no promete gratis sin wallet",
+      !lobby.includes("jugar gratis"),
+      lobby.slice(0, 90).replace(/\n/g, " | "),
+    );
+    check(
+      "y dice qué falta para poder jugar",
+      lobby.includes("conecta una wallet") || lobby.includes("aún no está activo"),
+      lobby.slice(0, 120).replace(/\n/g, " | "),
     );
     await ctx.close();
   }

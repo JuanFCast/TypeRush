@@ -26,7 +26,6 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
   const visible = entries.slice(0, 3);
   const me = data?.me ?? null;
   const meOutside = me && me.rank > visible.length ? me : null;
-  const leader = entries[0] ?? null;
 
   return (
     <section className="flex flex-col gap-2.5" aria-label={t("ranking.live")}>
@@ -77,7 +76,6 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
             <Row
               key={entry.playerId}
               entry={entry}
-              isMe={entry.playerId === me?.playerId}
               youLabel={t("ranking.you")}
               scoreLabel={t("ranking.col_score")}
               wpmLabel={t("ranking.col_wpm")}
@@ -87,7 +85,6 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
           {meOutside && (
             <Row
               entry={meOutside}
-              isMe
               outside
               youLabel={t("ranking.you")}
               scoreLabel={t("ranking.col_score")}
@@ -98,25 +95,8 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
         </ol>
       )}
 
-      {/* Avisos de wallet: solo donde cambian lo que pasa con el premio. */}
-      {leader && !leader.hasWallet && (
-        <p className="rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-1.5 text-[0.7rem] font-semibold text-warn">
-          {t("ranking.wallet_missing_leader")}
-        </p>
-      )}
-      {me && !me.hasWallet && (
-        <div className="rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2">
-          <p className="text-[0.7rem] font-semibold text-warn">
-            {t("ranking.wallet_missing_me")}
-          </p>
-          <Link
-            href="/perfil"
-            className="mt-1 inline-flex min-h-11 items-center font-bold text-brand-deep underline underline-offset-2"
-          >
-            {t("ranking.wallet_link")} ›
-          </Link>
-        </div>
-      )}
+      {/* Sin aviso de "sin wallet": en V3 aparecer aquí exige haber firmado la
+          partida, así que el #1 siempre se puede pagar. Ver RoundRanking. */}
 
       <Link
         href={`/ranking?mode=${modeId}`}
@@ -130,7 +110,6 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
 
 function Row({
   entry,
-  isMe,
   outside = false,
   youLabel,
   wpmLabel,
@@ -138,7 +117,6 @@ function Row({
   locale,
 }: {
   entry: ModeRankingEntry;
-  isMe: boolean;
   /** Mi fila cuando quedé fuera del podio: se separa y se marca aparte. */
   outside?: boolean;
   youLabel: string;
@@ -146,6 +124,8 @@ function Row({
   scoreLabel: string;
   locale: string;
 }) {
+  // Lo decide el servidor comparando wallets. Ver RoundRanking.
+  const isMe = entry.you;
   return (
     <li
       className={`flex min-h-14 items-center gap-2.5 rounded-2xl border px-3 py-2 ${

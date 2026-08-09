@@ -75,7 +75,21 @@ export default function PlayV3Button({
     query: { enabled: enabled && Boolean(address) },
   });
 
-  if (!enabled) return null;
+  // ⚠️ Sin contrato configurado NO se devuelve `null`. Este es el único botón de
+  // jugar que existe desde el 2026-08-09: devolver null dejaba el lobby sin
+  // ningún botón y sin explicación, que es como se veía en local sin la
+  // variable puesta. Se dice qué pasa y no se deja firmar.
+  if (!enabled) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="flex h-14 w-full items-center justify-center rounded-2xl bg-brand-deep text-lg font-extrabold text-white opacity-40"
+      >
+        {t("v3.error.not_configured")}
+      </button>
+    );
+  }
 
   // Sin wallet no hay nada que firmar: se dice, no se deja un botón muerto.
   const noWallet = !wallet.isConnected || !address;

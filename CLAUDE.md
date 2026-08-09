@@ -290,6 +290,58 @@ already has a result.
 Production still plays V2. `PlayV3Button` only renders when `isV3Enabled()`, and
 that needs both the flag and a deployed address.
 
+### ⚠️ One door to the ranking (2026-08-09) — supersedes the two sections below
+
+**The ranking and the prize described different people, and it was fixed by
+removing the second path, not by adding a check.**
+
+The app plays V3 (every race is a signed transaction), but the V2-era Edge
+Functions `start-run` / `submit-run` were still deployed, open to the internet
+and with **Verify JWT off**. Anyone could ask for a passage and post a result:
+`submit-run` inserted straight into `match_results` with the service role, and
+the live ranking read that table. Those races can never win — `settle()` requires
+`played[day][mode][winner]` on-chain and the robot reads `v3_results` — so the
+screen was promising a competition the chain didn't recognise. Six such races
+landed on 2026-08-09 alone, each from a profile created ~50 s earlier, with no
+wallet, 100 % accuracy, and an alias encoding the mode (`E…`→es, `T…`→en).
+
+- **The live ranking now reads `v3_results` by `onchain_day`** via
+  `/api/ranking/round`, the same table, day and order as `lib/settleV3.ts` —
+  it imports `rankCandidates` from the robot rather than copying it, because two
+  orderings that merely look alike eventually diverge. The day comes from
+  `currentDay()`, never the phone's clock. `lib/roundRanking.ts` holds the two
+  decisions worth testing: `bestPerWallet` (one row per person, their best race,
+  so the #1 shown is the one `settle` pays) and `opaqueId` (**no wallet ever
+  reaches the browser**; who played is public on-chain anyway, so the id only
+  keeps addresses out of the payload).
+- **`supabase/v3_only.sql` closes it at the database.** `match_results.tx_hash`
+  (nullable — V2's five months of history keep NULL and keep working) plus a
+  BEFORE INSERT trigger requiring a `tx_hash` that exists in `v3_plays`.
+  **Triggers are not bypassed by the service role**, so even a still-deployed
+  `submit-run` cannot write an eligible row. ⚠️ Deploy in two steps: section 1
+  (column) → app → section 2 (trigger); the middle order is what breaks the
+  history mirror. Nothing is deleted: the 6 races and the `runs` table stay as
+  evidence.
+- **`match_results` is now archive only**, for Perfil and Historial.
+  `/api/results` still mirrors into it, with the tx hash.
+- **The legacy frontend path is gone**, not hidden behind a flag: `lib/runs.ts`,
+  `onPlay`, `onPayAndPlay`, `onStartPaid`, `startRunFor` and the `submitRun`
+  branch of `useTypeRush` were deleted. Safety no longer depends on
+  `NEXT_PUBLIC_GAMEV3_ENABLED` being set correctly. **`PlayV3Button` never
+  returns `null`** — without the contract configured it says so and disables
+  itself; returning null left the lobby with no button at all, which is exactly
+  how it looked in local dev.
+- **The alias is optional now.** V3 identity is the signing wallet; without an
+  alias you appear as `0x1234…abcd`. `AliasModal` opens from a link in the card,
+  and reads `localStorage` in an effect (reading it during render desynced SSR
+  and caused a hydration error).
+- **MiniPay with 0 USDT** used to sign and get an unreadable wallet error. The
+  gas decision moved to `lib/gasChoice.ts` (pure, fully tested) and returns
+  `none` so the UI can explain. Ante la duda it never blocks.
+- ⚠️ **e2e lost the race/countdown/result coverage** and it is not faked: with
+  no wallet in headless Playwright there is no way to start a race, and adding
+  one would mean rebuilding the hole. 114/114 checks pass on what remains.
+
 ### V3 gets seen: ranking mirror + an honest CTA (2026-08-05)
 
 Two gaps found while auditing V3 for launch. Neither touches settlement: the

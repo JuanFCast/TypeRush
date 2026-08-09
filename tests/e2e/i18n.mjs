@@ -135,7 +135,16 @@ const run = async () => {
     await ctx.close();
   }
 
-  /* ---------- 3. Partida completa en inglés (UI + modo) ---------- */
+  /* ---------- 3. Lobby en inglés (UI + modo) ---------- */
+  //
+  // ⚠️ Esta suite jugaba una carrera entera. Ya no puede: desde el 2026-08-09
+  // toda partida es una transacción firmada contra GameV3, incluida la gratis,
+  // y este navegador no tiene wallet. La cobertura de countdown/carrera/
+  // resultado se pierde hasta que haya una wallet de pruebas — no se disimula
+  // con un camino alternativo, que era justo el agujero que se cerró.
+  //
+  // Lo que sí se comprueba, y es lo que motivó esta suite: la app no se rompe
+  // al cambiar de idioma, y el CTA no promete nada que no pueda cumplir.
   {
     const { ctx, page } = await newPage(browser, { locale: "en-US" });
     await page.goto(URL, { waitUntil: "networkidle" });
@@ -143,57 +152,19 @@ const run = async () => {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    // Sin pantalla intermedia: el reto del día y su CTA ya están al abrir.
     const lobby = await bodyText(page);
-    check("CTA en inglés", lobby.match(/play free|play for/) !== null, lobby.slice(0, 90));
     check("lobby en inglés", lobby.includes("daily challenge"), lobby.slice(0, 90));
     check("modalidad inglesa", lobby.includes("english") && lobby.includes("daily english"));
 
-    const playBtn = page.getByRole("button", { name: /Play free/ });
-    if (await playBtn.count()) {
-      await playBtn.first().click();
-      await page.waitForTimeout(1200);
-      check("cuenta regresiva en inglés", (await bodyText(page)).includes("warm up your fingers"));
-      await page.waitForTimeout(3500);
-
-      const race = await bodyText(page);
-      check("pantalla de carrera en inglés", race.includes("time") && race.includes("accuracy"));
-      const passage = await page.evaluate(
-        () => document.querySelector("#typeInput")?.closest("div")?.querySelector("p")?.innerText ?? "",
-      );
-      check(
-        "el pasaje está en inglés (modo en)",
-        /the|and|you|your/i.test(passage),
-        passage.slice(0, 60),
-      );
-      check(
-        "el pasaje está marcado como no traducible",
-        await page.evaluate(
-          () =>
-            document.querySelector("#typeInput")?.closest("div")?.querySelector("p")
-              ?.getAttribute("translate") === "no",
-        ),
-      );
-
-      // Teclea de verdad un trozo y espera al final de los 45 s.
-      await page.locator("#typeInput").type(passage.slice(0, 60), { delay: 12 });
-      await page.waitForTimeout(1000);
-      check("no revienta al teclear", (await bodyText(page)).includes("time"));
-
-      // El idioma sobrevive a la partida: se comprueba en el resultado.
-      console.log("   (esperando el cierre de la carrera, 45 s)…");
-      await page.waitForTimeout(46000);
-      const result = await bodyText(page);
-      check(
-        "pantalla de resultado en inglés",
-        result.includes("words per minute") &&
-          (result.includes("race finished") || result.includes("new record")),
-        result.slice(0, 100).replace(/\n/g, " | "),
-      );
-      check("html lang sigue en en tras jugar", (await htmlLang(page)) === "en");
-    } else {
-      check("había tiro gratis para jugar", false, "sin botón Play free");
-    }
+    // Sin wallet el botón dice qué falta; nunca "Play free", porque quien
+    // decide si hay partida gratis es el contrato y aquí no hay a quién
+    // preguntarle.
+    check(
+      "el CTA en inglés no promete gratis sin wallet",
+      !lobby.includes("play free"),
+      lobby.slice(0, 90),
+    );
+    check("html lang sigue en en", (await htmlLang(page)) === "en");
     await ctx.close();
   }
 
@@ -262,15 +233,26 @@ const run = async () => {
     check("[regresión] <html translate=no>", guarded.html === "no");
     check("[regresión] <html class=notranslate>", guarded.cls);
 
-    // (c) Y el flujo exacto que reventaba —pulsar el selector y entrar a jugar—
-    //     ahora funciona sin un solo error de página.
+    // (c) Y el flujo exacto que reventaba —cambiar de idioma y seguir tocando
+    //     la pantalla— ahora funciona sin un solo error de página.
+    //
+    //     El repro original terminaba pulsando "Play free". Ese botón ya no
+    //     existe sin wallet (toda partida es una transacción firmada), así que
+    //     se sustituye por las otras interacciones que vuelven a pintar el
+    //     árbol: los selectores de modalidad y de reto, y el tutorial. Lo que
+    //     provocaba el `removeChild` era el re-render tras traducir, no el
+    //     hecho de jugar.
     const before = results.filter((r) => !r.ok).length;
     await page.getByRole("radio", { name: "Español" }).first().click();
     await page.waitForTimeout(600);
     await page.getByRole("radio", { name: "English" }).first().click();
     await page.waitForTimeout(600);
-    await page.getByRole("button", { name: /Play free|Play for/ }).first().click();
-    await page.waitForTimeout(1500);
+    await page.getByRole("radio", { name: /Spanish|Español/ }).last().click();
+    await page.waitForTimeout(600);
+    await page.getByRole("button", { name: /Cómo jugar|How to play/i }).first().click();
+    await page.waitForTimeout(800);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(800);
     const after = await bodyText(page);
     check(
       "[regresión] no aparece \"This page couldn't load\"",

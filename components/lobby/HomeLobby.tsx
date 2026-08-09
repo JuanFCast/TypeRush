@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { CurrencyId } from "@/lib/gameV2";
 import type { ChallengeId, ModeId } from "@/lib/passages";
 import DailyChallengeCard from "./DailyChallengeCard";
 import HowToPlay from "./HowToPlay";
@@ -15,14 +14,10 @@ type Props = {
   onModeChange: (id: ModeId) => void;
   challengeId: ChallengeId;
   onChallengeChange: (id: ChallengeId) => void;
-  canPlay: boolean;
-  playLoading: boolean;
-  payEnabled: boolean;
-  payState: "idle" | "paying" | "error";
-  payError: string | null;
-  onPlayFree: () => void;
-  onPayAndPlay: (currencyId: CurrencyId) => void;
-  v3Cta?: ReactNode;
+  /** Abre el modal de alias (opcional: la identidad es la wallet). */
+  onChooseAlias: () => void;
+  /** El botón de jugar. Uno solo, y siempre el de V3. */
+  playCta: ReactNode;
 };
 
 /**
@@ -30,7 +25,7 @@ type Props = {
  * portada de marketing. Una sola tarjeta autosuficiente (premio, modalidad,
  * reto, entrada, CTA y top 3) y el tutorial encima la primera vez.
  */
-export default function HomeLobby({ v3Cta, ...card }: Props) {
+export default function HomeLobby({ playCta, ...card }: Props) {
   const [howTo, setHowTo] = useState(false);
 
   // Primera visita: el tutorial se abre solo. Se lee en un effect porque
@@ -51,7 +46,7 @@ export default function HomeLobby({ v3Cta, ...card }: Props) {
     <div className="screen-in flex flex-1 flex-col gap-4">
       <DailyChallengeCard
         {...card}
-        v3Cta={v3Cta}
+        playCta={playCta}
         onShowHowTo={() => setHowTo(true)}
       >
         <LeaderboardPreview modeId={card.modeId} />

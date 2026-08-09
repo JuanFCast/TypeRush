@@ -58,9 +58,16 @@ const run = async () => {
     );
   }
 
-  // Botón de pago (entryLabel) — solo aparece si ya no hay tiro gratis; se
-  // comprueba el texto del CTA de la portada, que sí está siempre.
-  check("EN: CTA con 0.10 USDT", en.includes("0.10 USDT") || en.includes("Play free"), "");
+  // El CTA ya no promete precio ni "gratis" sin wallet conectada: quien decide
+  // eso es el contrato (`hasFreePlay`), y sin wallet no hay a quién preguntarle.
+  // Sin navegador con wallet, lo que se comprueba es que NO invente una cifra.
+  check(
+    "EN: sin wallet el CTA no promete precio ni gratis",
+    en.includes("Connect a wallet to play") ||
+      en.includes("Checking") ||
+      en.includes("isn't live yet"),
+    en.slice(0, 80).replace(/\n/g, " | "),
+  );
 
   await browser.close();
   const bad = out.filter((o) => !o).length;

@@ -34,25 +34,30 @@ function walletAlias(wallet: string): string {
 }
 
 /**
- * Copia el resultado a `match_results`, que es de donde leen el ranking en vivo
- * (`lib/leaderboard.ts`) y las estadísticas del perfil (`/api/me/stats`).
+ * Copia el resultado a `match_results`, que es el ARCHIVO histórico del que leen
+ * el perfil (`/api/me/stats`) y el historial local.
  *
- * Hace falta porque la liquidación y lo que ve el jugador miran tablas
- * distintas a propósito: el robot decide sobre `v3_results` —su fuente, ligada
- * al hash de la transacción— y la pantalla lee `match_results`, que ya tiene
- * cinco meses de historia de V2. Sin esta copia la partida se registra y se
- * paga bien, pero el ranking sale vacío y el perfil en cero.
+ * ⚠️ Ya NO sostiene el ranking en vivo. Hasta el 2026-08-09 lo hacía, y ese fue
+ * el problema: `match_results` la escribía también `submit-run`, la Edge
+ * Function de la época de V2, abierta a internet y sin transacción detrás. El
+ * ranking mostraba carreras que `settle()` jamás podría pagar. Ahora la ronda
+ * abierta se lee de `v3_results` por `onchain_day` (`/api/ranking/round`), la
+ * misma fuente y el mismo día que usa la liquidación.
+ *
+ * Esta copia sigue existiendo por lo que sí sirve: cinco meses de historia de V2
+ * viven en esa tabla y el perfil los suma. Va con `tx_hash`, que es lo que
+ * distingue una carrera de V3 de las filas antiguas —y lo que el trigger
+ * `match_results_require_v3` exige para dejar entrar cualquier fila nueva.
  *
  * ⚠️ **Nunca puede tumbar el resultado.** La carrera ya se cobró en la cadena y
  * `v3_results` ya está guardado, que es lo que decide quién cobra; si esta copia
- * falla, se registra el error y se sigue. Perder una fila del ranking es malo,
+ * falla, se registra el error y se sigue. Perder una fila del historial es malo,
  * rechazar una partida pagada es peor.
- *
- * NO toca la liquidación: `lib/settleV3.ts` sigue leyendo solo `v3_results`.
  */
-async function mirrorToRanking(
+async function mirrorToHistory(
   db: ReturnType<typeof getSupabaseAdmin>,
   play: { player_id: string | null; wallet: string; mode_id: string },
+  txHash: string,
   challengeId: string,
   stats: {
     wpm: number;
@@ -98,6 +103,10 @@ async function mirrorToRanking(
     if (!playerName) playerName = walletAlias(wallet || playerId);
 
     const { error } = await db.from("match_results").insert({
+      // Procedencia: ata la fila a la transacción que pagó la carrera. Sin esto
+      // el trigger la rechaza, que es exactamente lo que se quiere para
+      // cualquier escritor que no venga de una jugada verificada.
+      tx_hash: txHash,
       player_id: playerId,
       player_name: playerName,
       mode_id: play.mode_id,
@@ -112,10 +121,10 @@ async function mirrorToRanking(
       progress: stats.progress,
     });
     if (error) {
-      console.error("[results] copia al ranking falló:", error.message);
+      console.error("[results] copia al historial falló:", error.message);
     }
   } catch (e) {
-    console.error("[results] copia al ranking falló:", e);
+    console.error("[results] copia al historial falló:", e);
   }
 }
 
@@ -239,16 +248,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "db-error" }, { status: 500 });
   }
 
-  // Ya está lo que decide el premio; ahora, lo que ve el jugador. Va DESPUÉS y
+  // Ya está lo que decide el premio; ahora el archivo histórico. Va DESPUÉS y
   // solo cuando el insert anterior salió bien, así que un reenvío (que sale por
-  // "already-submitted") tampoco puede duplicar la fila del ranking.
-  await mirrorToRanking(
+  // "already-submitted") tampoco puede duplicar la fila.
+  await mirrorToHistory(
     db,
     {
       player_id: (play.player_id as string) ?? null,
       wallet: (play.wallet as string) ?? "",
       mode_id: play.mode_id as string,
     },
+    txHash,
     body.challengeId ?? "",
     stats,
   );

@@ -1,70 +1,55 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DURATION } from "@/lib/game";
-import { CurrencyId, PAY_CURRENCIES, entryLabel } from "@/lib/gameV2";
 import { useI18n } from "@/lib/i18n/client";
 import { usePrizePools } from "@/hooks/usePrizePools";
+import { hasPlayerAlias } from "@/lib/player";
 import {
   ChallengeId,
   MODES,
   ModeId,
   getChallengesByMode,
 } from "@/lib/passages";
-import TypeRushBolt from "../brand/TypeRushBolt";
-import EntrySheet from "./EntrySheet";
 
 type Props = {
   modeId: ModeId;
   onModeChange: (id: ModeId) => void;
   challengeId: ChallengeId;
   onChallengeChange: (id: ChallengeId) => void;
-  /** Intento gratis disponible en esta modalidad (fuente: Supabase). */
-  canPlay: boolean;
-  playLoading: boolean;
-  /** Contrato configurado: sin él solo se juega, no se cobra. */
-  payEnabled: boolean;
-  payState: "idle" | "paying" | "error";
-  payError: string | null;
-  onPlayFree: () => void;
-  onPayAndPlay: (currencyId: CurrencyId) => void;
+  onChooseAlias: () => void;
   onShowHowTo: () => void;
-  /** CTA alternativo de V3 (el contrato decide gratis/pagado). */
-  v3Cta?: ReactNode;
+  /** El botón de jugar, que trae su propio estado leído del contrato. */
+  playCta: ReactNode;
   /** Top 3 de la ronda: columna derecha en escritorio. */
   children: ReactNode;
 };
 
 /**
  * Tarjeta del reto diario: etiqueta, título, premio, cierre, modalidad, reto,
- * estado de la entrada, UN solo CTA, tutorial y top 3 en una sola unidad
- * autosuficiente. Es el equivalente del `DailyChallengeCard` de Avíspate.
+ * UN solo CTA, tutorial y top 3 en una sola unidad autosuficiente. Es el
+ * equivalente del `DailyChallengeCard` de Avíspate.
  *
  * En móvil todo se apila; a partir de 860 px la MISMA tarjeta se abre en dos
  * columnas (acción | top 3) sin convertirse en dos tarjetas ni en otra
  * pantalla.
  *
- * El CTA no cambia de sitio ni de tamaño: solo de texto y estado. Mientras no
- * se sepa si queda intento gratis NO dice "Jugar gratis" — prometer algo que
- * quizá ya se usó es peor que esperar medio segundo.
+ * ⚠️ La tarjeta ya no calcula si la entrada es gratis o de pago, ni tiene botón
+ * propio: los trae `playCta`, que lo lee del CONTRATO. Antes había además una
+ * línea de entrada basada en Supabase y un CTA de reserva; eran una segunda
+ * fuente para la misma promesa, y se contradecían justo antes de cobrar.
  */
 export default function DailyChallengeCard({
   modeId,
   onModeChange,
   challengeId,
   onChallengeChange,
-  canPlay,
-  playLoading,
-  payEnabled,
-  payState,
-  payError,
-  onPlayFree,
-  onPayAndPlay,
+  onChooseAlias,
   onShowHowTo,
-  v3Cta,
+  playCta,
   children,
 }: Props) {
-  const { t, tError, locale } = useI18n();
+  const { t } = useI18n();
   const {
     enabled: poolsEnabled,
     state: poolsState,
@@ -74,18 +59,16 @@ export default function DailyChallengeCard({
     retry: retryPools,
   } = usePrizePools(modeId);
   const challenges = getChallengesByMode(modeId);
-  // Elección de moneda: solo aparece cuando ya no hay intento gratis.
-  const [askCurrency, setAskCurrency] = useState(false);
 
-  const usdt = PAY_CURRENCIES.find((c) => c.id === "usdt");
-  const entry = usdt ? `${entryLabel(usdt, locale)} ${usdt.symbol}` : "";
-  const freeUsed = payEnabled && !playLoading && !canPlay;
-
-  const ctaLabel = playLoading
-    ? t("common.checking")
-    : freeUsed
-      ? t("play.cta.paid", { amount: entry })
-      : t("lobby.play_free");
+  // ¿Ya tiene alias? Se resuelve en un effect, no durante el render: el alias
+  // vive en localStorage, que no existe en el servidor, y leerlo al pintar hace
+  // que el HTML del servidor y el del cliente no coincidan (error de
+  // hidratación). Empieza en `true` para no enseñar el enlace y esconderlo.
+  const [hasAlias, setHasAlias] = useState(true);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHasAlias(hasPlayerAlias());
+  }, []);
 
   return (
     <section
@@ -230,69 +213,36 @@ export default function DailyChallengeCard({
           </div>
         </Field>
 
-        {/* Estado de la entrada. Altura reservada para que el CTA no salte al
-            pasar de "comprobando" a gratis/pagada.
+        {/* El botón trae su propio estado de entrada leído del contrato: si la
+            partida es gratis, cuánto cuesta si no, y en qué paso va la firma. */}
+        {playCta}
 
-            Con V3 esta línea NO se pinta: allí quien decide si la partida es
-            gratis es el contrato, no la base de datos, y el propio CTA de V3
-            trae su mensaje leído de la cadena. Dos fuentes para lo mismo acaban
-            contradiciéndose delante del jugador justo antes de cobrarle. */}
-        {!v3Cta && (
-          <p
-            aria-live="polite"
-            className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-3 py-2 text-center text-sm font-bold text-ink"
-          >
-            {!payEnabled
-              ? t("play.entry.practice")
-              : playLoading
-                ? t("play.entry.checking")
-                : canPlay
-                  ? t("play.entry.free")
-                  : t("play.entry.paid", { amount: entry })}
-          </p>
-        )}
-
-        {v3Cta ?? (
+        <div className="flex flex-wrap items-center justify-center gap-x-4">
           <button
             type="button"
-            onClick={() => (freeUsed ? setAskCurrency(true) : onPlayFree())}
-            disabled={playLoading || payState === "paying"}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={onShowHowTo}
+            className="min-h-11 px-3 text-sm font-semibold text-brand-deep underline underline-offset-2"
           >
-            <TypeRushBolt className="h-5 w-5" />
-            {payState === "paying" ? t("lobby.paying") : ctaLabel}
+            {t("play.howto")}
           </button>
-        )}
-
-        {payState === "error" && payError && (
-          <p className="text-center text-xs font-semibold text-danger" aria-live="polite">
-            {tError(payError)}
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={onShowHowTo}
-          className="min-h-11 self-center px-3 text-sm font-semibold text-brand-deep underline underline-offset-2"
-        >
-          {t("play.howto")}
-        </button>
+          {/* Solo mientras no haya nombre. Poner alias es opcional: sin él se
+              aparece en el ranking como `0x1234…abcd`. */}
+          {!hasAlias && (
+            <button
+              type="button"
+              onClick={onChooseAlias}
+              className="min-h-11 px-3 text-sm font-semibold text-brand-deep underline underline-offset-2"
+            >
+              {t("alias.title")}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ---------------- Columna del top 3 ---------------- */}
       <aside className="flex min-w-0 flex-col border-t border-line pt-4 min-[860px]:flex-[0.9] min-[860px]:border-l min-[860px]:border-t-0 min-[860px]:pl-7 min-[860px]:pt-0">
         {children}
       </aside>
-
-      {askCurrency && (
-        <EntrySheet
-          onClose={() => setAskCurrency(false)}
-          onChoose={(id) => {
-            setAskCurrency(false);
-            onPayAndPlay(id);
-          }}
-        />
-      )}
     </section>
   );
 }

@@ -8,8 +8,6 @@ import {
   saveBestScore,
   Stats,
 } from "@/lib/game";
-import { submitRun } from "@/lib/runs";
-import { isV3Enabled } from "@/lib/contractsV3";
 import { submitResultV3 } from "@/lib/playV3";
 import { playError, playFinish, playKey, playRecord } from "@/lib/sound";
 import { saveMatchHistoryItem } from "@/lib/history";
@@ -102,28 +100,24 @@ export function useTypeRush() {
     const playerName = getPlayerName();
     const modeId = challengeInfo?.modeId ?? "";
 
-    const submitRunId = runIdRef.current;
-    if (submitRunId) {
-      // Con V3 el identificador de la partida ES el hash de la transacción que
-      // la pagó, así que el resultado va atado a ella; con V2 es el id de run
-      // que emitió la Edge Function. Las dos rutas recalculan el puntaje en el
-      // servidor: lo que cambia es contra qué prueba de pago se ata.
-      if (isV3Enabled()) {
-        void submitResultV3({
-          txHash: submitRunId,
-          challengeId: id,
-          typed: typedRef.current,
-          elapsedMs: elapsed,
-          mistakes: mistakeIndicesRef.current.size,
-        });
-      } else {
-        void submitRun({
-          runId: submitRunId,
-          typed: typedRef.current,
-          elapsedMs: elapsed,
-          mistakes: mistakeIndicesRef.current.size,
-        });
-      }
+    // El identificador de la partida ES el hash de la transacción que la pagó:
+    // el resultado va atado a ella y el servidor lo recalcula contra el pasaje
+    // que emitió al verificar esa misma transacción.
+    //
+    // ⚠️ Aquí había una segunda rama que enviaba a `submit-run` cuando V3 estaba
+    // apagado. Se quitó a propósito (2026-08-09): esa ruta escribía en el
+    // ranking sin ninguna transacción detrás, y dejarla dependiendo de una
+    // bandera significaba que apagar la bandera reabría el agujero. Sin jugada
+    // V3 no hay resultado que enviar, y punto.
+    const txHash = runIdRef.current;
+    if (txHash) {
+      void submitResultV3({
+        txHash,
+        challengeId: id,
+        typed: typedRef.current,
+        elapsedMs: elapsed,
+        mistakes: mistakeIndicesRef.current.size,
+      });
     }
 
     // Historial local: solo las partidas de este navegador/jugador.
