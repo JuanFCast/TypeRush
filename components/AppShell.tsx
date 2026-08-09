@@ -42,9 +42,13 @@ export default function AppShell({
               <LanguageToggle variant="compact" />
             </div>
 
+            {/* `min-w-0`: sin él la pista `1fr` crece con la marca en vez de
+                dejarla desbordar, y al crecer empuja la tercera pista — es
+                decir, movería el botón de sonido. Con min-width 0 las tres
+                pistas son inamovibles pase lo que pase con el logo. */}
             <Link
               href="/"
-              className="justify-self-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
+              className="min-w-0 justify-self-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
             >
               <BrandLockup size="sm" />
             </Link>
