@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { ALIAS_MAX, ALIAS_MIN, validateAlias } from "@/lib/alias";
 import { useProfile } from "@/lib/profileContext";
 import { useWalletSession } from "@/lib/walletSession";
+import { walletToken } from "@/lib/walletToken";
 
 /**
  * Alias del jugador, editable en línea. Es el ÚNICO sitio donde se cambia: el
@@ -33,6 +34,12 @@ const ERROR_KEY: Record<string, string> = {
   alias_too_short: "error.alias_too_short",
   invalid_address: "error.alias_no_wallet",
   no_session: "error.alias_no_wallet",
+  // Sin sesión de wallet todavía: se gana jugando una partida (el hash de la
+  // jugada es la prueba de que la wallet es tuya). Se explica así, con lo que
+  // hay que hacer, en vez de un "no autorizado".
+  needs_play: "error.alias_needs_play",
+  unauthorized: "error.alias_needs_play",
+  invalid_token: "error.alias_needs_play",
 };
 
 export default function AliasEditor() {
@@ -154,17 +161,32 @@ export default function AliasEditor() {
   );
 }
 
-/** Guarda el alias contra la wallet conectada. */
+/**
+ * Guarda el alias con la sesión de wallet.
+ *
+ * El token se gana jugando: al verificarse una partida, su hash se canjea por
+ * una sesión (ver `lib/walletToken.ts`). Por eso quien todavía no ha jugado
+ * ninguna vez desde esta wallet no puede ponerse alias aún — y se le dice, en
+ * vez de dejarle un botón que falla.
+ *
+ * La dirección NO viaja en el cuerpo: la saca el servidor del token. Mandarla
+ * sería volver a la versión que permitía renombrar a cualquiera.
+ */
 async function saveByWallet(
   address: string,
   alias: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!address) return { ok: false, error: "no_session" };
+  const token = walletToken(address);
+  if (!token) return { ok: false, error: "needs_play" };
   try {
     const res = await fetch("/api/wallet-alias", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, alias }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ alias }),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) return { ok: false, error: data.error ?? "error" };

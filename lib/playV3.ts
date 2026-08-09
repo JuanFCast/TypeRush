@@ -19,6 +19,7 @@ import {
   type TokenId,
 } from "./contractsV3";
 import { feeOverrides, resolveGasSource } from "./feeCurrency";
+import { ensureWalletSession } from "./walletToken";
 import type { MessageKey } from "./i18n";
 
 /**
@@ -225,6 +226,13 @@ export function usePlayV3() {
         if (!res.ok || !data.passage) {
           return { ok: false, error: "register-failed" };
         }
+
+        // La jugada acaba de quedar verificada: es el único momento en que su
+        // hash es fresco, así que se canjea por una sesión de wallet. Es como
+        // el jugador de MiniPay obtiene identidad sin firmar un mensaje, que ahí
+        // no se puede. No se espera ni se comprueba: si falla, jugar y cobrar
+        // siguen igual — solo no podría cambiarse el alias.
+        void ensureWalletSession(address, txHash);
 
         return {
           ok: true,

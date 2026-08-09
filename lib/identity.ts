@@ -78,12 +78,19 @@ export async function resolveProfile(
   db: SupabaseClient = getSupabaseAdmin(),
 ): Promise<ResolvedProfile | null> {
   // 1. Por privy_id: el camino normal de quien ya entró alguna vez.
-  const byPrivy = await db
-    .from("player_profiles")
-    .select(COLUMNS)
-    .eq("privy_id", identity.privyId)
-    .maybeSingle();
-  if (byPrivy.data) return toProfile(byPrivy.data as ProfileRow);
+  //
+  // Se salta cuando no hay: quien entró por sesión de wallet (MiniPay, donde no
+  // se puede firmar un mensaje) no tiene DID, y su identidad ES la dirección.
+  // Preguntar por `privy_id = null` no solo no encontraría nada útil — podría
+  // emparejarlo con cualquier perfil sin vincular.
+  if (identity.privyId) {
+    const byPrivy = await db
+      .from("player_profiles")
+      .select(COLUMNS)
+      .eq("privy_id", identity.privyId)
+      .maybeSingle();
+    if (byPrivy.data) return toProfile(byPrivy.data as ProfileRow);
+  }
 
   // 2. Por wallet: perfil viejo, o alguien que entró firmando.
   const wallet = identity.walletAddress;
@@ -99,7 +106,7 @@ export async function resolveProfile(
   // 3. Vincular para que la próxima vez gane por privy_id. Si otro perfil ya
   //    tomó ese privy_id (23505) se deja como está: no se pisa una vinculación
   //    existente por una coincidencia de wallet.
-  if (!best.privy_id) {
+  if (identity.privyId && !best.privy_id) {
     const { error } = await db
       .from("player_profiles")
       .update({ privy_id: identity.privyId, updated_at: new Date().toISOString() })

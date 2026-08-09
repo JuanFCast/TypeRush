@@ -1,5 +1,6 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import { NextResponse } from "next/server";
+import { looksLikeWalletSession, verifyWalletSession } from "./walletAuth";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const appSecret = process.env.PRIVY_APP_SECRET;
@@ -22,8 +23,13 @@ export function hasPrivyServer(): boolean {
 }
 
 export interface PrivyIdentity {
-  /** DID de Privy (`did:privy:…`): identidad estable del jugador. */
-  privyId: string;
+  /**
+   * DID de Privy (`did:privy:…`): identidad estable del jugador.
+   *
+   * `null` cuando entró por sesión de wallet (MiniPay, donde no se puede firmar
+   * un mensaje): ahí la identidad ES la dirección. Ver `lib/walletAuth.ts`.
+   */
+  privyId: string | null;
   /**
    * Wallet EVM del jugador en minúsculas, o null.
    *
@@ -81,6 +87,35 @@ export function bearerToken(req: Request): string | null {
   return token.trim();
 }
 
+/**
+ * Resuelve un token a una identidad, sea de la puerta que sea.
+ *
+ * Los de sesión de wallet se reconocen por su prefijo y se verifican aquí mismo
+ * (HMAC local, sin red); el resto va a Privy. Que las dos puertas devuelvan la
+ * MISMA forma es lo que permite que las rutas no tengan que saber por dónde
+ * entró nadie — y es lo que hace que el jugador de MiniPay, que no puede firmar
+ * un mensaje, tenga identidad de verdad. Ver `lib/walletAuth.ts`.
+ */
+async function identityFromToken(token: string): Promise<PrivyIdentity | null> {
+  if (looksLikeWalletSession(token)) {
+    const address = verifyWalletSession(token);
+    if (!address) return null;
+    return {
+      privyId: null,
+      walletAddress: address,
+      // Una sesión de wallet no prueba nada sobre una wallet embebida, así que
+      // no la inventa: quien entra así no recibe el gas de bienvenida.
+      embeddedAddress: null,
+      email: null,
+    };
+  }
+  try {
+    return await verifyPrivyToken(token);
+  } catch {
+    return null;
+  }
+}
+
 /** La identidad verificada, o una respuesta 401 lista para devolver. */
 export async function requireIdentity(
   req: Request,
@@ -91,13 +126,13 @@ export async function requireIdentity(
       response: NextResponse.json({ error: "unauthorized" }, { status: 401 }),
     };
   }
-  try {
-    return { identity: await verifyPrivyToken(token) };
-  } catch {
+  const identity = await identityFromToken(token);
+  if (!identity) {
     return {
       response: NextResponse.json({ error: "invalid_token" }, { status: 401 }),
     };
   }
+  return { identity };
 }
 
 /** La identidad si viene y es válida; `null` si no. Para rutas semipúblicas. */
@@ -106,9 +141,5 @@ export async function optionalIdentity(
 ): Promise<PrivyIdentity | null> {
   const token = bearerToken(req);
   if (!token) return null;
-  try {
-    return await verifyPrivyToken(token);
-  } catch {
-    return null;
-  }
+  return await identityFromToken(token);
 }

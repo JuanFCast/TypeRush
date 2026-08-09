@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { aliasOfWallet, setWalletAlias } from "@/lib/identity";
+import { requireIdentity } from "@/lib/privyServer";
 import { hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -36,32 +37,44 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/wallet-alias — fija el alias de una wallet. Body: `{ address, alias }`.
+ * POST /api/wallet-alias — fija el alias del jugador. Body: `{ alias }`.
  *
- * ⚠️ Sin firma: quien conozca una dirección puede renombrarla. Se acepta porque
- * el alias es cosmético (no mueve dinero, no decide premios: el contrato solo
- * conoce wallets) y porque pedir un `personal_sign` metería un paso en MiniPay
- * para algo que no lo necesita. Si el alias pasara a valer algo, la firma es el
- * siguiente paso — no confiar más en el cliente. Ver `setWalletAlias`.
+ * ⚠️ **Exige sesión**, de Privy o de wallet (`Authorization: Bearer …`), y la
+ * dirección sale del TOKEN, nunca del cuerpo.
+ *
+ * La primera versión de esta ruta aceptaba `{ address, alias }` sin
+ * autenticación ninguna, así que cualquiera que conociera una dirección podía
+ * renombrar a ese jugador. Se justificó diciendo que el alias es cosmético y que
+ * Avíspate hacía lo mismo — lo segundo era falso: Avíspate exige identidad para
+ * escribir, y para MiniPay la construyó canjeando el hash de una jugada por una
+ * sesión. Eso es lo que hay ahora en `/api/session/wallet`.
+ *
+ * Que la dirección venga del token es la misma regla que ya seguía
+ * `/api/welcome-gas`: leer del cuerpo una dirección que decide sobre algo ajeno
+ * es confiar en quien llama.
  */
 export async function POST(req: Request) {
   if (!hasSupabaseAdmin()) {
     return NextResponse.json({ error: "no-database" }, { status: 503 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as {
-    address?: string;
-    alias?: string;
-  };
-  if (!ADDR_RE.test(body.address ?? "")) {
+  const auth = await requireIdentity(req);
+  if ("response" in auth) return auth.response;
+
+  const address = auth.identity.walletAddress;
+  if (!address || !ADDR_RE.test(address)) {
+    // Una identidad de Privy por correo sin wallet enlazada: no hay dirección a
+    // la que atar el alias. Se dice, en vez de escribirlo en cualquier sitio.
     return NextResponse.json({ error: "invalid_address" }, { status: 400 });
   }
+
+  const body = (await req.json().catch(() => ({}))) as { alias?: string };
   if (typeof body.alias !== "string") {
     return NextResponse.json({ error: "alias_invalid" }, { status: 400 });
   }
 
   try {
-    const res = await setWalletAlias(body.address as string, body.alias);
+    const res = await setWalletAlias(address, body.alias);
     if (!res.ok) {
       // `alias_taken` es 409 y no 400: el nombre es válido, solo que otra
       // persona llegó primero. El cliente lo distingue para decirlo bien.
