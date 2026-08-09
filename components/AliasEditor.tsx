@@ -1,44 +1,94 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/client";
-import { NAME_MAX, NAME_MIN } from "@/lib/player";
+import { ALIAS_MAX, ALIAS_MIN, validateAlias } from "@/lib/alias";
 import { useProfile } from "@/lib/profileContext";
+import { useWalletSession } from "@/lib/walletSession";
 
 /**
  * Alias del jugador, editable en línea. Es el ÚNICO sitio donde se cambia: el
  * alias identifica en el ranking y en el historial, así que tener dos formas de
  * editarlo terminaba en dos verdades distintas.
  *
+ * ⚠️ Dos caminos para guardar, y hacen falta los dos:
+ *   · Con sesión de Privy → `/api/profile`, que ata el alias a la identidad y
+ *     sobrevive a cambiar de wallet.
+ *   · Solo con wallet (MiniPay, wallet externa) → `/api/wallet-alias`.
+ *
+ * Antes solo existía el primero, así que dentro de MiniPay guardar fallaba
+ * SIEMPRE — y el error que se pintaba era "usa solo letras y números", porque
+ * cualquier fallo que no fuera `alias_taken` se traducía a ese. Un mensaje que
+ * miente sobre la causa es peor que uno genérico: se pasa media hora cambiando
+ * el nombre cuando el problema era que no había sesión.
+ *
  * La unicidad la decide el servidor (409), no una comprobación previa: entre
  * "está libre" y "lo guardo" cabe otra persona eligiendo el mismo.
  */
+
+const ERROR_KEY: Record<string, string> = {
+  alias_taken: "error.alias_taken",
+  alias_invalid: "error.alias_chars",
+  alias_chars: "error.alias_chars",
+  alias_too_short: "error.alias_too_short",
+  invalid_address: "error.alias_no_wallet",
+  no_session: "error.alias_no_wallet",
+};
+
 export default function AliasEditor() {
   const { t, tError } = useI18n();
   const profile = useProfile();
+  const wallet = useWalletSession();
 
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Alias de la wallet cuando no hay sesión de Privy que lo traiga. */
+  const [walletAlias, setWalletAliasState] = useState<string | null>(null);
+
+  // Sin Privy el alias no llega por el contexto: se pregunta por la wallet.
+  useEffect(() => {
+    if (profile.authenticated || !wallet.address) return;
+    let cancelled = false;
+    void fetch(`/api/wallet-alias?address=${wallet.address}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setWalletAliasState(d.alias ?? null);
+      })
+      .catch(() => {
+        // Sin lectura se enseña "Invitado" y se puede escribir uno igual.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.authenticated, wallet.address]);
+
+  const current = profile.alias ?? walletAlias;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const name = value.trim();
-    if (name.length < NAME_MIN) {
-      setError("error.alias_too_short");
+
+    // Se valida aquí con las MISMAS reglas que el servidor (`lib/alias.ts`), así
+    // que un nombre que pasa aquí no puede ser rechazado allá por caracteres.
+    const check = validateAlias(value);
+    if (!check.ok) {
+      setError(ERROR_KEY[check.error]);
       return;
     }
+
     setSaving(true);
-    const res = await profile.setAlias(name);
+    const res = profile.authenticated
+      ? await profile.setAlias(check.value)
+      : await saveByWallet(wallet.address, check.value);
     setSaving(false);
+
     if (!res.ok) {
-      setError(
-        res.error === "alias_taken" ? "error.alias_taken" : "error.alias_chars",
-      );
+      setError(ERROR_KEY[res.error] ?? "error.alias_save_failed");
       return;
     }
+    if (!profile.authenticated) setWalletAliasState(check.value);
     setEditing(false);
   }
 
@@ -46,12 +96,12 @@ export default function AliasEditor() {
     return (
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-bold text-ink">
-          {profile.alias ?? t("session.guest")}
+          {current ?? t("session.guest")}
         </h1>
         <button
           type="button"
           onClick={() => {
-            setValue(profile.alias ?? "");
+            setValue(current ?? "");
             setError(null);
             setEditing(true);
           }}
@@ -70,7 +120,7 @@ export default function AliasEditor() {
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          maxLength={NAME_MAX}
+          maxLength={ALIAS_MAX}
           autoFocus
           autoComplete="off"
           spellCheck={false}
@@ -96,10 +146,30 @@ export default function AliasEditor() {
         </button>
       </div>
       {error ? (
-        <p className="text-xs text-danger">{tError(error, { min: NAME_MIN })}</p>
+        <p className="text-xs text-danger">{tError(error, { min: ALIAS_MIN })}</p>
       ) : (
         <p className="text-xs text-muted">{t("alias.rules")}</p>
       )}
     </form>
   );
+}
+
+/** Guarda el alias contra la wallet conectada. */
+async function saveByWallet(
+  address: string,
+  alias: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!address) return { ok: false, error: "no_session" };
+  try {
+    const res = await fetch("/api/wallet-alias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, alias }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) return { ok: false, error: data.error ?? "error" };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "network" };
+  }
 }

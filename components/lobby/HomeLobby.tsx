@@ -14,8 +14,6 @@ type Props = {
   onModeChange: (id: ModeId) => void;
   challengeId: ChallengeId;
   onChallengeChange: (id: ChallengeId) => void;
-  /** Abre el modal de alias (opcional: la identidad es la wallet). */
-  onChooseAlias: () => void;
   /** El botón de jugar. Uno solo, y siempre el de V3. */
   playCta: ReactNode;
 };

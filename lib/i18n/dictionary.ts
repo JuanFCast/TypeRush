@@ -406,6 +406,8 @@ export const es = {
     "No pudimos verificar disponibilidad ahora. Se guardó localmente.",
   "error.alias_too_short": "El alias necesita al menos {min} caracteres.",
   "error.alias_chars": "Usa solo letras, números, guion bajo o espacios.",
+  "error.alias_no_wallet": "Conecta tu wallet para poder elegir alias.",
+  "error.alias_save_failed": "No se pudo guardar el alias. Inténtalo otra vez.",
   "error.alias_reserved": "Elige un alias distinto de «{name}».",
   "error.alias_taken_wallet":
     "El alias «{name}» ya lo usa otro jugador. Elige otro nombre, guárdalo arriba, y luego asocia tu wallet.",
@@ -838,6 +840,8 @@ export const en: Record<MessageKey, string> = {
     "We couldn't check availability right now. It was saved locally.",
   "error.alias_too_short": "The alias needs at least {min} characters.",
   "error.alias_chars": "Use only letters, numbers, underscore or spaces.",
+  "error.alias_no_wallet": "Connect your wallet to choose an alias.",
+  "error.alias_save_failed": "Couldn't save the alias. Try again.",
   "error.alias_reserved": "Choose an alias other than “{name}”.",
   "error.alias_taken_wallet":
     "The alias “{name}” is already used by another player. Choose another name, save it above, and then link your wallet.",

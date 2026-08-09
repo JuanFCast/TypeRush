@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { DURATION } from "@/lib/game";
 import { useI18n } from "@/lib/i18n/client";
@@ -17,7 +18,6 @@ type Props = {
   onModeChange: (id: ModeId) => void;
   challengeId: ChallengeId;
   onChallengeChange: (id: ChallengeId) => void;
-  onChooseAlias: () => void;
   onShowHowTo: () => void;
   /** El botón de jugar, que trae su propio estado leído del contrato. */
   playCta: ReactNode;
@@ -44,7 +44,6 @@ export default function DailyChallengeCard({
   onModeChange,
   challengeId,
   onChallengeChange,
-  onChooseAlias,
   onShowHowTo,
   playCta,
   children,
@@ -226,15 +225,19 @@ export default function DailyChallengeCard({
             {t("play.howto")}
           </button>
           {/* Solo mientras no haya nombre. Poner alias es opcional: sin él se
-              aparece en el ranking como `0x1234…abcd`. */}
+              aparece en el ranking como `0x1234…abcd`.
+
+              Lleva a Perfil en vez de abrir su propio modal: el alias se edita
+              en UN solo sitio. Cuando había dos, cada uno escribía por su lado
+              —uno contra el perfil de Privy, el otro contra el local— y acababan
+              discrepando sobre cuál era tu nombre. */}
           {!hasAlias && (
-            <button
-              type="button"
-              onClick={onChooseAlias}
-              className="min-h-11 px-3 text-sm font-semibold text-brand-deep underline underline-offset-2"
+            <Link
+              href="/perfil"
+              className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-brand-deep underline underline-offset-2"
             >
               {t("alias.title")}
-            </button>
+            </Link>
           )}
         </div>
       </div>

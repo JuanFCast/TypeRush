@@ -7,7 +7,6 @@ import PlayV3Button from "@/components/PlayV3Button";
 import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import AppShell from "@/components/AppShell";
-import AliasModal from "@/components/AliasModal";
 import CountdownScreen from "@/components/CountdownScreen";
 import { unlockAudio } from "@/lib/sound";
 import ClaimBanner from "@/components/ClaimBanner";
@@ -57,11 +56,6 @@ export default function Page() {
     setLang(next);
     setChallengeId(getChallengesByMode(next)[0]?.id ?? "motivacionEs");
   };
-
-  // Modal de alias abierto. El alias es OPCIONAL: en V3 la identidad es la
-  // wallet que firma, y quien no elija nombre sale en el ranking como
-  // `0x1234…abcd`. Antes era obligatorio porque se jugaba sin wallet.
-  const [aliasOpen, setAliasOpen] = useState(false);
 
   // Teclado "cebador": en móvil iOS el teclado solo abre dentro del gesto del
   // usuario. Al tocar Jugar/Empezar enfocamos este textarea para abrir el teclado
@@ -225,7 +219,6 @@ export default function Page() {
             onModeChange={onModeChange}
             challengeId={challengeId}
             onChallengeChange={setChallengeId}
-            onChooseAlias={() => setAliasOpen(true)}
             playCta={
               <PlayV3Button
                 mode={mode}
@@ -263,16 +256,10 @@ export default function Page() {
         </button>
       )}
 
-      {/* El alias es opcional y no bloquea nada: se abre desde el lobby cuando
-          al jugador le apetece ponerse nombre. Antes era un paso obligatorio
-          antes de la primera carrera, porque sin wallet el nombre era la única
-          identidad; ahora la identidad es la wallet que firma. */}
-      {aliasOpen && (
-        <AliasModal
-          onClose={() => setAliasOpen(false)}
-          onSaved={() => setAliasOpen(false)}
-        />
-      )}
+      {/* El alias vive en Perfil y en ningún otro sitio: es opcional (la
+          identidad es la wallet que firma) y se edita en UN solo editor, que
+          sabe guardar tanto con sesión de Privy como solo con wallet. Aquí
+          había un modal propio que escribía por otro camino. */}
 
       {status === "countdown" && (
         <CountdownScreen

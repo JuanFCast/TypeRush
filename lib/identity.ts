@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getAddress } from "viem";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { aliasKey, validateAlias } from "./alias";
 import type { PrivyIdentity } from "./privyServer";
 
 /**
@@ -109,6 +111,28 @@ export async function resolveProfile(
   return toProfile(best);
 }
 
+/**
+ * Las dos formas en que una dirección puede estar guardada.
+ *
+ * ⚠️ `wallet_address` NO está normalizada en la base: hay perfiles con la
+ * dirección en minúsculas y otros con el checksum EIP-55 (`0x2e72a8Ee5F…`),
+ * según por dónde entró cada uno. Un `.in()` o un `.eq()` con minúsculas no
+ * encuentra los segundos — así fue como el ranking empezó a enseñar
+ * `0x2e72…a5c4` en vez de "PipeMinipay" el 2026-08-09.
+ *
+ * Buscar por las dos formas es exacto y barato. `.ilike()` también valdría para
+ * una sola, pero no para una lista.
+ */
+export function walletVariants(address: string): string[] {
+  const low = address.toLowerCase();
+  try {
+    const checksummed = getAddress(low);
+    return checksummed === low ? [low] : [low, checksummed];
+  } catch {
+    return [low];
+  }
+}
+
 export type CreateProfileResult =
   | { ok: true; profile: ResolvedProfile }
   | { ok: false; error: "alias_taken" | "alias_invalid" | "db_error" };
@@ -127,11 +151,10 @@ export async function createOrUpdateProfile(
   alias: string,
   db: SupabaseClient = getSupabaseAdmin(),
 ): Promise<CreateProfileResult> {
-  const name = alias.replace(/\s+/g, " ").trim().slice(0, 16);
-  if (name.length < 2 || !/^[\p{L}\p{N}_ ]+$/u.test(name)) {
-    return { ok: false, error: "alias_invalid" };
-  }
-  const key = name.toLowerCase();
+  const check = validateAlias(alias);
+  if (!check.ok) return { ok: false, error: "alias_invalid" };
+  const name = check.value;
+  const key = aliasKey(name);
 
   const existing = await resolveProfile(identity, db);
 
@@ -175,6 +198,104 @@ export async function createOrUpdateProfile(
       alias: name,
       walletAddress: identity.walletAddress,
       privyId: identity.privyId,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Alias de una wallet, SIN sesión de Privy
+// ---------------------------------------------------------------------------
+
+/**
+ * El alias que ya tiene esta wallet, o null.
+ *
+ * Busca por las dos formas de escribir la dirección (ver `walletVariants`).
+ */
+export async function aliasOfWallet(
+  address: string,
+  db: SupabaseClient = getSupabaseAdmin(),
+): Promise<string | null> {
+  const { data } = await db
+    .from("player_profiles")
+    .select("player_name, updated_at")
+    .in("wallet_address", walletVariants(address))
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  return (data?.[0]?.player_name as string) ?? null;
+}
+
+/**
+ * Fija el alias de una wallet sin pasar por Privy.
+ *
+ * ── Por qué existe ────────────────────────────────────────────────────────
+ * El alias solo se podía cambiar con una sesión de Privy, y dentro de MiniPay
+ * no hay ninguna: hay wallet, y punto. El resultado era que el editor de Perfil
+ * fallaba SIEMPRE ahí y encima lo reportaba como "usa solo letras y números",
+ * que no tenía nada que ver. Es el modelo de Avíspate: el alias es de la
+ * BILLETERA, no de un login.
+ *
+ * ⚠️ **No lleva firma, y eso es deliberado pero no gratis.** Cualquiera que
+ * conozca una dirección podría renombrarla. Se acepta porque el alias es
+ * cosmético —no mueve dinero, no decide premios, el contrato solo conoce
+ * wallets— y porque exigir una firma metería un paso a MiniPay para algo que no
+ * lo necesita. Si algún día el alias pasa a valer algo, el camino es pedir un
+ * `personal_sign` aquí, no confiar más en el cliente.
+ *
+ * La unicidad la impone la base de datos (`player_name_key`), no una consulta
+ * previa: entre "está libre" y "lo guardo" cabe otra persona eligiendo el mismo.
+ */
+export async function setWalletAlias(
+  address: string,
+  alias: string,
+  db: SupabaseClient = getSupabaseAdmin(),
+): Promise<CreateProfileResult> {
+  const check = validateAlias(alias);
+  if (!check.ok) return { ok: false, error: "alias_invalid" };
+  const name = check.value;
+  const key = aliasKey(name);
+  const variants = walletVariants(address);
+
+  const { data: rows } = await db
+    .from("player_profiles")
+    .select(COLUMNS)
+    .in("wallet_address", variants);
+  const existing = pickBest((rows ?? []) as ProfileRow[]);
+
+  if (existing) {
+    const { error } = await db
+      .from("player_profiles")
+      .update({
+        player_name: name,
+        player_name_key: key,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("player_id", existing.player_id);
+    if (error) {
+      return { ok: false, error: error.code === "23505" ? "alias_taken" : "db_error" };
+    }
+    return { ok: true, profile: { ...toProfile(existing), alias: name } };
+  }
+
+  // Wallet estrenando: perfil nuevo. Se guarda en minúsculas para que las
+  // próximas búsquedas no dependan del checksum.
+  const playerId = crypto.randomUUID();
+  const { error } = await db.from("player_profiles").insert({
+    player_id: playerId,
+    player_name: name,
+    player_name_key: key,
+    wallet_address: address.toLowerCase(),
+  });
+  if (error) {
+    return { ok: false, error: error.code === "23505" ? "alias_taken" : "db_error" };
+  }
+
+  return {
+    ok: true,
+    profile: {
+      playerId,
+      alias: name,
+      walletAddress: address.toLowerCase(),
+      privyId: null,
     },
   };
 }

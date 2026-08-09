@@ -5,6 +5,7 @@ import { CELO_TRANSPORT } from "@/lib/chain";
 import { GAMEV3_ABI } from "@/lib/contractsV3";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { rankCandidates, type CandidateRow } from "@/lib/settleV3";
+import { walletVariants } from "@/lib/identity";
 import { bestPerWallet, opaqueId, type RoundRankingEntry } from "@/lib/roundRanking";
 
 export const dynamic = "force-dynamic";
@@ -119,10 +120,15 @@ export async function POST(req: Request) {
   }
   if (wallets.length > 0) {
     // Para quien jugó con wallet y todavía no vinculó perfil por Privy.
+    //
+    // ⚠️ Se buscan las DOS formas de escribir cada dirección. `wallet_address`
+    // no está normalizada en la base —hay perfiles en minúsculas y otros con
+    // checksum EIP-55— y un `.in()` solo con minúsculas no encontraba los
+    // segundos: el ranking enseñaba `0x2e72…a5c4` en vez de "PipeMinipay".
     const { data: byWallet } = await db
       .from("player_profiles")
       .select("wallet_address, player_name, updated_at")
-      .in("wallet_address", wallets)
+      .in("wallet_address", wallets.flatMap(walletVariants))
       .order("updated_at", { ascending: false });
     for (const p of byWallet ?? []) {
       const w = String(p.wallet_address ?? "").toLowerCase();

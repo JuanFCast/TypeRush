@@ -98,11 +98,49 @@ export async function GET(req: Request) {
     }
 
     // --- Premios ------------------------------------------------------------
+    //
+    // Se leen las DOS fuentes, porque el juego cambió de contrato y el historial
+    // no se mueve: `v3_settlements` son las rondas de GameV3 (lo que se gana
+    // hoy) y `prize_payouts` las de V2 (cinco meses de premios reales). Hasta el
+    // 2026-08-09 esta ruta solo miraba la segunda, así que ganar en V3 no movía
+    // ni un número en Perfil.
     const prizes: unknown[] = [];
     let totalUsdt = 0n;
     let totalCopm = 0n;
 
     if (wallet) {
+      // GameV3: el robot escribe aquí al liquidar. `paid` = ya salió el dinero.
+      const { data: v3 } = await db
+        .from("v3_settlements")
+        .select(
+          "onchain_day, mode_id, status, tx_hash, paid_at, prize_net_usdt::text, prize_net_copm::text",
+        )
+        .ilike("winner_wallet", wallet)
+        .order("onchain_day", { ascending: false })
+        .limit(50);
+      for (const r of v3 ?? []) {
+        const row = r as Record<string, unknown>;
+        const paid = String(row.status) === "paid";
+        const usdt = BigInt((row.prize_net_usdt as string) || "0");
+        const copm = BigInt((row.prize_net_copm as string) || "0");
+        if (paid) {
+          totalUsdt += usdt;
+          totalCopm += copm;
+        }
+        prizes.push({
+          // El día on-chain arranca a las 00:00 UTC (7 p.m. Colombia), así que
+          // el final del periodo es el arranque del día siguiente.
+          periodEnd:
+            row.paid_at ??
+            new Date((Number(row.onchain_day) + 1) * 86_400_000).toISOString(),
+          mode: row.mode_id,
+          usdt: usdt.toString(),
+          copm: copm.toString(),
+          txHash: row.tx_hash ?? null,
+          state: paid ? "paid" : "pending",
+        });
+      }
+
       const { data } = await db
         .from("prize_payouts")
         .select(
