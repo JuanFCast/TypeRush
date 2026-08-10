@@ -180,14 +180,16 @@ are enabled and the entries live on-chain: **0.10 USDT / 300 COPm**.
   cannot be changed without deploying another contract.** That is exactly why the previous V3 was
   replaced. Four things must agree or ranking and prize stop describing the same day:
   `DAY_OFFSET` (contract) · `PERIOD_RESET_HOUR=19` (`lib/gamePeriod.ts`) · `reset_hour_bogota=19`
-  (`supabase/daily_reset.sql`) · the Vercel cron, now `10 0 * * *` (00:10 UTC = 7:10 p.m. Col).
+  (`supabase/daily_reset.sql`) · the Vercel settle crons at `10/25/45 0 * * *`
+  (00:10 / 00:25 / 00:45 UTC = 7:10 / 7:25 / 7:45 p.m. Col).
 - ⚠️ **V2 and V3 day numbers are no longer comparable** — same integer, different boundary.
 - ⚠️ **The abandoned V3 `0xEca5C8073d75212b2d43eDe464d67137159E529D`** (8 p.m.) still holds
   **0.10 USDT stranded in day 20670, mode `es`**. Pot money can only leave via `settle` to someone
   who played, so recovering it is rollover → play → settle. Nothing else is in there.
-- **There is no seeding robot for V3 and that is deliberate** (Juan, 2026-08-06): if nobody plays,
-  `rollover` carries the same pot forward untouched and no new money is ever added. Seeding is
-  manual `fundPot`, and the floor he chose is **0.30 USDT + 1 000 COPm per mode**.
+- **Seeding robot V3** (`scripts/seed-v3.mjs` + `.github/workflows/seed-v3.yml`, hourly): completes
+  each mode up to the floor **0.30 USDT + 1 000 COPm** after the previous day is `settled`. Top-up
+  only — running twice cannot accumulate. Signs with the Funder (`PRIVATE_KEY`), never the Operator.
+  Off until `GAMEV3_SEED_ENABLED=1`. Idle modes that rolled over already sit at the floor → aporte 0.
 - The COPm price lives in TWO constants that must match the chain — `GAME_TOKENS`
   (`lib/contractsV3.ts`) and `PAY_CURRENCIES` (`lib/gameV2.ts`, which is what the V3 button
   prints). The actual charge always comes from the contract's `entryAmountOf`.
@@ -389,11 +391,13 @@ matters while playing.
 - ⚠️ `<main>` carries **`overflow-x-clip`, not `hidden`**: the home halo is 130 %
   wide and caused 41 px of horizontal scroll on 360 px screens. `clip` trims it
   without creating a scroll container, so the lobby's `lg:sticky` column survives.
-- `/api/history` merges `v3_settlements` (empty until V3 runs) with `prize_payouts`
-  (V2, where the real data is today). Nothing is faked; empty means empty state.
-- The settlement robot is `lib/settleV3.ts` + `/api/cron/settle-v3` +
-  `scripts/settle-v3.mjs`. **Dry-run is the default**; `--live` also needs
-  `GAMEV3_CRON_ENABLED=1`. States: pending/processing/broadcast/paid/failed/
+- `/api/history` merges `v3_settlements` with `prize_payouts`. The display name is resolved from
+  the **current** `player_profiles` alias by wallet (`lib/historyNames.ts`), not the frozen
+  `winner_alias` / `player_name` at settlement — same principle as Avíspate. Missing profile →
+  shortened wallet. Historical wallet/score/prize/tx are never rewritten.
+- The settlement robot is `lib/settleV3.ts` + `/api/cron/settle-v3` (Vercel 00:10/25/45 UTC) +
+  `scripts/settle-v3.mjs` + GitHub backup `settle-v3.yml` (01:10 UTC). **Dry-run is the default**;
+  `--live` also needs `GAMEV3_CRON_ENABLED=1`. States: pending/processing/broadcast/paid/failed/
   rollover/skipped_no_players. `broadcast` is the important one — a transaction
   that went out without a receipt is NOT a failure, and treating it as one would
   pay twice on retry. Before retrying it reads `settled()` from the contract,

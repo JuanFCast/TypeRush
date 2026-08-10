@@ -12,6 +12,7 @@
     "audit:v2": "node scripts/audit-v2.mjs",
     "report:dupes": "node scripts/dedupe-report.mjs",
     "settle:v3:dry": "node scripts/settle-v3.mjs --dry-run",
+    "settle:v3": "node scripts/settle-v3.mjs --live",
     "seed:v3:dry": "node scripts/seed-v3.mjs",
     "seed:v3": "node scripts/seed-v3.mjs --live",
     "test": "node --test tests/*.test.mjs",

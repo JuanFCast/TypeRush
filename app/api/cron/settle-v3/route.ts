@@ -8,6 +8,12 @@ export const maxDuration = 60;
 /**
  * GET /api/cron/settle-v3 — cierra la ronda de ayer en TypeRushGameV3.
  *
+ * Capas de disparo (Avíspate-style):
+ *   · Vercel cron: 00:10, 00:25 y 00:45 UTC (19:10 / 19:25 / 19:45 Colombia).
+ *     El margen de 10 min deja entrar las últimas partidas; los reintentos
+ *     cubren un fallo puntual o una tx en `broadcast` sin recibo.
+ *   · GitHub Actions `settle-v3.yml` a 01:10 UTC como respaldo idempotente.
+ *
  * Protegido con `CRON_SECRET` en modo FAIL-CLOSED: sin secreto configurado, o
  * con un Bearer que no coincide, se bloquea SIEMPRE. Nadie puede disparar
  * liquidaciones desde fuera.

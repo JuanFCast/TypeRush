@@ -5,10 +5,17 @@
 // recalcula el ganador desde el ranking en vivo ni se lee nada del dispositivo,
 // así que recargar o cambiar de teléfono no cambia lo que se ve.
 //
+// El nombre visible se resuelve desde el perfil ACTUAL (ver `historyNames.ts`),
+// no desde el `player_name` congelado al liquidar.
+//
 // Este módulo SOLO LEE. No escribe, no paga, no toca el ranking ni el perfil.
+// La UI de Historial usa `/api/history`; este módulo queda como lector cliente
+// de V2 por si hace falta fuera de esa ruta.
 
 import { CurrencyId, fetchPoolUnits, formatTokenUnits } from "./gameV2";
+import { shortenWallet, resolveHistoryAlias } from "./historyNames";
 import { supabase } from "./supabase";
+import { walletVariants } from "./identity";
 
 /** Rondas por página (el historial carga de a poco con "Ver más"). */
 export const WINNERS_PAGE_SIZE = 10;
@@ -62,14 +69,6 @@ type PayoutRow = {
   prize_copm_units?: string | number | null;
 };
 
-/** Nunca sale de aquí una dirección completa. */
-function shorten(address: string | null): string | null {
-  if (!address) return null;
-  const clean = address.trim();
-  if (clean.length < 12) return clean;
-  return `${clean.slice(0, 6)}…${clean.slice(-4)}`;
-}
-
 /**
  * `status` de la fila → estado que ve el jugador. Los estados legado del
  * auto-pago viejo (sent / completed) se muestran como cobrados; `failed` es un
@@ -102,13 +101,17 @@ function toUnits(value: string | number | null | undefined): string | null {
   return raw.length > 0 ? raw : null;
 }
 
-function mapRow(row: PayoutRow, locale: string): WinnerRound {
+function mapRow(
+  row: PayoutRow,
+  locale: string,
+  aliasesByWallet: ReadonlyMap<string, string>,
+): WinnerRound {
   return {
     key: `${row.period_start}:${row.mode_id}`,
     periodEnd: row.period_end,
     modeId: row.mode_id,
-    winnerName: row.player_name,
-    winnerWallet: shorten(row.wallet_address),
+    winnerName: resolveHistoryAlias(row.wallet_address, aliasesByWallet),
+    winnerWallet: shortenWallet(row.wallet_address),
     score: row.score,
     usdt: formatTokenUnits(toUnits(row.prize_usdt_units), "usdt", locale),
     copm: formatTokenUnits(toUnits(row.prize_copm_units), "copm", locale),
@@ -117,6 +120,34 @@ function mapRow(row: PayoutRow, locale: string): WinnerRound {
     onchainDay: row.onchain_day === null ? null : Number(row.onchain_day),
     payout: toPayout(row.status),
   };
+}
+
+async function loadAliasesByWallet(
+  wallets: Array<string | null>,
+): Promise<Map<string, string>> {
+  const aliases = new Map<string, string>();
+  if (!supabase) return aliases;
+  const unique = [
+    ...new Set(
+      wallets
+        .filter((w): w is string => Boolean(w))
+        .map((w) => w.toLowerCase()),
+    ),
+  ];
+  if (unique.length === 0) return aliases;
+
+  const { data } = await supabase
+    .from("player_profiles")
+    .select("wallet_address, player_name, updated_at")
+    .in("wallet_address", unique.flatMap(walletVariants))
+    .order("updated_at", { ascending: false });
+
+  for (const p of data ?? []) {
+    const w = String(p.wallet_address ?? "").toLowerCase();
+    const name = typeof p.player_name === "string" ? p.player_name.trim() : "";
+    if (w && name && !aliases.has(w)) aliases.set(w, name);
+  }
+  return aliases;
 }
 
 // Columnas que siempre existen (0_init.sql + gamev2_prizes.sql).
@@ -166,10 +197,10 @@ export async function loadWinnerRounds(
 
     const all = data as unknown as PayoutRow[];
     const hasMore = all.length > limit;
+    const page = hasMore ? all.slice(0, limit) : all;
+    const aliases = await loadAliasesByWallet(page.map((r) => r.wallet_address));
     return {
-      rounds: (hasMore ? all.slice(0, limit) : all).map((row) =>
-        mapRow(row, locale),
-      ),
+      rounds: page.map((row) => mapRow(row, locale, aliases)),
       hasMore,
     };
   } catch {
