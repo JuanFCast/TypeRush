@@ -64,7 +64,7 @@ const ABI = [
 
 /**
  * Inicio (en UTC) del periodo de juego que contiene `now`. Frontera 01:00 UTC.
- * Igual que lib/gamePeriod.ts y scripts/distribute-prizes.mjs.
+ * Igual que lib/gamePeriod.ts.
  */
 function currentPeriodStart(now = new Date()) {
   const boundaryToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 1, 0, 0);

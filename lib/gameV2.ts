@@ -1,15 +1,6 @@
-// Conexión de la app al contrato TypeRushGameV2 (Celo MAINNET, chainId 42220).
-//
-// Diferencias con el flujo viejo (payToPlay.ts, Sepolia/USDC):
-//   - El "día" se deriva ON-CHAIN: no se pasa periodId. Se juega con `payAttempt(modeId, token)`
-//     y el contrato lo mete en `currentDay()`. Para leer/reclamar sí necesitamos el índice de día,
-//     que se calcula igual que el contrato: (inicioPeriodo_unix − 3600) / 86400.
-//   - Modelo PULL: el ganador cobra con `claim(day, modeId, tokens)`.
-//   - Monedas: USDT (6 dec) y COPm (18 dec) de mainnet.
-//
-// MiniPay-friendly: cobra en stablecoin (nunca CELO), firma por la wallet inyectada
-// (window.ethereum). Lecturas por RPC público. Este módulo AÚN NO está cableado a la UI;
-// la migración a viem + Privy es un paso posterior.
+// TypeRushGameV2 (Celo MAINNET) — residual: ClaimBanner (PULL) + labels de
+// premio/entrada que aún reutiliza el CTA de V3. El juego activo es V3
+// (`lib/playV3.ts` / `lib/contractsV3.ts`). No hay `payEntry` en la UI.
 
 import { Contract, Interface, JsonRpcProvider, formatUnits, id } from "ethers";
 import { getCurrentGamePeriod } from "./gamePeriod";
@@ -84,12 +75,6 @@ const GAME_ABI = [
   "function entryAmountOf(address token) view returns (uint256)",
   "function winnerOf(uint256 day, bytes32 modeId) view returns (address)",
   "function rolled(uint256 day, bytes32 modeId) view returns (bool)",
-];
-
-const ERC20_ABI = [
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function balanceOf(address owner) view returns (uint256)",
 ];
 
 /** Índice de día del contrato para un inicio de periodo (8 p.m. Col = 01:00 UTC). */
@@ -173,123 +158,8 @@ async function ensureCeloMainnet(): Promise<void> {
 
 export type PayResult =
   | { ok: true; txHash: string }
-  | {
-      ok: false;
-      error: string;
-      /** true si el pago se frenó por saldo insuficiente (para abrir NeedFundsModal). */
-      insufficient?: boolean;
-      symbol?: string;
-      /** Monto necesario ya formateado (p. ej. "0.10"). */
-      needed?: string;
-      /** Wallet conectada, para mostrar dónde depositar. */
-      walletAddress?: string;
-    };
+  | { ok: false; error: string };
 export type PayPhase = "preparing" | "approving" | "signing" | "confirming";
-
-/**
- * Cobra la entrada de una partida en la moneda elegida para una modalidad (es/en):
- * conecta la wallet, asegura la red, hace `approve` si falta y llama `payAttempt`.
- * El monto se lee del contrato (entryAmountOf), no de env.
- */
-export async function payEntry(
-  modeId: string,
-  currencyId: CurrencyId,
-  onPhase?: (phase: PayPhase) => void,
-  /** Locale de la interfaz: solo para escribir el monto que falta. */
-  locale = "es-CO",
-): Promise<PayResult> {
-  const phase = (p: PayPhase) => onPhase?.(p);
-  if (!isConfigured()) return { ok: false, error: "error.pay_not_configured" };
-
-  const currency = getCurrency(currencyId);
-  if (!currency || !/^0x[0-9a-fA-F]{40}$/.test(currency.address)) {
-    return { ok: false, error: "error.currency_unsupported" };
-  }
-
-  const eth = getEthereum();
-  if (!eth) return { ok: false, error: "error.open_in_minipay_pay" };
-
-  try {
-    phase("preparing");
-    const provider = readProvider();
-    const contract = new Contract(CONTRACT, GAME_ABI, provider);
-    const entry = (await contract.entryAmountOf(currency.address)) as bigint;
-    if (entry === 0n)
-      return { ok: false, error: "error.token_disabled", symbol: currency.symbol };
-
-    const method = eth.isMiniPay ? "eth_accounts" : "eth_requestAccounts";
-    const accounts = (await eth.request({ method })) as string[];
-    const from = accounts?.[0];
-    if (!from) return { ok: false, error: "error.wallet_read" };
-
-    await ensureCeloMainnet();
-
-    const tokenContract = new Contract(currency.address, ERC20_ABI, provider);
-
-    // Saldo suficiente. Se lee por la WALLET del usuario (no por el RPC público, que
-    // tras un depósito reciente puede ir atrasado). Si no se puede leer, NO se bloquea:
-    // el contrato valida al cobrar. Si falta, se devuelve `insufficient` para el modal.
-    let balance: bigint | null = null;
-    try {
-      const balData = new Interface(ERC20_ABI).encodeFunctionData("balanceOf", [from]);
-      const raw = (await eth.request({
-        method: "eth_call",
-        params: [{ to: currency.address, data: balData }, "latest"],
-      })) as string;
-      balance = BigInt(raw);
-    } catch {
-      balance = null;
-    }
-    if (balance !== null && balance < entry) {
-      const needed = formatPool(entry, currency, locale);
-      return {
-        ok: false,
-        error: "error.insufficient",
-        insufficient: true,
-        symbol: currency.symbol,
-        needed,
-        walletAddress: from,
-      };
-    }
-
-    // Approve si hace falta.
-    const allowance = (await tokenContract.allowance(from, CONTRACT)) as bigint;
-    if (allowance < entry) {
-      phase("approving");
-      const approveData = new Interface(ERC20_ABI).encodeFunctionData("approve", [CONTRACT, entry]);
-      const approveTx = (await eth.request({
-        method: "eth_sendTransaction",
-        params: [{ from, to: currency.address, data: approveData }],
-      })) as string;
-      await provider.waitForTransaction(approveTx);
-    }
-
-    // Pago: payAttempt(modeId, token). El contrato deriva el día.
-    phase("signing");
-    const payData = new Interface(GAME_ABI).encodeFunctionData("payAttempt", [
-      id(modeId),
-      currency.address,
-    ]);
-    const payTx = (await eth.request({
-      method: "eth_sendTransaction",
-      params: [{ from, to: CONTRACT, data: payData }],
-    })) as string;
-
-    phase("confirming");
-    const receipt = await provider.waitForTransaction(payTx);
-    if (!receipt || receipt.status !== 1) {
-      return { ok: false, error: "error.pay_unconfirmed" };
-    }
-    return { ok: true, txHash: payTx };
-  } catch (err: unknown) {
-    const e = err as { code?: number; message?: string };
-    const cancelled = e?.code === 4001 || /reject|denied|cancel/i.test(e?.message ?? "");
-    return {
-      ok: false,
-      error: cancelled ? "error.pay_cancelled" : "error.pay_failed",
-    };
-  }
-}
 
 /** El ganador registrado reclama el pozo (USDT + COPm) de un día+modalidad ya cerrado. */
 export async function claimPrize(

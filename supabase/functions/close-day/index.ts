@@ -18,7 +18,7 @@
 // Para probar a mano y VER el resultado, llamar con ?wait=1.
 //
 // Secretos requeridos (Dashboard → Edge Functions → Secrets):
-//   CRON_SECRET               ya existe (el mismo de distribute-prizes)
+//   CRON_SECRET               secreto compartido con pg_cron / x-cron-secret
 //   OPERATOR_KEY              Operator Bot 0xc91A… (solo cierra días, no maneja fondos)
 //   GAMEV2_CONTRACT_ADDRESS   0x22bda890153f9217ABf2F5B493c2B6E06b8c9336
 //   GAMEV2_USDT_ADDRESS       0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e

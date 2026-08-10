@@ -52,42 +52,37 @@ Use Testnet → Load Test Page with the HTTPS URL. MiniPay testnet = Celo Sepoli
 ```
 app/
   layout.tsx   — fonts + metadata + viewport (mobile)
-  page.tsx     — "use client"; navigation shell + game status (idle → countdown → racing → finished)
+  page.tsx     — "use client"; lobby + game status (idle → countdown → racing → finished)
   globals.css  — Tailwind + @theme tokens + per-char highlight classes
+  api/plays · api/results · api/ranking/round · api/cron/settle-v3 — V3 play + ranking + settle
 components/
-  lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · EntrySheet · HowToPlay
-                 — Jugar: ONE self-sufficient daily-challenge card (prize, mode,
-                   challenge, entry, single CTA, top 3) + the tutorial
+  lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · HowToPlay
+                 — Jugar: ONE daily-challenge card (prize, mode, challenge, PlayV3Button, top 3)
   brand/BrandLockup · TypeRushBolt · icons — logo, wordmark and the SVG icon set
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
   ResultScreen · RoundRanking · FullRanking — result and the live ranking
-  PaymentOverlay · AliasModal · AppShell · BottomNav · LanguageToggle (UI language, ES/EN)
+  PlayV3Button · ClaimBanner (V2 residual PULL) · AppShell · BottomNav · LanguageToggle
 hooks/
-  useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
-  usePlayEligibility.ts — free-attempt / pay gating per mode
-  useModeRanking.ts     — live ranking of the open round (preview + /ranking)
-  usePrizePools.ts      — on-chain pools per currency + countdown to the close
+  useTypeRush.ts     — game state machine (idle → countdown → racing → finished)
+  useModeRanking.ts  — live ranking of the open round (via /api/ranking/round → v3_results)
+  usePrizePools.ts   — on-chain pools (V3 if enabled, else V2) + countdown to the close
 lib/
-  i18n/          — UI language: index.ts (core+detection) · dictionary.ts (es+en) ·
-                   client.tsx (I18nProvider/useI18n/useT) · server.ts (getServerLang)
+  i18n/          — UI language: index.ts · dictionary.ts · client.tsx · server.ts
   game.ts        — pure logic: computeStats + per-challenge localStorage best score
-  passages.ts    — modes (es/en) + challenges (i18n title keys) + clauses + buildPassage
-  payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
-  prizePool.ts    — read pool/period helpers (periodId from period start)
-  runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
-  gamePeriod.ts   — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19, UTC−5 fixed)
-  winners.ts      — READ-ONLY winners history: paginated `prize_payouts` (see below)
-  leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
-  player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
+  passages.ts    — modes (es/en) + challenges + clauses + buildPassage
+  contractsV3.ts · playV3.ts · poolsV3.ts · settleV3.ts — GameV3 (juego activo)
+  gameV2.ts      — residual: ClaimBanner + PAY_CURRENCIES / entryLabel
+  gamePeriod.ts  — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19)
+  winners.ts · leaderboard.ts · history.ts · roundRanking.ts
+  wallet.ts · walletSession.ts · operator.ts · supabase.ts
+  player.ts · playerProfile.ts — local player id/name + Supabase profile / alias / wallet
 scripts/
-  distribute-prizes.mjs — nightly: pay winners, rolling jackpot, seed the floor (see below)
-contracts/      — Foundry: TypeRushPayToPlayMulti.sol (live) + legacy contracts + README
+  settle-v3.mjs · seed-v3.mjs — robots V3
+  close-day-v2.mjs · seed-day-v2.mjs — residual V2 (pozos/claims pendientes)
+contracts/      — Foundry: TypeRushGameV3 (live) + GameV2 + legacy PayToPlay*
 supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
-  anti_cheat.sql — `runs` table (server-issued passages) + drops the public INSERT on match_results
-  winners_history.sql — adds prize_usdt_units / prize_copm_units to prize_payouts (winners history)
-  functions/distribute-prizes — Edge Function: instant on-chain payout at period close (pg_net-fired)
-  functions/start-run · functions/submit-run — anti-cheat: issue passage / recompute score server-side
-legacy/         — original static prototype (reference)
+  gamev3.sql · v3_only.sql · winners_history.sql · …
+  functions/seed-day · close-day — robots V2 residual (pg_net)
 .agents/        — celopedia-skill (Celo/MiniPay knowledge)
 ```
 
@@ -255,8 +250,8 @@ V2 still holds pots that must be won by real players first — see
   `v3_settlements` (PK = day+mode → the robot can't pay twice; states
   pending/processing/paid/failed/rollover with attempts and last_error). Amounts
   are `numeric(78,0)` — COPm's 18 decimals overflow bigint.
-- `@x402/*` are installed only because `@coinbase/cdp-sdk` imports them through
-  RainbowKit's barrel; nothing in TypeRush uses x402.
+- Direct `@x402/*` deps were removed: TypeRush never imports them. They may
+  still appear transitively via wagmi → `@coinbase/cdp-sdk`.
 
 ### V3 play flow — wired, behind the flag (2026-08-04)
 
