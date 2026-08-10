@@ -24,6 +24,7 @@ import {
   usePlayV3,
   type PlayStage,
 } from "@/lib/playV3";
+import { MINIPAY_ADD_CASH } from "@/lib/minipay";
 import { useWalletSession } from "@/lib/walletSession";
 import { buildPassage, type ChallengeId, type ModeId } from "@/lib/passages";
 import { useWelcomeGas } from "./WelcomeGasBridge";
@@ -40,8 +41,8 @@ import TypeRushBolt from "./brand/TypeRushBolt";
  * **Quién decide si es gratis es el CONTRATO**, no la base de datos: aquí se lee
  * `hasFreePlay(modalidad, wallet)` para decir la verdad ANTES de firmar.
  * Mientras esa lectura no responda, el botón no promete nada gratis. Y aunque la
- * entrada sea gratis, la transacción la paga el jugador en gas: eso se dice, no
- * se esconde.
+ * entrada sea gratis, la transacción la paga el jugador en comisión de red: eso
+ * se dice, no se esconde.
  *
  * Con `NEXT_PUBLIC_APP_ENV=development` salta cadena y APIs: práctica local
  * ilimitada, sin cobro y sin ranking. Sin esa env (o en production) → V3 real.
@@ -131,8 +132,8 @@ export default function PlayV3Button({
 
   // Sin wallet no hay nada que firmar: se dice, no se deja un botón muerto.
   const noWallet = !wallet.isConnected || !address;
-  // La wallet embebida recién creada aún no tiene con qué pagar el gas: pedir
-  // la firma ahora solo produciría un error de wallet incomprensible.
+  // La wallet embebida recién creada aún no tiene con qué pagar la comisión:
+  // pedir la firma ahora solo produciría un error de wallet incomprensible.
   const waitingGas = wallet.isEmbedded && gas.state.kind === "working";
   const busy = stage !== null;
 
@@ -175,6 +176,9 @@ export default function PlayV3Button({
     }
     onReady({ txHash: res.txHash, passage: res.passage, wasFree: res.wasFree });
   };
+
+  const needsDeposit =
+    error === "v3.error.insufficient" || error === "v3.error.no_gas";
 
   return (
     <div className="flex flex-col gap-2">
@@ -227,9 +231,21 @@ export default function PlayV3Button({
       </button>
 
       {error && (
-        <p className="text-center text-xs text-danger" aria-live="polite">
-          {t(error as Parameters<typeof t>[0])}
-        </p>
+        <div className="flex flex-col items-center gap-1.5" aria-live="polite">
+          <p className="text-center text-xs text-danger">
+            {t(error as Parameters<typeof t>[0])}
+          </p>
+          {needsDeposit && (
+            <a
+              href={MINIPAY_ADD_CASH}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-11 px-3 text-center text-sm font-bold text-brand-deep underline underline-offset-2"
+            >
+              {t("funds.deposit")}
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

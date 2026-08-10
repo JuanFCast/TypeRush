@@ -20,6 +20,7 @@ import {
   shortAddress,
   useWalletSession,
 } from "@/lib/walletSession";
+import { useIsMiniPay } from "@/lib/minipay";
 
 interface Prize {
   periodEnd: string | null;
@@ -73,6 +74,7 @@ export default function PerfilPage() {
   const { t, locale } = useI18n();
   const privy = usePrivySession();
   const wallet = useWalletSession();
+  const inMiniPay = useIsMiniPay();
   const { disconnect } = useDisconnect();
 
   const [stats, setStats] = useState<Stats>(EMPTY);
@@ -350,19 +352,22 @@ export default function PerfilPage() {
           </div>
         </section>
 
-        {/* Sesión */}
+        {/* Sesión. Dentro de MiniPay la wallet ya está inyectada: no se enseña
+            "Conectar wallet" (requisito de listing). Fuera, RainbowKit sigue. */}
         <section className="flex flex-col gap-2 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
-          <ConnectButton.Custom>
-            {({ openAccountModal, openConnectModal, account }) => (
-              <button
-                type="button"
-                onClick={account ? openAccountModal : openConnectModal}
-                className="min-h-11 rounded-xl border border-line px-3 py-2.5 text-left text-sm font-semibold text-ink"
-              >
-                {account ? t("profile.change") : t("session.connect")}
-              </button>
-            )}
-          </ConnectButton.Custom>
+          {!inMiniPay && (
+            <ConnectButton.Custom>
+              {({ openAccountModal, openConnectModal, account }) => (
+                <button
+                  type="button"
+                  onClick={account ? openAccountModal : openConnectModal}
+                  className="min-h-11 rounded-xl border border-line px-3 py-2.5 text-left text-sm font-semibold text-ink"
+                >
+                  {account ? t("profile.change") : t("session.connect")}
+                </button>
+              )}
+            </ConnectButton.Custom>
+          )}
 
           <button
             type="button"

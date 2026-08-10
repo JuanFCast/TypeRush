@@ -40,14 +40,14 @@ export const es = {
   // Nombre del idioma que se TECLEA en cada modalidad (no el de la interfaz).
   "mode.es": "Español",
   "mode.en": "Inglés",
-  "mode.es.description": "Motivación, noticias y crypto en español.",
+  "mode.es.description": "Motivación, noticias y stablecoins en español.",
   "mode.en.description": "Motivación e inglés cotidiano.",
   "challenge.motivacionEs.title": "Motivación",
   "challenge.motivacionEs.description": "Frases para darte impulso.",
   "challenge.noticiasEs.title": "Noticias",
   "challenge.noticiasEs.description": "Datos y avances del mundo.",
-  "challenge.cryptoEs.title": "Crypto",
-  "challenge.cryptoEs.description": "El mundo de las criptomonedas.",
+  "challenge.cryptoEs.title": "Stablecoins",
+  "challenge.cryptoEs.description": "El mundo de las monedas digitales.",
   "challenge.motivationEn.title": "Motivación",
   "challenge.motivationEn.description": "Frases para no rendirte.",
   "challenge.dailyEn.title": "Inglés diario",
@@ -180,7 +180,7 @@ export const es = {
   /* -------------------------- Fondos insuficientes ----------------------- */
   "funds.title": "Necesitas más {symbol}",
   "funds.body": "Para pagar la entrada necesitas {needed} {symbol}.",
-  "funds.deposit": "Deposita en Celo Mainnet",
+  "funds.deposit": "Depositar saldo",
   "funds.send": "Envía {symbol} a tu wallet:",
   "funds.copied": "Copiado",
   "funds.copy": "Copiar",
@@ -219,6 +219,7 @@ export const es = {
   "ranking.players": "{count} jugando",
   "ranking.players_one": "1 jugando",
   "ranking.col_player": "Jugador",
+  "ranking.anonymous": "Jugador",
   "ranking.col_wpm": "PPM",
   "ranking.col_score": "Puntaje",
   "ranking.mode_filter": "Modalidad",
@@ -312,7 +313,7 @@ export const es = {
   "dev.confirming": "Confirmando…",
   "dev.send": "Enviar",
   "dev.gas_hint":
-    "El gas lo paga tu wallet conectada. En Celo puede cobrarse en CELO o en una stable soportada por MiniPay, como USDT.",
+    "La comisión de red la paga tu wallet conectada. En MiniPay se cobra en una stablecoin como USDT.",
   "dev.tx_sent": "Transacción enviada, confirmando…",
   "dev.sent": "Enviado",
   "dev.view_explorer": "Ver en el explorer",
@@ -323,7 +324,7 @@ export const es = {
   "nav.aria": "Navegación principal",
 
   /* ------------------------- Sesión y conexión ---------------------------- */
-  "session.guest": "Invitado",
+  "session.guest": "Jugador",
   "session.hello": "Hola, {name}",
   "session.login": "Entrar",
   "session.login_hint": "Entra con tu correo y te creamos una wallet, o conecta la tuya.",
@@ -374,10 +375,10 @@ export const es = {
   "profile.wallet_kind": "Tipo de wallet",
 
   /* ------------------------- Jugada on-chain (V3) ------------------------- */
-  // La entrada es gratis, pero la transacción NO: el gas lo paga el jugador.
+  // La entrada es gratis, pero la transacción NO: la comisión de red la paga el jugador.
   "v3.dev.cta": "Jugar (práctica)",
   "v3.dev.notice": "Modo desarrollo · no cobra · no entra al ranking",
-  "v3.entry.free": "Sin costo de entrada · solo gas de red",
+  "v3.entry.free": "Sin costo de entrada · solo comisión de red",
   "v3.stage.switching": "Cambiando a Celo…",
   "v3.stage.checking": "Comprobando tu jugada…",
   "v3.stage.approving": "Autoriza el token en tu wallet",
@@ -387,7 +388,7 @@ export const es = {
   "v3.error.no_wallet": "Conecta una wallet para jugar.",
   "v3.error.not_configured": "El juego on-chain aún no está activo.",
   "v3.error.no_gas":
-    "Tu wallet no tiene CELO ni USDT para pagar la comisión de red. Agrega saldo e inténtalo de nuevo.",
+    "Tu wallet no tiene saldo para pagar la comisión de red. Deposita USDT e inténtalo de nuevo.",
   "v3.error.rejected": "Cancelaste la firma.",
   "v3.error.insufficient": "No te alcanza el saldo para la entrada.",
   "v3.error.register_failed":
@@ -478,14 +479,14 @@ export const en: Record<MessageKey, string> = {
   /* ------------------------- Modes and challenges ------------------------ */
   "mode.es": "Spanish",
   "mode.en": "English",
-  "mode.es.description": "Motivation, news and crypto in Spanish.",
+  "mode.es.description": "Motivation, news and stablecoins in Spanish.",
   "mode.en.description": "Motivation and everyday English.",
   "challenge.motivacionEs.title": "Motivation",
   "challenge.motivacionEs.description": "Sentences to give you a boost.",
   "challenge.noticiasEs.title": "News",
   "challenge.noticiasEs.description": "Facts and progress from around the world.",
-  "challenge.cryptoEs.title": "Crypto",
-  "challenge.cryptoEs.description": "The world of cryptocurrencies.",
+  "challenge.cryptoEs.title": "Stablecoins",
+  "challenge.cryptoEs.description": "The world of digital dollars.",
   "challenge.motivationEn.title": "Motivation",
   "challenge.motivationEn.description": "Sentences to keep you going.",
   "challenge.dailyEn.title": "Daily English",
@@ -617,7 +618,7 @@ export const en: Record<MessageKey, string> = {
   /* --------------------------- Insufficient funds ------------------------ */
   "funds.title": "You need more {symbol}",
   "funds.body": "You need {needed} {symbol} to pay the entry.",
-  "funds.deposit": "Deposit on Celo Mainnet",
+  "funds.deposit": "Deposit funds",
   "funds.send": "Send {symbol} to your wallet:",
   "funds.copied": "Copied",
   "funds.copy": "Copy",
@@ -658,6 +659,7 @@ export const en: Record<MessageKey, string> = {
   "ranking.players": "{count} playing",
   "ranking.players_one": "1 playing",
   "ranking.col_player": "Player",
+  "ranking.anonymous": "Player",
   "ranking.col_wpm": "WPM",
   "ranking.col_score": "Score",
   "ranking.mode_filter": "Mode",
@@ -751,7 +753,7 @@ export const en: Record<MessageKey, string> = {
   "dev.confirming": "Confirming…",
   "dev.send": "Send",
   "dev.gas_hint":
-    "Gas is paid by your connected wallet. On Celo it can be charged in CELO or in a stablecoin supported by MiniPay, such as USDT.",
+    "Network fees are paid by your connected wallet. In MiniPay they are charged in a stablecoin such as USDT.",
   "dev.tx_sent": "Transaction sent, confirming…",
   "dev.sent": "Sent",
   "dev.view_explorer": "View on the explorer",
@@ -762,7 +764,7 @@ export const en: Record<MessageKey, string> = {
   "nav.aria": "Main navigation",
 
   /* ------------------------ Session and connection ------------------------ */
-  "session.guest": "Guest",
+  "session.guest": "Player",
   "session.hello": "Hi, {name}",
   "session.login": "Sign in",
   "session.login_hint":
@@ -815,7 +817,7 @@ export const en: Record<MessageKey, string> = {
   /* --------------------------- On-chain play (V3) ------------------------- */
   "v3.dev.cta": "Play (practice)",
   "v3.dev.notice": "Development mode · no charge · not ranked",
-  "v3.entry.free": "No entry fee · network gas only",
+  "v3.entry.free": "No entry fee · network fee only",
   "v3.stage.switching": "Switching to Celo…",
   "v3.stage.checking": "Checking your play…",
   "v3.stage.approving": "Approve the token in your wallet",
@@ -825,7 +827,7 @@ export const en: Record<MessageKey, string> = {
   "v3.error.no_wallet": "Connect a wallet to play.",
   "v3.error.not_configured": "On-chain play isn't live yet.",
   "v3.error.no_gas":
-    "Your wallet has no CELO or USDT to pay the network fee. Add funds and try again.",
+    "Your wallet has no balance to pay the network fee. Deposit USDT and try again.",
   "v3.error.rejected": "You cancelled the signature.",
   "v3.error.insufficient": "Not enough balance for the entry.",
   "v3.error.register_failed":

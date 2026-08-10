@@ -6,6 +6,7 @@ import { getMode, type ModeId } from "@/lib/passages";
 import { useI18n } from "@/lib/i18n/client";
 import { useModeRanking } from "@/hooks/useModeRanking";
 import { formatScore } from "@/lib/game";
+import { displayPlayerName } from "@/lib/displayName";
 
 type Props = {
   modeId: ModeId;
@@ -123,6 +124,7 @@ export default function RoundRanking({
                   key={entry.playerId}
                   entry={entry}
                   youLabel={t("ranking.you")}
+                  anonymousLabel={t("ranking.anonymous")}
                   locale={locale}
                 />
               ))}
@@ -136,6 +138,7 @@ export default function RoundRanking({
                   <Row
                     entry={meOutside}
                     youLabel={t("ranking.you")}
+                    anonymousLabel={t("ranking.anonymous")}
                     locale={locale}
                   />
                 </>
@@ -178,15 +181,18 @@ export default function RoundRanking({
 function Row({
   entry,
   youLabel,
+  anonymousLabel,
   locale,
 }: {
   entry: ModeRankingEntry;
   youLabel: string;
+  anonymousLabel: string;
   locale: string;
 }) {
   // Quién soy lo decide el servidor comparando wallets, no el navegador
   // comparando ids: así no hay dos criterios que puedan discrepar.
   const isMe = entry.you;
+  const name = displayPlayerName(entry.name, anonymousLabel);
   return (
     <tr
       className={
@@ -200,7 +206,7 @@ function Row({
       </td>
       <td className="min-w-0 py-1.5 pr-2">
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate">{entry.name}</span>
+          <span className="truncate">{name}</span>
           {isMe && (
             <span className="shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-brand-deep">
               {youLabel}

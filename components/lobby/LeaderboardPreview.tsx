@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { useModeRanking } from "@/hooks/useModeRanking";
 import type { ModeRankingEntry } from "@/lib/leaderboard";
 import type { ModeId } from "@/lib/passages";
+import { displayPlayerName } from "@/lib/displayName";
 
 /**
  * Top 3 de la modalidad elegida, dentro de la tarjeta del reto.
@@ -77,6 +78,7 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
               key={entry.playerId}
               entry={entry}
               youLabel={t("ranking.you")}
+              anonymousLabel={t("ranking.anonymous")}
               scoreLabel={t("ranking.col_score")}
               wpmLabel={t("ranking.col_wpm")}
               locale={locale}
@@ -87,6 +89,7 @@ export default function LeaderboardPreview({ modeId }: { modeId: ModeId }) {
               entry={meOutside}
               outside
               youLabel={t("ranking.you")}
+              anonymousLabel={t("ranking.anonymous")}
               scoreLabel={t("ranking.col_score")}
               wpmLabel={t("ranking.col_wpm")}
               locale={locale}
@@ -112,6 +115,7 @@ function Row({
   entry,
   outside = false,
   youLabel,
+  anonymousLabel,
   wpmLabel,
   scoreLabel,
   locale,
@@ -120,12 +124,14 @@ function Row({
   /** Mi fila cuando quedé fuera del podio: se separa y se marca aparte. */
   outside?: boolean;
   youLabel: string;
+  anonymousLabel: string;
   wpmLabel: string;
   scoreLabel: string;
   locale: string;
 }) {
   // Lo decide el servidor comparando wallets. Ver RoundRanking.
   const isMe = entry.you;
+  const name = displayPlayerName(entry.name, anonymousLabel);
   return (
     <li
       className={`flex min-h-14 items-center gap-2.5 rounded-2xl border px-3 py-2 ${
@@ -149,7 +155,7 @@ function Row({
 
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="truncate font-bold text-ink">{entry.name}</span>
+          <span className="truncate font-bold text-ink">{name}</span>
           {isMe && (
             <span className="shrink-0 text-[0.7rem] font-bold text-muted">
               {youLabel}

@@ -14,9 +14,9 @@ import {
 const WALLET = "0x46d5F9fE98461928DbAd7a22B95BADE5Fa178C18";
 const WALLET_LOWER = WALLET.toLowerCase();
 
-test("sin perfil: cae a la wallet abreviada (nunca al alias congelado)", () => {
+test("sin perfil: sin alias (la UI pone Jugador; wallet solo como hint)", () => {
   const empty = new Map();
-  assert.equal(resolveHistoryAlias(WALLET, empty), "0x46d5…8C18");
+  assert.equal(resolveHistoryAlias(WALLET, empty), null);
   // El frozen "ViejoAlias" no se consulta: si no hay mapa, no hay nombre.
 });
 
@@ -88,7 +88,7 @@ test("sin wallet: null (rollover / sin ganador)", () => {
 
 test("alias en blanco en el perfil cuenta como ausente", () => {
   const aliases = new Map([[WALLET_LOWER, "   "]]);
-  assert.equal(resolveHistoryAlias(WALLET, aliases), shortenWallet(WALLET));
+  assert.equal(resolveHistoryAlias(WALLET, aliases), null);
 });
 
 test("shortenWallet no inventa puntos suspensivos en basura corta", () => {

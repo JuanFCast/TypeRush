@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { DURATION } from "@/lib/game";
+import { ANONYMOUS_PLAYER_NAME } from "@/lib/displayName";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,6 @@ const MAX_WPM = 220; // tope humano razonable; acota un `elapsed` mentido
 const MAX_PLAY_AGE_MS = 10 * 60_000; // una jugada caduca a los 10 minutos
 
 const TX_RE = /^0x[0-9a-fA-F]{64}$/;
-
-/** Alias de reserva para quien juega con wallet y todavía no tiene perfil. */
-function walletAlias(wallet: string): string {
-  return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
-}
 
 /**
  * Copia el resultado a `match_results`, que es el ARCHIVO histórico del que leen
@@ -93,14 +89,13 @@ async function mirrorToHistory(
       playerName = (data?.[0]?.player_name as string) ?? null;
     }
 
-    // Sin perfil, la wallet ES la identidad: estable, única y la misma que el
-    // contrato reconoce. Así el jugador se ve en el ranking desde su primera
-    // carrera, aunque todavía no haya elegido alias.
+    // Sin perfil, la wallet ES el player_id (estable y único). El nombre visible
+    // NO es la dirección: MiniPay no admite `0x…` como identidad primaria.
     if (!playerId) {
       if (!wallet) return;
       playerId = wallet;
     }
-    if (!playerName) playerName = walletAlias(wallet || playerId);
+    if (!playerName) playerName = ANONYMOUS_PLAYER_NAME;
 
     const { error } = await db.from("match_results").insert({
       // Procedencia: ata la fila a la transacción que pagó la carrera. Sin esto

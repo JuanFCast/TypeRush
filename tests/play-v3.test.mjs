@@ -38,10 +38,8 @@ function computeStats(typed, passage, elapsedMs, mistakeCount) {
  * "base" de mentira. `plays` y `results` son las tablas; `receipts` es lo que
  * la cadena respondería.
  */
-/** Alias de reserva, igual que `/api/results`. */
-function walletAlias(wallet) {
-  return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
-}
+/** Nombre anónimo en archivo, igual que `/api/results`. */
+const ANONYMOUS_PLAYER_NAME = "Player";
 
 function makeApi({ mirrorFails = false } = {}) {
   const plays = new Map();
@@ -62,7 +60,7 @@ function makeApi({ mirrorFails = false } = {}) {
       if (!playerId) return;
       ranking.push({
         player_id: playerId,
-        player_name: profile?.player_name ?? walletAlias(wallet),
+        player_name: profile?.player_name ?? ANONYMOUS_PLAYER_NAME,
         mode_id: play.mode,
         challenge_id: challengeId,
         score: stats.score,
@@ -355,11 +353,11 @@ test("la precisión va al ranking como fracción, no como porcentaje", async () 
   assert.ok(acc >= 0 && acc <= 1, `debía ser 0..1 y fue ${acc}`);
 });
 
-test("sin perfil, la wallet hace de identidad", async () => {
+test("sin perfil, la wallet hace de id; el nombre no es la dirección", async () => {
   const api = makeApi();
   await playOnce(api);
   assert.equal(api.ranking[0].player_id, WALLET);
-  assert.equal(api.ranking[0].player_name, walletAlias(WALLET));
+  assert.equal(api.ranking[0].player_name, ANONYMOUS_PLAYER_NAME);
 });
 
 test("con perfil vinculado se usan su id y su alias", async () => {

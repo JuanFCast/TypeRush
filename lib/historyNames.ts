@@ -6,7 +6,9 @@
  * igual que Avíspate. Así, si PipeRabby cambia de nombre, todas sus victorias
  * anteriores enseñan el nuevo alias en la siguiente consulta.
  *
- * Sin perfil o sin alias → wallet abreviada. Nunca se inventa un nombre.
+ * Sin perfil o sin alias → `null`. La UI pone el label "Jugador" y deja la
+ * wallet abreviada solo como hint secundario (requisito MiniPay: no liderar
+ * con `0x…`).
  */
 
 /** Nunca sale de aquí una dirección completa. */
@@ -24,6 +26,7 @@ export function shortenWallet(address: string | null | undefined): string | null
  * @param aliasesByWallet Mapa `wallet.toLowerCase()` → `player_name` actual.
  *                        El frozen `winner_alias` / `player_name` de la fila
  *                        NO entra aquí a propósito.
+ * @returns Alias actual, o `null` si no hay (la UI traduce el anónimo).
  */
 export function resolveHistoryAlias(
   wallet: string | null | undefined,
@@ -32,7 +35,7 @@ export function resolveHistoryAlias(
   if (!wallet) return null;
   const current = aliasesByWallet.get(wallet.trim().toLowerCase());
   if (current && current.trim().length > 0) return current.trim();
-  return shortenWallet(wallet);
+  return null;
 }
 
 /**
