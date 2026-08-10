@@ -41,13 +41,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       url: absoluteUrl("/"),
-      images: [{ url: "/icon.png", width: 512, height: 512, alt: SITE_NAME }],
+      images: [{ url: "/icon.webp", width: 512, height: 512, alt: SITE_NAME }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/icon.png"],
+      images: ["/icon.webp"],
     },
     other: {
       "talentapp:project_verification":
