@@ -336,9 +336,9 @@ export default function PerfilPage() {
           </section>
         </div>
 
-        {/* Wallet para premios de V2. Sigue haciendo falta mientras V2 tenga
-            rondas: el cierre diario lee esta dirección del perfil, y sin ella un
-            ganador nuevo no puede cobrar. */}
+        {/* Wallet para premios de V2. Con V3 activo PrizeWalletCard no pinta
+            nada: el premio va a quien firmó. ClaimBanner (V2 residual) sigue
+            arriba en Jugar si hubiera un claim pendiente. */}
         <PrizeWalletCard />
 
         {/* Ajustes: el idioma de la APP (no el del texto que se teclea, que se
@@ -352,36 +352,42 @@ export default function PerfilPage() {
           </div>
         </section>
 
-        {/* Sesión. Dentro de MiniPay la wallet ya está inyectada: no se enseña
-            "Conectar wallet" (requisito de listing). Fuera, RainbowKit sigue. */}
-        <section className="flex flex-col gap-2 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
-          {!inMiniPay && (
-            <ConnectButton.Custom>
-              {({ openAccountModal, openConnectModal, account }) => (
-                <button
-                  type="button"
-                  onClick={account ? openAccountModal : openConnectModal}
-                  className="min-h-11 rounded-xl border border-line px-3 py-2.5 text-left text-sm font-semibold text-ink"
-                >
-                  {account ? t("profile.change") : t("session.connect")}
-                </button>
-              )}
-            </ConnectButton.Custom>
-          )}
+        {/* Sesión. Dentro de MiniPay la wallet es la de MiniPay: no se conecta
+            ni se desconecta desde la app. Fuera, Connect + Disconnect siguen. */}
+        {(!inMiniPay || privy.authenticated) && (
+          <section className="flex flex-col gap-2 rounded-2xl border border-line bg-surface2 p-4 shadow-card">
+            {!inMiniPay && (
+              <ConnectButton.Custom>
+                {({ openAccountModal, openConnectModal, account }) => (
+                  <button
+                    type="button"
+                    onClick={account ? openAccountModal : openConnectModal}
+                    className="min-h-11 rounded-xl border border-line px-3 py-2.5 text-left text-sm font-semibold text-ink"
+                  >
+                    {account ? t("profile.change") : t("session.connect")}
+                  </button>
+                )}
+              </ConnectButton.Custom>
+            )}
 
-          <button
-            type="button"
-            onClick={() => {
-              // Desconectar la wallet y cerrar la sesión son cosas distintas:
-              // se hacen las dos porque el jugador espera "salir del todo".
-              if (wallet.isConnected) disconnect();
-              if (privy.authenticated) void privy.logout();
-            }}
-            className="min-h-11 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-danger"
-          >
-            {privy.authenticated ? t("session.logout") : t("session.disconnect")}
-          </button>
-        </section>
+            {/* En MiniPay no hay "Desconectar wallet": la sesión es MiniPay.
+                Solo queda Cerrar sesión si entró por Privy (correo). */}
+            {(!inMiniPay || privy.authenticated) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!inMiniPay && wallet.isConnected) disconnect();
+                  if (privy.authenticated) void privy.logout();
+                }}
+                className="min-h-11 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-danger"
+              >
+                {privy.authenticated
+                  ? t("session.logout")
+                  : t("session.disconnect")}
+              </button>
+            )}
+          </section>
+        )}
       </div>
     </AppShell>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isV3Enabled } from "@/lib/contractsV3";
 import { useI18n } from "@/lib/i18n/client";
 import { fetchPlayerWallet, savePlayerWallet } from "@/lib/playerProfile";
 import { shortAddress, useWalletSession } from "@/lib/walletSession";
@@ -16,8 +17,9 @@ import { shortAddress, useWalletSession } from "@/lib/walletSession";
  * Usa la identidad local (`player_id`), que es sobre la que V2 hace el join. La
  * identidad de Privy es lo de V3 y convive con ésta sin pisarla.
  *
- * Cuando V2 se apague y V3 quede activo, este bloque sobra: V3 paga a la wallet
- * que firmó la partida y no consulta ningún perfil.
+ * ⚠️ Con V3 activo este bloque NO se enseña: V3 paga a la wallet que firmó la
+ * partida (`settle`), no consulta el perfil. En MiniPay un botón "Link wallet
+ * for prizes" parece otro Connect y contradice el listing.
  */
 export default function PrizeWalletCard() {
   const { t, tError } = useI18n();
@@ -40,6 +42,13 @@ export default function PrizeWalletCard() {
     void load();
   }, [load]);
 
+  // V3 no necesita este vínculo: el premio sale a quien firmó. En MiniPay el
+  // botón se lee como "conecta otra vez" y es exactamente lo que el listing
+  // quiere evitar.
+  if (isV3Enabled()) return null;
+
+  if (!wallet.address) return null;
+
   const link = async () => {
     if (!wallet.address || busy) return;
     setBusy(true);
@@ -52,8 +61,6 @@ export default function PrizeWalletCard() {
     }
     setSaved(res.address);
   };
-
-  if (!wallet.address) return null;
 
   const linked =
     saved !== null && saved.toLowerCase() === wallet.address.toLowerCase();
