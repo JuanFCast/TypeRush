@@ -252,8 +252,10 @@ V2 still holds pots that must be won by real players first — see
   `v3_settlements` (PK = day+mode → the robot can't pay twice; states
   pending/processing/paid/failed/rollover with attempts and last_error). Amounts
   are `numeric(78,0)` — COPm's 18 decimals overflow bigint.
-- Direct `@x402/*` deps were removed: TypeRush never imports them. They may
-  still appear transitively via wagmi → `@coinbase/cdp-sdk`.
+- `@x402/core` · `@x402/evm` · `@x402/svm` stay as direct deps even though
+  TypeRush never imports them: they are optional peers of `@coinbase/cdp-sdk`
+  (RainbowKit → wagmi → baseAccount), and without them Turbopack fails the
+  Vercel build with "Module not found: Can't resolve '@x402/…'".
 
 ### V3 play flow — wired, behind the flag (2026-08-04)
 

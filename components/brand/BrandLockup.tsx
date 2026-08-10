@@ -4,13 +4,15 @@ import Image from "next/image";
  * Marca de la app: icono oficial + wordmark **TypeRush**.
  *
  * El nombre se escribe SIEMPRE así, unido y con T y R mayúsculas. El icono es
- * `public/brand/typerush-icon.png` tal cual: sin recolorear, sin deformar y sin
- * máscara circular (relación 1:1 y `object-contain`).
+ * `public/brand/typerush-icon.webp` (mismo dibujo que el PNG maestro, sin
+ * recolorear, sin deformar y sin máscara circular — relación 1:1 y
+ * `object-contain`). WebP ~14 KB frente a ~200 KB del PNG: MiniPay pide
+ * SVG/WebP para assets de la miniapp.
  *
- * ⚠️ El PNG lleva ALFA REAL y va recortado al dibujo. El original era colorType
- * 2 (RGB, sin canal alfa) con el lienzo entero pintado de #f7f8f6 y casi la
- * mitad de margen: sobre el fondo de la app (#f2f5f3) eso se veía como un
- * cuadrado blanco alrededor del rayo. El arreglo es del archivo, NO del
+ * ⚠️ El archivo lleva ALFA REAL y va recortado al dibujo. El original era
+ * colorType 2 (RGB, sin canal alfa) con el lienzo entero pintado de #f7f8f6 y
+ * casi la mitad de margen: sobre el fondo de la app (#f2f5f3) eso se veía como
+ * un cuadrado blanco alrededor del rayo. El arreglo es del archivo, NO del
  * contenedor — este `span` no pinta fondo, borde, sombra ni relleno, y no debe
  * empezar a hacerlo para tapar un problema que es de la imagen. (La cara clara
  * de la tecla sí es parte del logo y se queda.)
@@ -54,7 +56,7 @@ export default function BrandLockup({
       {/* `width`/`height` fijan la relación 1:1 y el srcset (96/192 px cubren
           38 px a 3x); el tamaño real lo manda el `style`. */}
       <Image
-        src="/brand/typerush-icon.png"
+        src="/brand/typerush-icon.webp"
         alt=""
         width={96}
         height={96}

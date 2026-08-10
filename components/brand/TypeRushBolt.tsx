@@ -1,6 +1,6 @@
 /**
  * Rayo de TypeRush: la MISMA silueta del rayo del logo oficial
- * (`public/brand/typerush-icon.png`), redibujada como SVG para los tamaños
+ * (`public/brand/typerush-icon.webp`), redibujada como SVG para los tamaños
  * pequeños donde el pedestal del icono dejaría de leerse.
  *
  * Es el recurso de marca que ocupa el lugar de la abeja de Avíspate: cabecera,

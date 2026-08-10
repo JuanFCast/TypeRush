@@ -12,7 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#f2f5f3",
     theme_color: "#00d18f",
     icons: [
-      { src: "/icon.png", sizes: "512x512", type: "image/png" },
+      { src: "/icon.webp", sizes: "512x512", type: "image/webp" },
+      // Apple Touch Icon sigue en PNG: iOS no acepta WebP aquí.
       { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },
     ],
   };
