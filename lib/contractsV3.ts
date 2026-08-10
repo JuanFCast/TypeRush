@@ -1,11 +1,10 @@
 /**
- * Direcciones, tokens y ABI de TypeRushGameV3.
+ * Direcciones, tokens y ABI de TypeRushGameV3 (juego activo).
  *
- * ⚠️ V3 NO ESTÁ ACTIVO. El frontend sigue jugando contra V2 (`lib/gameV2.ts`)
- * hasta que `NEXT_PUBLIC_GAMEV3_ENABLED` sea "1" Y `NEXT_PUBLIC_GAMEV3_CONTRACT_ADDRESS`
- * apunte a un contrato desplegado. Ver `isV3Enabled()`. Los dos contratos
- * conviven a propósito: V2 tiene pozos con dinero que deben salir por partidas
- * y ganadores reales antes de apagarlo (ver contracts/RUNBOOK-V3.md).
+ * `isV3Enabled()` exige AMBAS: `NEXT_PUBLIC_GAMEV3_ENABLED=1` y
+ * `NEXT_PUBLIC_GAMEV3_CONTRACT_ADDRESS` con un contrato desplegado. Sin eso el
+ * CTA se deshabilita y explica el fallo (no hay camino paralelo de juego).
+ * V2 (`lib/gameV2.ts`) queda solo para ClaimBanner / labels residuales.
  */
 
 import { keccak256, parseUnits, toHex } from "viem";

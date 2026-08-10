@@ -27,7 +27,7 @@
 // resultado, llamar con ?wait=1.
 //
 // Secretos requeridos (Dashboard → Edge Functions → Secrets):
-//   CRON_SECRET               ya existe (el mismo de distribute-prizes)
+//   CRON_SECRET               secreto compartido con pg_cron / x-cron-secret
 //   PRIVATE_KEY               ya existe = Funder Rewards 0x46d5… (siembra premios)
 //   GAMEV2_CONTRACT_ADDRESS   0x22bda890153f9217ABf2F5B493c2B6E06b8c9336
 //   GAMEV2_USDT_ADDRESS       0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e

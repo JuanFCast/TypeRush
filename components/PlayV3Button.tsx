@@ -14,16 +14,21 @@ import {
   type TokenId,
 } from "@/lib/contractsV3";
 import {
+  isDevPractice,
+  makeDevPlayId,
+} from "@/lib/devPractice";
+import {
   PLAY_ERROR_KEY,
   PLAY_STAGE_KEY,
   resolveEntryState,
   usePlayV3,
   type PlayStage,
 } from "@/lib/playV3";
+import { MINIPAY_ADD_CASH } from "@/lib/minipay";
 import { useWalletSession } from "@/lib/walletSession";
+import { buildPassage, type ChallengeId, type ModeId } from "@/lib/passages";
 import { useWelcomeGas } from "./WelcomeGasBridge";
 import TypeRushBolt from "./brand/TypeRushBolt";
-import type { ChallengeId, ModeId } from "@/lib/passages";
 
 /**
  * Botón de jugar contra V3: firma `play()` y, solo si el servidor verificó la
@@ -36,8 +41,11 @@ import type { ChallengeId, ModeId } from "@/lib/passages";
  * **Quién decide si es gratis es el CONTRATO**, no la base de datos: aquí se lee
  * `hasFreePlay(modalidad, wallet)` para decir la verdad ANTES de firmar.
  * Mientras esa lectura no responda, el botón no promete nada gratis. Y aunque la
- * entrada sea gratis, la transacción la paga el jugador en gas: eso se dice, no
- * se esconde.
+ * entrada sea gratis, la transacción la paga el jugador en comisión de red: eso
+ * se dice, no se esconde.
+ *
+ * Con `NEXT_PUBLIC_APP_ENV=development` salta cadena y APIs: práctica local
+ * ilimitada, sin cobro y sin ranking. Sin esa env (o en production) → V3 real.
  */
 export default function PlayV3Button({
   mode,
@@ -58,10 +66,12 @@ export default function PlayV3Button({
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<TokenId>("usdt");
 
+  const practice = isDevPractice();
   const enabled = isV3Enabled();
   const address = wallet.address;
 
   // Partida gratis del día, según el CONTRATO. `undefined` = todavía no se sabe.
+  // En práctica local no hace falta preguntarle a la cadena.
   const {
     data: freePlay,
     isFetching: freeLoading,
@@ -72,8 +82,37 @@ export default function PlayV3Button({
     functionName: "hasFreePlay",
     args: [modeKey(mode), (address ?? "0x") as `0x${string}`],
     chainId: celo.id,
-    query: { enabled: enabled && Boolean(address) },
+    query: { enabled: enabled && Boolean(address) && !practice },
   });
+
+  // Práctica local: antes del early-return de "no configurado", para poder
+  // debuggear UI sin wallet ni contrato.
+  if (practice) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p
+          aria-live="polite"
+          className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-3 py-2 text-center text-sm font-bold text-ink"
+        >
+          {t("v3.dev.notice")}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            onReady({
+              txHash: makeDevPlayId(),
+              passage: buildPassage(challengeId),
+              wasFree: true,
+            });
+          }}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand-deep text-lg font-extrabold text-white shadow-pop transition active:scale-[0.98]"
+        >
+          <TypeRushBolt className="h-5 w-5" />
+          {t("v3.dev.cta")}
+        </button>
+      </div>
+    );
+  }
 
   // ⚠️ Sin contrato configurado NO se devuelve `null`. Este es el único botón de
   // jugar que existe desde el 2026-08-09: devolver null dejaba el lobby sin
@@ -93,8 +132,8 @@ export default function PlayV3Button({
 
   // Sin wallet no hay nada que firmar: se dice, no se deja un botón muerto.
   const noWallet = !wallet.isConnected || !address;
-  // La wallet embebida recién creada aún no tiene con qué pagar el gas: pedir
-  // la firma ahora solo produciría un error de wallet incomprensible.
+  // La wallet embebida recién creada aún no tiene con qué pagar la comisión:
+  // pedir la firma ahora solo produciría un error de wallet incomprensible.
   const waitingGas = wallet.isEmbedded && gas.state.kind === "working";
   const busy = stage !== null;
 
@@ -137,6 +176,9 @@ export default function PlayV3Button({
     }
     onReady({ txHash: res.txHash, passage: res.passage, wasFree: res.wasFree });
   };
+
+  const needsDeposit =
+    error === "v3.error.insufficient" || error === "v3.error.no_gas";
 
   return (
     <div className="flex flex-col gap-2">
@@ -189,9 +231,21 @@ export default function PlayV3Button({
       </button>
 
       {error && (
-        <p className="text-center text-xs text-danger" aria-live="polite">
-          {t(error as Parameters<typeof t>[0])}
-        </p>
+        <div className="flex flex-col items-center gap-1.5" aria-live="polite">
+          <p className="text-center text-xs text-danger">
+            {t(error as Parameters<typeof t>[0])}
+          </p>
+          {needsDeposit && (
+            <a
+              href={MINIPAY_ADD_CASH}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-11 px-3 text-center text-sm font-bold text-brand-deep underline underline-offset-2"
+            >
+              {t("funds.deposit")}
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

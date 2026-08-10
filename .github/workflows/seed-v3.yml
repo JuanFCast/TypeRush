@@ -8,9 +8,9 @@
 # 0. Por eso repetirlo no puede acumular, y correrlo cada hora compra algo que una
 # pasada nocturna no da — una modalidad dormida recupera su suelo dentro de la hora
 # siguiente a que alguien la juegue, en vez de al día siguiente.
-# El primer disparo del día es a las 00:20 UTC, después del cierre de las 00:10 UTC
-# (`/api/cron/settle-v3`, cron de Vercel), porque la primera guarda exige que la ronda
-# anterior conste cerrada.
+# El primer disparo útil del día es a las 00:20 UTC, después del cierre
+# (`/api/cron/settle-v3` a 00:10 / 00:25 / 00:45 UTC), porque la primera guarda
+# exige que la ronda anterior conste cerrada.
 #
 # ── Por qué aquí y no en Vercel ───────────────────────────────────────────────
 # Firma el FUNDER, que es quien tiene el dinero. Su clave nunca debe vivir en la app:

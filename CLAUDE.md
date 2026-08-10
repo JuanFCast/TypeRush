@@ -52,42 +52,37 @@ Use Testnet → Load Test Page with the HTTPS URL. MiniPay testnet = Celo Sepoli
 ```
 app/
   layout.tsx   — fonts + metadata + viewport (mobile)
-  page.tsx     — "use client"; navigation shell + game status (idle → countdown → racing → finished)
+  page.tsx     — "use client"; lobby + game status (idle → countdown → racing → finished)
   globals.css  — Tailwind + @theme tokens + per-char highlight classes
+  api/plays · api/results · api/ranking/round · api/cron/settle-v3 — V3 play + ranking + settle
 components/
-  lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · EntrySheet · HowToPlay
-                 — Jugar: ONE self-sufficient daily-challenge card (prize, mode,
-                   challenge, entry, single CTA, top 3) + the tutorial
+  lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · HowToPlay
+                 — Jugar: ONE daily-challenge card (prize, mode, challenge, PlayV3Button, top 3)
   brand/BrandLockup · TypeRushBolt · icons — logo, wordmark and the SVG icon set
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
   ResultScreen · RoundRanking · FullRanking — result and the live ranking
-  PaymentOverlay · AliasModal · AppShell · BottomNav · LanguageToggle (UI language, ES/EN)
+  PlayV3Button · ClaimBanner (V2 residual PULL) · AppShell · BottomNav · LanguageToggle
 hooks/
-  useTypeRush.ts        — game state machine (idle → countdown → racing → finished)
-  usePlayEligibility.ts — free-attempt / pay gating per mode
-  useModeRanking.ts     — live ranking of the open round (preview + /ranking)
-  usePrizePools.ts      — on-chain pools per currency + countdown to the close
+  useTypeRush.ts     — game state machine (idle → countdown → racing → finished)
+  useModeRanking.ts  — live ranking of the open round (via /api/ranking/round → v3_results)
+  usePrizePools.ts   — on-chain pools (V3 if enabled, else V2) + countdown to the close
 lib/
-  i18n/          — UI language: index.ts (core+detection) · dictionary.ts (es+en) ·
-                   client.tsx (I18nProvider/useI18n/useT) · server.ts (getServerLang)
+  i18n/          — UI language: index.ts · dictionary.ts · client.tsx · server.ts
   game.ts        — pure logic: computeStats + per-challenge localStorage best score
-  passages.ts    — modes (es/en) + challenges (i18n title keys) + clauses + buildPassage
-  payToPlay.ts    — MULTI-token entry payment (USDC/COPm) vs TypeRushPayToPlayMulti
-  prizePool.ts    — read pool/period helpers (periodId from period start)
-  runs.ts         — anti-cheat client: startRun / submitRun (calls the Edge Functions)
-  gamePeriod.ts   — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19, UTC−5 fixed)
-  winners.ts      — READ-ONLY winners history: paginated `prize_payouts` (see below)
-  leaderboard.ts · history.ts · balances.ts · wallet.ts · supabase.ts
-  player.ts · playerProfile.ts — local player id/name + Supabase profile, alias, wallet, free attempt
+  passages.ts    — modes (es/en) + challenges + clauses + buildPassage
+  contractsV3.ts · playV3.ts · poolsV3.ts · settleV3.ts — GameV3 (juego activo)
+  gameV2.ts      — residual: ClaimBanner + PAY_CURRENCIES / entryLabel
+  gamePeriod.ts  — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19)
+  winners.ts · leaderboard.ts · history.ts · roundRanking.ts
+  wallet.ts · walletSession.ts · operator.ts · supabase.ts
+  player.ts · playerProfile.ts — local player id/name + Supabase profile / alias / wallet
 scripts/
-  distribute-prizes.mjs — nightly: pay winners, rolling jackpot, seed the floor (see below)
-contracts/      — Foundry: TypeRushPayToPlayMulti.sol (live) + legacy contracts + README
+  settle-v3.mjs · seed-v3.mjs — robots V3
+  close-day-v2.mjs · seed-day-v2.mjs — residual V2 (pozos/claims pendientes)
+contracts/      — Foundry: TypeRushGameV3 (live) + GameV2 + legacy PayToPlay*
 supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
-  anti_cheat.sql — `runs` table (server-issued passages) + drops the public INSERT on match_results
-  winners_history.sql — adds prize_usdt_units / prize_copm_units to prize_payouts (winners history)
-  functions/distribute-prizes — Edge Function: instant on-chain payout at period close (pg_net-fired)
-  functions/start-run · functions/submit-run — anti-cheat: issue passage / recompute score server-side
-legacy/         — original static prototype (reference)
+  gamev3.sql · v3_only.sql · winners_history.sql · …
+  functions/seed-day · close-day — robots V2 residual (pg_net)
 .agents/        — celopedia-skill (Celo/MiniPay knowledge)
 ```
 
@@ -185,14 +180,16 @@ are enabled and the entries live on-chain: **0.10 USDT / 300 COPm**.
   cannot be changed without deploying another contract.** That is exactly why the previous V3 was
   replaced. Four things must agree or ranking and prize stop describing the same day:
   `DAY_OFFSET` (contract) · `PERIOD_RESET_HOUR=19` (`lib/gamePeriod.ts`) · `reset_hour_bogota=19`
-  (`supabase/daily_reset.sql`) · the Vercel cron, now `10 0 * * *` (00:10 UTC = 7:10 p.m. Col).
+  (`supabase/daily_reset.sql`) · the Vercel settle crons at `10/25/45 0 * * *`
+  (00:10 / 00:25 / 00:45 UTC = 7:10 / 7:25 / 7:45 p.m. Col).
 - ⚠️ **V2 and V3 day numbers are no longer comparable** — same integer, different boundary.
 - ⚠️ **The abandoned V3 `0xEca5C8073d75212b2d43eDe464d67137159E529D`** (8 p.m.) still holds
   **0.10 USDT stranded in day 20670, mode `es`**. Pot money can only leave via `settle` to someone
   who played, so recovering it is rollover → play → settle. Nothing else is in there.
-- **There is no seeding robot for V3 and that is deliberate** (Juan, 2026-08-06): if nobody plays,
-  `rollover` carries the same pot forward untouched and no new money is ever added. Seeding is
-  manual `fundPot`, and the floor he chose is **0.30 USDT + 1 000 COPm per mode**.
+- **Seeding robot V3** (`scripts/seed-v3.mjs` + `.github/workflows/seed-v3.yml`, hourly): completes
+  each mode up to the floor **0.30 USDT + 1 000 COPm** after the previous day is `settled`. Top-up
+  only — running twice cannot accumulate. Signs with the Funder (`PRIVATE_KEY`), never the Operator.
+  Off until `GAMEV3_SEED_ENABLED=1`. Idle modes that rolled over already sit at the floor → aporte 0.
 - The COPm price lives in TWO constants that must match the chain — `GAME_TOKENS`
   (`lib/contractsV3.ts`) and `PAY_CURRENCIES` (`lib/gameV2.ts`, which is what the V3 button
   prints). The actual charge always comes from the contract's `entryAmountOf`.
@@ -255,8 +252,8 @@ V2 still holds pots that must be won by real players first — see
   `v3_settlements` (PK = day+mode → the robot can't pay twice; states
   pending/processing/paid/failed/rollover with attempts and last_error). Amounts
   are `numeric(78,0)` — COPm's 18 decimals overflow bigint.
-- `@x402/*` are installed only because `@coinbase/cdp-sdk` imports them through
-  RainbowKit's barrel; nothing in TypeRush uses x402.
+- Direct `@x402/*` deps were removed: TypeRush never imports them. They may
+  still appear transitively via wagmi → `@coinbase/cdp-sdk`.
 
 ### V3 play flow — wired, behind the flag (2026-08-04)
 
@@ -394,11 +391,13 @@ matters while playing.
 - ⚠️ `<main>` carries **`overflow-x-clip`, not `hidden`**: the home halo is 130 %
   wide and caused 41 px of horizontal scroll on 360 px screens. `clip` trims it
   without creating a scroll container, so the lobby's `lg:sticky` column survives.
-- `/api/history` merges `v3_settlements` (empty until V3 runs) with `prize_payouts`
-  (V2, where the real data is today). Nothing is faked; empty means empty state.
-- The settlement robot is `lib/settleV3.ts` + `/api/cron/settle-v3` +
-  `scripts/settle-v3.mjs`. **Dry-run is the default**; `--live` also needs
-  `GAMEV3_CRON_ENABLED=1`. States: pending/processing/broadcast/paid/failed/
+- `/api/history` merges `v3_settlements` with `prize_payouts`. The display name is resolved from
+  the **current** `player_profiles` alias by wallet (`lib/historyNames.ts`), not the frozen
+  `winner_alias` / `player_name` at settlement — same principle as Avíspate. Missing profile →
+  shortened wallet. Historical wallet/score/prize/tx are never rewritten.
+- The settlement robot is `lib/settleV3.ts` + `/api/cron/settle-v3` (Vercel 00:10/25/45 UTC) +
+  `scripts/settle-v3.mjs` + GitHub backup `settle-v3.yml` (01:10 UTC). **Dry-run is the default**;
+  `--live` also needs `GAMEV3_CRON_ENABLED=1`. States: pending/processing/broadcast/paid/failed/
   rollover/skipped_no_players. `broadcast` is the important one — a transaction
   that went out without a receipt is NOT a failure, and treating it as one would
   pay twice on retry. Before retrying it reads `settled()` from the contract,

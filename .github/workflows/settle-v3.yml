@@ -1,0 +1,84 @@
+# Liquidación de TypeRush GameV3 (Celo Mainnet). Paga al #1 con `settle()` o
+# rueda el pozo con `rollover()` cuando no hubo jugadores. Lo firma el OPERATOR.
+#
+# Capas (estilo Avíspate):
+#   1. PRINCIPAL — cron de Vercel `/api/cron/settle-v3` a las 00:10 UTC
+#      (19:10 Colombia), con reintentos a 00:25 y 00:45.
+#   2. RESPALDO — este workflow a las 01:10 UTC (20:10 Col). Idempotente: si
+#      la ronda ya está `settled` on-chain, reconcilia la DB y no paga otra vez.
+#   3. MANUAL — Actions → Settle (GameV3) → Run workflow.
+#
+# Interruptor: sin `GAMEV3_CRON_ENABLED=1` el script se niega a transmitir aunque
+# se pase `--live`. Ese 1 es VARIABLE de repositorio (no secreto), para poder
+# apagar el robot sin tocar código.
+#
+# Secrets (Settings → Secrets and variables → Actions → Secrets):
+#   GAMEV3_CONTRACT_ADDRESS      0xD8287809e0D68E7e50D0D962f11Eb72150F48d39
+#   OPERATOR_PRIVATE_KEY         Operator 0xc91A…b514 (solo settle/rollover + gas)
+#   NEXT_PUBLIC_SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#
+# Variables (Settings → Secrets and variables → Actions → Variables):
+#   GAMEV3_CRON_ENABLED = 1
+
+name: Settle (GameV3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Transmitir de verdad (si no, solo simulacro)"
+        type: boolean
+        default: false
+      day:
+        description: "Día on-chain concreto (vacío = el que acaba de cerrar)"
+        type: string
+        required: false
+  schedule:
+    # RESPALDO del cron de Vercel. 01:10 UTC = 20:10 Colombia.
+    - cron: "10 1 * * *"
+
+concurrency:
+  group: settle-v3
+  cancel-in-progress: false
+
+jobs:
+  settle:
+    # Sin el interruptor, el cron programado ni arranca (evita correo de fallo
+    # cada noche por falta de secretos). A mano sí corre siempre para poder
+    # simular.
+    if: vars.GAMEV3_CRON_ENABLED == '1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Settle yesterday's round
+        run: |
+          EXTRA=""
+          if [ -n "${{ inputs.day }}" ]; then
+            EXTRA="--day ${{ inputs.day }}"
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.live }}" = "true" ]; then
+            node scripts/settle-v3.mjs --live $EXTRA
+          else
+            node scripts/settle-v3.mjs --dry-run $EXTRA
+          fi
+        env:
+          GAMEV3_CONTRACT_ADDRESS: ${{ secrets.GAMEV3_CONTRACT_ADDRESS }}
+          OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
+          # Alias legacy por si el secreto viejo aún se llama así.
+          OPERATOR_KEY: ${{ secrets.OPERATOR_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GAMEV3_CRON_ENABLED: ${{ vars.GAMEV3_CRON_ENABLED }}

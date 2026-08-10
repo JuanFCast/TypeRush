@@ -8,6 +8,13 @@ interface MiniPayEthereum {
 }
 
 /**
+ * Deeplink de MiniPay para depositar saldo (USDT / USDC / USDm).
+ * Docs: https://docs.minipay.xyz/technical-references/deeplinks.html
+ */
+export const MINIPAY_ADD_CASH =
+  "https://link.minipay.xyz/add_cash?tokens=USDT,USDC,USDm";
+
+/**
  * ¿Estamos dentro del navegador de MiniPay? MiniPay inyecta su wallet con la
  * marca `isMiniPay`. En desarrollo se puede forzar con `?minipay=1` para probar
  * la UI sin un teléfono.

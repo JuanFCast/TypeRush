@@ -225,12 +225,10 @@ export default function DailyChallengeCard({
             {t("play.howto")}
           </button>
           {/* Solo mientras no haya nombre. Poner alias es opcional: sin él se
-              aparece en el ranking como `0x1234…abcd`.
+              aparece en el ranking como "Jugador", no como dirección.
 
               Lleva a Perfil en vez de abrir su propio modal: el alias se edita
-              en UN solo sitio. Cuando había dos, cada uno escribía por su lado
-              —uno contra el perfil de Privy, el otro contra el local— y acababan
-              discrepando sobre cuál era tu nombre. */}
+              en UN solo sitio. */}
           {!hasAlias && (
             <Link
               href="/perfil"

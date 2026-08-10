@@ -285,7 +285,12 @@ function RoundCard({
   t: (k: MessageKey, v?: Record<string, string | number>) => string;
 }) {
   const mode = getMode(round.mode as ModeId);
-  const winner = round.winnerAlias || round.winnerWallet;
+  // Alias primero; sin él "Jugador" si hay wallet. Sin wallet = sin ganador.
+  const winner = round.winnerAlias
+    ? round.winnerAlias
+    : round.winnerWallet
+      ? t("ranking.anonymous")
+      : null;
   const usdt = fmtUnits(round.prizeUsdt, USDT_DECIMALS, locale);
   const copm = fmtUnits(round.prizeCopm, COPM_DECIMALS, locale);
   const prize = [usdt && `${usdt} USDT`, copm && `${copm} COPm`].filter(Boolean);
@@ -324,7 +329,7 @@ function RoundCard({
           <p className="truncate text-sm font-bold text-ink">
             {winner ?? t("winners.no_winner")}
           </p>
-          {round.winnerAlias && round.winnerWallet && (
+          {round.winnerWallet && (
             <p className="font-mono text-[0.65rem] text-muted">
               {round.winnerWallet}
             </p>

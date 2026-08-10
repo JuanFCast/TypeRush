@@ -40,9 +40,10 @@ function contractAddress(): `0x${string}` {
   return (process.env.GAMEV3_CONTRACT_ADDRESS ?? "").toLowerCase() as `0x${string}`;
 }
 
-/** `0x1234…abcd` para quien juega sin haber elegido alias. */
-function walletAlias(wallet: string): string {
-  return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
+/** `0x1234…abcd` ya no se usa como nombre: MiniPay no admite direcciones como
+ * identidad primaria. Sin alias la UI muestra el label "Jugador". */
+function anonymousName(): string {
+  return "";
 }
 
 export async function POST(req: Request) {
@@ -145,7 +146,7 @@ export async function POST(req: Request) {
     const name =
       (row.player_id ? namesByPlayerId.get(row.player_id) : undefined) ??
       namesByWallet.get(wallet) ??
-      walletAlias(wallet);
+      anonymousName();
     return {
       rank: index + 1,
       playerId: opaqueId(wallet),

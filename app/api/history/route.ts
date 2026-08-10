@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { walletVariants } from "@/lib/identity";
+import {
+  applyCurrentAliases,
+  shortenWallet,
+} from "@/lib/historyNames";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +15,16 @@ const MAX_LIMIT = 50;
  * GET /api/history — historial PÚBLICO de rondas cerradas.
  *
  * Une DOS fuentes porque ahora mismo conviven dos juegos:
- *   - `v3_settlements` → rondas de GameV3 (vacío hasta que V3 se active).
- *   - `prize_payouts`  → rondas de GameV2, que es lo que hay hoy con datos reales.
+ *   - `v3_settlements` → rondas de GameV3.
+ *   - `prize_payouts`  → rondas de GameV2.
  *
  * Nada se inventa: si no hay filas, la respuesta va vacía y la pantalla enseña
  * su estado vacío. No hay datos de ejemplo en producción.
+ *
+ * El nombre visible NO es el `winner_alias` / `player_name` congelado al
+ * liquidar: se resuelve desde el perfil ACTUAL por wallet (Privy o externa),
+ * como Avíspate. Sin perfil o sin alias → wallet abreviada. Los datos
+ * históricos (wallet, ronda, score, premio, tx) no se reescriben.
  *
  * Filtros: `?mode=es|en`, `?token=usdt|copm`, `?wallet=0x…` (solo los premios de
  * esa wallet, para la pestaña "Tus premios").
@@ -39,11 +49,8 @@ interface HistoryRound {
   payout: PayoutState;
 }
 
-/** Nunca sale de aquí una dirección completa. */
-function shorten(address: string | null): string | null {
-  if (!address) return null;
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
+/** Fila intermedia: guarda la wallet cruda para resolver el alias después. */
+type DraftRound = HistoryRound & { winnerWalletRaw: string | null };
 
 function v3State(status: string): PayoutState {
   if (status === "paid") return "paid";
@@ -58,6 +65,34 @@ function v2State(status: string): PayoutState {
   if (status === "registered") return "pending";
   if (status === "rollover") return "rollover";
   return "closing";
+}
+
+/**
+ * Alias actuales por wallet (minúsculas). Misma búsqueda dual que el ranking:
+ * la columna no está normalizada (minúsculas vs checksum EIP-55).
+ */
+async function loadAliasesByWallet(
+  db: ReturnType<typeof getSupabaseAdmin>,
+  wallets: string[],
+): Promise<Map<string, string>> {
+  const aliases = new Map<string, string>();
+  const unique = [...new Set(wallets.map((w) => w.toLowerCase()).filter(Boolean))];
+  if (unique.length === 0) return aliases;
+
+  const { data } = await db
+    .from("player_profiles")
+    .select("wallet_address, player_name, updated_at")
+    .in("wallet_address", unique.flatMap(walletVariants))
+    .order("updated_at", { ascending: false });
+
+  for (const p of data ?? []) {
+    const w = String(p.wallet_address ?? "").toLowerCase();
+    const name = typeof p.player_name === "string" ? p.player_name.trim() : "";
+    // El primero gana: vienen por `updated_at` desc; producción tiene una
+    // wallet con dos perfiles (residuo de pruebas).
+    if (w && name && !aliases.has(w)) aliases.set(w, name);
+  }
+  return aliases;
 }
 
 export async function GET(req: Request) {
@@ -76,7 +111,7 @@ export async function GET(req: Request) {
   const wallet = params.get("wallet")?.toLowerCase() ?? null;
 
   const db = getSupabaseAdmin();
-  const rounds: HistoryRound[] = [];
+  const drafts: DraftRound[] = [];
 
   // --- V3 -------------------------------------------------------------------
   try {
@@ -92,14 +127,18 @@ export async function GET(req: Request) {
     const { data } = await q;
     for (const r of data ?? []) {
       const row = r as Record<string, unknown>;
-      rounds.push({
+      const raw = (row.winner_wallet as string) ?? null;
+      drafts.push({
         key: `v3-${row.onchain_day}-${row.mode_id}`,
         source: "v3",
         day: Number(row.onchain_day),
         periodEnd: null,
         mode: String(row.mode_id),
-        winnerAlias: (row.winner_alias as string) ?? null,
-        winnerWallet: shorten((row.winner_wallet as string) ?? null),
+        // Placeholder: se sustituye tras cargar perfiles. El frozen
+        // `winner_alias` de la fila NO se usa para pintar.
+        winnerAlias: null,
+        winnerWalletRaw: raw,
+        winnerWallet: shortenWallet(raw),
         winnerWpm: (row.winner_wpm as number) ?? null,
         winnerAccuracy: (row.winner_accuracy as number) ?? null,
         winnerScore: (row.winner_score as number) ?? null,
@@ -129,14 +168,16 @@ export async function GET(req: Request) {
     const { data } = await q;
     for (const r of data ?? []) {
       const row = r as Record<string, unknown>;
-      rounds.push({
+      const raw = (row.wallet_address as string) ?? null;
+      drafts.push({
         key: `v2-${row.period_start}-${row.mode_id}`,
         source: "v2",
         day: row.onchain_day === null ? null : Number(row.onchain_day),
         periodEnd: (row.period_end as string) ?? null,
         mode: String(row.mode_id),
-        winnerAlias: (row.player_name as string) ?? null,
-        winnerWallet: shorten((row.wallet_address as string) ?? null),
+        winnerAlias: null,
+        winnerWalletRaw: raw,
+        winnerWallet: shortenWallet(raw),
         // V2 no guardaba WPM ni precisión del ganador: se muestra el puntaje.
         winnerWpm: null,
         winnerAccuracy: null,
@@ -154,24 +195,41 @@ export async function GET(req: Request) {
 
   // Orden global: lo más nuevo primero. V3 usa día on-chain y V2 fecha de
   // periodo, así que se ordena por el momento real de cierre.
-  rounds.sort((a, b) => {
+  drafts.sort((a, b) => {
     const at = a.day ?? (a.periodEnd ? Date.parse(a.periodEnd) / 86400000 : 0);
     const bt = b.day ?? (b.periodEnd ? Date.parse(b.periodEnd) / 86400000 : 0);
     return bt - at;
   });
 
   const filtered = token
-    ? rounds.filter((r) =>
+    ? drafts.filter((r) =>
         token === "usdt"
           ? r.prizeUsdt !== null && r.prizeUsdt !== "0"
           : r.prizeCopm !== null && r.prizeCopm !== "0",
       )
-    : rounds;
+    : drafts;
 
-  const page = filtered.slice(offset, offset + limit);
+  const pageDrafts = filtered.slice(offset, offset + limit);
+
+  const aliases = await loadAliasesByWallet(
+    db,
+    pageDrafts
+      .map((r) => r.winnerWalletRaw)
+      .filter((w): w is string => Boolean(w)),
+  );
+
+  const withNames = applyCurrentAliases(
+    pageDrafts,
+    aliases,
+    (r) => r.winnerWalletRaw,
+  );
+
+  const history: HistoryRound[] = withNames.map(
+    ({ winnerWalletRaw: _raw, ...round }) => round,
+  );
 
   return NextResponse.json(
-    { history: page, hasMore: filtered.length > offset + limit },
+    { history, hasMore: filtered.length > offset + limit },
     {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
