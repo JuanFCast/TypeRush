@@ -375,6 +375,8 @@ export const es = {
 
   /* ------------------------- Jugada on-chain (V3) ------------------------- */
   // La entrada es gratis, pero la transacción NO: el gas lo paga el jugador.
+  "v3.dev.cta": "Jugar (práctica)",
+  "v3.dev.notice": "Modo desarrollo · no cobra · no entra al ranking",
   "v3.entry.free": "Sin costo de entrada · solo gas de red",
   "v3.stage.switching": "Cambiando a Celo…",
   "v3.stage.checking": "Comprobando tu jugada…",
@@ -811,6 +813,8 @@ export const en: Record<MessageKey, string> = {
   "profile.wallet_kind": "Wallet type",
 
   /* --------------------------- On-chain play (V3) ------------------------- */
+  "v3.dev.cta": "Play (practice)",
+  "v3.dev.notice": "Development mode · no charge · not ranked",
   "v3.entry.free": "No entry fee · network gas only",
   "v3.stage.switching": "Switching to Celo…",
   "v3.stage.checking": "Checking your play…",

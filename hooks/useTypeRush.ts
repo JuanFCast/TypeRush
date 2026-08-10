@@ -8,6 +8,7 @@ import {
   saveBestScore,
   Stats,
 } from "@/lib/game";
+import { isDevPlayId } from "@/lib/devPractice";
 import { submitResultV3 } from "@/lib/playV3";
 import { playError, playFinish, playKey, playRecord } from "@/lib/sound";
 import { saveMatchHistoryItem } from "@/lib/history";
@@ -109,8 +110,10 @@ export function useTypeRush() {
     // ranking sin ninguna transacción detrás, y dejarla dependiendo de una
     // bandera significaba que apagar la bandera reabría el agujero. Sin jugada
     // V3 no hay resultado que enviar, y punto.
+    //
+    // Los ids `dev-*` son práctica local (`next dev`): no hay tx ni ranking.
     const txHash = runIdRef.current;
-    if (txHash) {
+    if (txHash && !isDevPlayId(txHash)) {
       void submitResultV3({
         txHash,
         challengeId: id,
