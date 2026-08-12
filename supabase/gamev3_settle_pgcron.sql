@@ -7,17 +7,39 @@
 -- depende de la cola de cron de Vercel ni de que GitHub entregue un `schedule`
 -- a tiempo (documentado, hasta 2-3 h tarde).
 --
--- Dos disparos, como Avíspate (00:00 UTC + reintento 00:03): aquí se corren un
--- minuto más tarde porque `/api/cron/settle-v3` no necesita el colchón interno
--- que sí tiene `roll-day` de Avíspate — `onchain_day` en `v3_results` viene del
--- `v3_plays` de la JUGADA (fijado al firmar), no del instante en que llega el
--- POST de resultado, así que no hay ventana de carrera que esperar.
+-- Dos disparos, como Avíspate (00:00 UTC + reintento 00:03). El primero
+-- dispara EXACTO al cierre, en el mismo minuto que Avíspate — no hace falta
+-- el colchón interno que sí tiene `roll-day` de Avíspate (`SETTLE_GRACE_SECONDS`)
+-- porque `onchain_day` en `v3_results` viene del `v3_plays` de la JUGADA
+-- (fijado al firmar), no del instante en que llega el POST de resultado, así
+-- que no hay ventana de carrera de ESE tipo que esperar. Ver más abajo la nota
+-- sobre la otra carrera que sí importa: `currentDay()` justo en el segundo del
+-- cambio de día.
 --
---   · 00:01 UTC (7:01 p. m. Colombia) → primer intento
+--   · 00:00 UTC (7:00 p. m. Colombia, en punto) → primer intento
 --   · 00:04 UTC (7:04 p. m. Colombia) → reintento
+--
+-- Tras el settle, /api/cron/settle-v3 dispara inmediatamente la Edge Function
+-- `seed-v3` (ver su archivo) — la siembra del pozo nuevo no espera a ninguno
+-- de los dos crons de abajo, son solo su respaldo.
 --
 -- Después siguen intactos: Vercel a 00:10/00:25/00:45 UTC, y GitHub Actions
 -- (`settle-v3.yml`) a las 01:10 UTC como última red + verificación/alarma.
+--
+-- ⚠️ La carrera de currentDay() al segundo exacto del cambio de día: si el
+-- bloque más reciente que ve el RPC en el instante de la llamada TODAVÍA
+-- tiene timestamp del día que está cerrando (extremadamente improbable dado
+-- que Celo mina cada ~1 s y ya hay varios saltos de red de por medio antes de
+-- llegar a la RPC, pero no imposible), `currentDay()` devolvería el día
+-- VIEJO y `closedDay()` (= currentDay() - 1) apuntaría un día completo hacia
+-- atrás, al que ya se liquidó ayer. No es peligroso: `settleDay()` ve que ese
+-- día ya está `paid`/`rollover` en `v3_settlements` y no hace nada — un no-op,
+-- no un pago incorrecto. El día de HOY simplemente queda sin tocar hasta el
+-- reintento de las 00:04, que para entonces ya tiene de sobra los ~4 minutos
+-- que hacen falta para que la cadena haya cruzado el límite. No se añadió
+-- ninguna guarda extra para esto a propósito: la capa de reintento ya lo
+-- cubre sin inventar una segunda fuente de verdad (reloj de pared) que podría
+-- ella misma equivocarse si la cadena se atrasara por una razón real.
 --
 -- ⚠️ AUTENTICACIÓN DISTINTA a la de `gamev2_robots.sql`: aquella llama a Edge
 -- Functions de Supabase con el header `x-cron-secret`. Esto llama al endpoint
@@ -105,30 +127,37 @@ begin
   end if;
 
   -- El comando programado NO lleva el secreto: lleva la CONSULTA que lo busca
-  -- en Vault. pg_net envía el POST y el endpoint responde al instante
+  -- en Vault. pg_net envía la petición y el endpoint responde al instante
   -- (planifica y, según el interruptor, también transmite); no hace falta
   -- esperar la respuesta desde aquí.
+  --
+  -- ⚠️ `net.http_get`, NO `net.http_post`: `/api/cron/settle-v3` solo exporta
+  -- `export async function GET(...)` (ver app/api/cron/settle-v3/route.ts).
+  -- Next.js responde 405 a cualquier otro verbo — un POST aquí nunca habría
+  -- llegado a ejecutar la liquidación, se habría quedado chocando contra el
+  -- 405 cada noche en silencio. (Encontrado en revisión, corregido antes de
+  -- que GAMEV3_CRON_ENABLED estuviera encendido para esta capa.)
   post_cmd := format(
-    'select net.http_post(url => %L, '
+    'select net.http_get(url => %L, '
     || 'headers => jsonb_build_object(''Content-Type'',''application/json'','
     || '''Authorization'', ''Bearer '' || ('
     || 'select decrypted_secret from vault.decrypted_secrets '
     || 'where name = %L limit 1)), '
-    || 'body => ''{}''::jsonb);',
+    || 'timeout_milliseconds => 58000);',
     settle_url, vault_secret_name
   );
 
   if exists (select 1 from cron.job where jobname = primary_job) then
     perform cron.unschedule(primary_job);
   end if;
-  perform cron.schedule(primary_job, '1 0 * * *', post_cmd);  -- 00:01 UTC
+  perform cron.schedule(primary_job, '0 0 * * *', post_cmd);  -- 00:00 UTC, justo al cierre
 
   if exists (select 1 from cron.job where jobname = retry_job) then
     perform cron.unschedule(retry_job);
   end if;
   perform cron.schedule(retry_job, '4 0 * * *', post_cmd);    -- 00:04 UTC
 
-  raise notice 'Programados: % (00:01 UTC) y % (00:04 UTC). Secreto leído de Vault en cada ejecución, nunca guardado en cron.job.command.', primary_job, retry_job;
+  raise notice 'Programados: % (00:00 UTC) y % (00:04 UTC). Secreto leído de Vault en cada ejecución, nunca guardado en cron.job.command.', primary_job, retry_job;
 end
 $$;
 

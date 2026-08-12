@@ -2,7 +2,7 @@
 # rueda el pozo con `rollover()` cuando no hubo jugadores. Lo firma el OPERATOR.
 #
 # Capas (estilo Avíspate):
-#   1. PRINCIPAL — pg_cron de Supabase a las 00:01 UTC, reintento a las 00:04
+#   1. PRINCIPAL — pg_cron de Supabase a las 00:00 UTC, reintento a las 00:04
 #      (`supabase/gamev3_settle_pgcron.sql`). Es el reloj más puntual de los
 #      tres: no depende de la cola de cron de Vercel ni de que GitHub entregue
 #      un `schedule` a tiempo.
