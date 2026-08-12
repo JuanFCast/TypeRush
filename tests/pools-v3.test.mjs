@@ -62,10 +62,15 @@ function makePools({ v3, v3Source, v2Source }) {
     get source() {
       return v3 ? "v3" : "v2";
     },
-    /** Monedas que la tarjeta pinta. */
+    /** Monedas que la tarjeta pinta. Con V3 solo USDT (2026-08-12): la app ya
+     *  no vende entradas en COPm, aunque la LECTURA (`pools`) siga trayendo
+     *  las dos — ver el bloque de abajo. */
     get present() {
       return v3
-        ? TOKENS.map((t) => ({ id: t.id, symbol: t.symbol }))
+        ? TOKENS.filter((t) => t.id === "usdt").map((t) => ({
+            id: t.id,
+            symbol: t.symbol,
+          }))
         : TOKENS.filter((t) => pools[t.id] !== null).map((t) => ({
             id: t.id,
             symbol: t.symbol,
@@ -94,6 +99,40 @@ function makePools({ v3, v3Source, v2Source }) {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Qué moneda se ofrece para pagar una partida nueva (lib/gameV2.ts)
+// ---------------------------------------------------------------------------
+//
+// PAY_CURRENCIES sigue trayendo USDT y COPm: `ClaimBanner` (V2, `claimPrize` /
+// `findClaimablePrizes`) todavía necesita las dos para detectar y reclamar
+// premios COPm ganados antes de este cambio (2026-08-12). Lo que cambia es
+// ENTRY_CURRENCIES, un derivado SOLO para el selector de pago de una partida
+// nueva — así el candado de fondos (PAY_CURRENCIES intacto) y la regla de
+// producto (no vender COPm) no dependen del mismo array.
+
+const PAY_CURRENCIES_REPLICA = [
+  { id: "usdt", symbol: "USDT" },
+  { id: "copm", symbol: "COPm" },
+];
+const ENTRY_CURRENCIES_REPLICA = PAY_CURRENCIES_REPLICA.filter(
+  (c) => c.id === "usdt",
+);
+
+test("el selector de pago de una partida nueva solo ofrece USDT", () => {
+  assert.deepEqual(
+    ENTRY_CURRENCIES_REPLICA.map((c) => c.id),
+    ["usdt"],
+  );
+});
+
+test("PAY_CURRENCIES no se recorta: ClaimBanner sigue necesitando COPm", () => {
+  assert.deepEqual(
+    PAY_CURRENCIES_REPLICA.map((c) => c.id),
+    ["usdt", "copm"],
+    "recortar esto rompería el reclamo de premios V2 en COPm ya ganados",
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Formato
@@ -162,14 +201,21 @@ test("con V3 apagado se conserva el comportamiento de V2", async () => {
   assert.equal(p.pools.usdt, "1,00");
 });
 
-test("V3 enseña las dos monedas del contrato", async () => {
-  const chain = { currentDay: async () => 1n, poolOf: async () => 0n };
+test("V3 enseña solo USDT en la tarjeta, aunque la lectura siga trayendo COPm", async () => {
+  const chain = {
+    currentDay: async () => 1n,
+    poolOf: async (_d, _m, token) => (token === "usdt" ? 5_000_000n : 9000n * 10n ** 18n),
+  };
   const p = makePools({ v3: true, v3Source: () => fetchPoolsV3(chain, "es") });
   await p.load();
   assert.deepEqual(
     p.present.map((c) => c.symbol),
-    ["USDT", "COPm"],
+    ["USDT"],
+    "la app ya no vende entradas en COPm; no debe aparecer en la tarjeta",
   );
+  // La lectura de fondo SÍ sigue trayendo COPm: es lo que permite a settleV3
+  // liquidar correctamente cualquier pozo COPm residual.
+  assert.equal(p.pools.copm, "9.000");
 });
 
 // ---------------------------------------------------------------------------

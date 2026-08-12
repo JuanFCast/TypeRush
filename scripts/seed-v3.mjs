@@ -52,7 +52,12 @@ for (const file of [".env.local", ".env"]) {
 const RPC = "https://forno.celo.org";
 const MODES = ["es", "en"];
 
-/** Suelo por modalidad, elegido por Juan el 2026-08-06. */
+/**
+ * Suelo por modalidad, elegido por Juan el 2026-08-06. COPm salió de esta
+ * lista el 2026-08-12: la app dejó de vender entradas y sembrar pozos en esa
+ * moneda a nivel de producto (el contrato la sigue aceptando; `settleV3.ts`
+ * sigue liquidándola con `GAME_TOKENS` si algún día apareciera un pozo).
+ */
 const TOKENS = [
   {
     symbol: "USDT",
@@ -64,14 +69,6 @@ const TOKENS = [
     // esto solo salta si algo está mal (un suelo mal escrito, una lectura absurda). No es un
     // presupuesto: es un fusible para que un error no vacíe la Funder.
     cap: 300_000n * 2n,
-  },
-  {
-    symbol: "COPm",
-    address: "0x8A567e2aE79CA692Bd748aB832081C45de4041eA",
-    decimals: 18n,
-    floor: 1000n * 10n ** 18n, // 1.000 COPm
-    floorLabel: "1.000",
-    cap: 1000n * 10n ** 18n * 2n,
   },
 ];
 
@@ -251,7 +248,7 @@ async function main() {
     return;
   }
 
-  // Cada token va aislado: si COPm falla, USDT ya quedó sembrado.
+  // Cada token va aislado: si un token falla, los demás ya quedaron sembrados.
   for (const { token: t, erc, rows, needed } of plan) {
     try {
       const allowance = await withRetry(

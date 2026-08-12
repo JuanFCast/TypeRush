@@ -172,7 +172,7 @@ la grave es la liquidación, porque un ganador se queda sin cobrar. Con el tope 
 inicial (25 CELO) el consumo está acotado, pero hay que vigilar el saldo: el código avisa por
 debajo de `OPERATOR_MIN_CELO` (5 por defecto).
 
-### Tokens (no cambian)
+### Tokens (no cambian en el CONTRATO)
 
 | Token | Dirección | Decimales | Entrada |
 |---|---|---|---|
@@ -181,6 +181,11 @@ debajo de `OPERATOR_MIN_CELO` (5 por defecto).
 
 > Bajado de 500 a 300 el 2026-08-06 por decisión de Juan, avisado de que a ese precio pagar en
 > pesos sale más barato que los 0,10 USDT (~400 COP) y casi todos elegirán COPm.
+
+> ⚠️ **2026-08-12: COPm se retiró a nivel de producto, no de contrato.** `entryAmountOf(COPm)`
+> sigue siendo 300 aquí — nada de esto cambió on-chain. La app dejó de ofrecer/cobrar/sembrar COPm
+> (`lib/gameV2.ts` `ENTRY_CURRENCIES`, `app/api/plays/route.ts`, `scripts/seed-v3.mjs`); ver
+> `CLAUDE.md` para el detalle. `settle`/`rollover` siguen liquidando ambos tokens sin cambios.
 
 ---
 

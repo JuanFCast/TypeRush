@@ -173,7 +173,8 @@ unchanged local `localStorage` history). Modelled on avispate.fun's `round_settl
 **`TypeRushGameV3` @ `0xD8287809e0D68E7e50D0D962f11Eb72150F48d39`, Celo mainnet, verified.**
 Deployed by the Funder `0x46d5…8C18`; owner `0xe953…7058`, operator `0xc91A…b514`, treasury
 `0xA593…9609`, fee 20 %. The Owner Admin already signed the four start-up calls, so the two modes
-are enabled and the entries live on-chain: **0.10 USDT / 300 COPm**.
+are enabled on-chain at **0.10 USDT / 300 COPm** (`entryAmountOf`, unchanged — see the COPm note
+below: the app itself only sells the USDT entry since 2026-08-12).
 
 - **The day now closes at 7 p.m. Colombia**, not 8. On-chain that is `DAY_OFFSET = 0` — 7 p.m.
   Colombia *is* midnight UTC, so the offset disappears. It is a `constant`: **the closing hour
@@ -187,12 +188,27 @@ are enabled and the entries live on-chain: **0.10 USDT / 300 COPm**.
   **0.10 USDT stranded in day 20670, mode `es`**. Pot money can only leave via `settle` to someone
   who played, so recovering it is rollover → play → settle. Nothing else is in there.
 - **Seeding robot V3** (`scripts/seed-v3.mjs` + `.github/workflows/seed-v3.yml`, hourly): completes
-  each mode up to the floor **0.30 USDT + 1 000 COPm** after the previous day is `settled`. Top-up
-  only — running twice cannot accumulate. Signs with the Funder (`PRIVATE_KEY`), never the Operator.
-  Off until `GAMEV3_SEED_ENABLED=1`. Idle modes that rolled over already sit at the floor → aporte 0.
-- The COPm price lives in TWO constants that must match the chain — `GAME_TOKENS`
-  (`lib/contractsV3.ts`) and `PAY_CURRENCIES` (`lib/gameV2.ts`, which is what the V3 button
-  prints). The actual charge always comes from the contract's `entryAmountOf`.
+  each mode up to the floor **0.30 USDT** (COPm dropped 2026-08-12, see below) after the previous
+  day is `settled`. Top-up only — running twice cannot accumulate. Signs with the Funder
+  (`PRIVATE_KEY`), never the Operator. Off until `GAMEV3_SEED_ENABLED=1`. Idle modes that rolled
+  over already sit at the floor → aporte 0.
+- ⚠️ **COPm retired at the product level (2026-08-12) — the contract wasn't touched.** New games are
+  USDT-only: the lobby only offers USDT, `seed-v3` only seeds USDT, and `/api/plays` rejects any
+  *paid* play whose on-chain token isn't USDT (free plays are unaffected). This is a product-level
+  cut, not a contract one — `entryAmountOf(COPm)` is still 300 and the contract still accepts it if
+  called directly. Three lists now do different jobs and must NOT be merged:
+  - **`GAME_TOKENS`** (`lib/contractsV3.ts`) — untouched, still USDT+COPm. `lib/settleV3.ts` builds
+    `settle()`/`rollover()`'s token list straight from this, and `settled[day][modeId]` can never be
+    re-processed once true — trimming this would strand any COPm pool that ever appeared, forever.
+  - **`PAY_CURRENCIES`** (`lib/gameV2.ts`) — also untouched, still USDT+COPm. `ClaimBanner`
+    (`findClaimablePrizes`/`claimPrize`) needs both to keep detecting and claiming V2-era COPm
+    prizes that were already won.
+  - **`ENTRY_CURRENCIES`** (`lib/gameV2.ts`, new) — a USDT-only filter of `PAY_CURRENCIES`. This is
+    the one thing that actually changed: it's what `PlayV3Button.tsx`'s picker offers, and what
+    `hooks/usePrizePools.ts`'s lobby card displays (that hook filters `GAME_TOKENS` to USDT for
+    *display* only — the underlying pool read still checks both tokens).
+  Current on-chain state (verified 2026-08-11): COPm prize pools are 0 in both modes; the only COPm
+  the contract holds is ~60 units of unclaimed `protocolAccrued` fee (not a prize pool).
 - ⚠️ **Celoscan's V1 verify endpoint is dead.** `foundry.toml` now points at Etherscan API V2
   (`https://api.etherscan.io/v2/api?chainid=42220`); without the `chainid` in the query forge fails
   with "Missing chainid parameter".
@@ -433,8 +449,9 @@ payment or database rule was touched** — only composition, tokens and copy.
 - **Jugar is one screen.** `ModeHome` (marketing landing) and `ChallengeLobby` (second step) were
   deleted; mode and challenge are compact controls inside `DailyChallengeCard`. `SessionCard` was
   removed from the lobby too — identity and wallet live in Perfil.
-- **One CTA.** With two currencies a single button can't state two prices, so when the free attempt
-  is used the CTA opens `EntrySheet` (USDT / COPm) and the existing pay flow continues untouched.
+- **One CTA.** ⚠️ Stale as of 2026-08-09/2026-08-12: `EntrySheet` no longer exists — the currency
+  picker (USDT-only since 2026-08-12) is inline inside `PlayV3Button.tsx` itself, shown only when
+  the free attempt is used.
 - **`RaceDemo` moved into `HowToPlay`**, which opens automatically on the first visit
   (`typerush.howto.v1` in localStorage) and is reopenable from "Cómo jugar".
 - ⚠️ **e2e suites assert the UI copy**, so they were updated with it: markers are now "reto diario" /

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createPublicClient, decodeEventLog } from "viem";
 import { celo } from "viem/chains";
 import { CELO_TRANSPORT } from "@/lib/chain";
-import { GAMEV3_ABI, modeKey } from "@/lib/contractsV3";
+import { GAMEV3_ABI, USDT_ADDRESS, modeKey } from "@/lib/contractsV3";
 import { getSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { optionalIdentity } from "@/lib/privyServer";
 import { resolveProfile } from "@/lib/identity";
@@ -131,6 +131,14 @@ export async function POST(req: Request) {
 
   if (!play) {
     return NextResponse.json({ error: "not-a-play" }, { status: 400 });
+  }
+
+  // El contrato sigue aceptando COPm si alguien lo llama directo, pero la app
+  // ya no vende entradas en esa moneda: una partida PAGADA en otro token que
+  // no sea USDT no se registra ni se puntúa. Las gratis (token=address(0))
+  // no pasan por aquí.
+  if (!play.free && play.token.toLowerCase() !== USDT_ADDRESS.toLowerCase()) {
+    return NextResponse.json({ error: "token-not-supported" }, { status: 400 });
   }
 
   // La modalidad viene del evento (bytes32) y se traduce a "es"/"en" buscando

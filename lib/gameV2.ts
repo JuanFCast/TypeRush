@@ -58,6 +58,21 @@ export const PAY_CURRENCIES: Currency[] = [
   },
 ];
 
+/**
+ * Monedas que se OFRECEN para pagar una partida nueva de V3. COPm se retiró
+ * de aquí a propósito (2026-08-12): la app ya no vende entradas en COPm.
+ *
+ * ⚠️ `PAY_CURRENCIES` en sí NO se filtra: `claimPrize`/`findClaimablePrizes`
+ * (V2, `ClaimBanner`) todavía necesitan las DOS monedas para detectar y
+ * reclamar premios COPm ganados antes de este cambio. Si `PAY_CURRENCIES`
+ * perdiera COPm, `findClaimablePrizes` dejaría de encontrar esos premios (y
+ * de paso los de USDT, porque hoy exige encontrar ambas monedas antes de
+ * buscar) — un ganador legítimo se quedaría sin forma de cobrar.
+ */
+export const ENTRY_CURRENCIES: Currency[] = PAY_CURRENCIES.filter(
+  (c) => c.id === "usdt",
+);
+
 function getCurrency(currencyId: CurrencyId): Currency | undefined {
   return PAY_CURRENCIES.find((c) => c.id === currencyId);
 }

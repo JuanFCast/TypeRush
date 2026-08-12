@@ -125,10 +125,16 @@ export function usePrizePools(modeId: ModeId) {
     return () => clearInterval(id);
   }, []);
 
-  // Con V3 el premio son siempre los dos tokens del contrato; con V2, las
-  // monedas cuyo pozo se pudo leer.
+  // Con V3 se ENSEÑA solo USDT: la app ya no vende entradas en COPm (2026-08-12).
+  // ⚠️ Esto filtra únicamente la lista de PRESENTACIÓN — `GAME_TOKENS` en sí no
+  // se toca, porque `lib/settleV3.ts` sigue necesitando las dos monedas para
+  // poder pagar o rodar correctamente cualquier pozo COPm que llegara a existir.
+  // Con V2 (apagado en producción), las monedas cuyo pozo se pudo leer.
   const present: PoolEntry[] = v3
-    ? GAME_TOKENS.map((t) => ({ id: t.id as CurrencyId, symbol: t.symbol }))
+    ? GAME_TOKENS.filter((t) => t.id === "usdt").map((t) => ({
+        id: t.id as CurrencyId,
+        symbol: t.symbol,
+      }))
     : PAY_CURRENCIES.filter((c) => pools[c.id] !== null).map((c) => ({
         id: c.id,
         symbol: c.symbol,

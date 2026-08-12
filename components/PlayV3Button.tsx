@@ -4,7 +4,7 @@ import { useState } from "react";
 import { celo } from "viem/chains";
 import { useReadContract } from "wagmi";
 import { useI18n } from "@/lib/i18n/client";
-import { PAY_CURRENCIES, entryLabel } from "@/lib/gameV2";
+import { ENTRY_CURRENCIES, entryLabel } from "@/lib/gameV2";
 import {
   GAMEV3_ABI,
   GAMEV3_ADDRESS,
@@ -145,7 +145,7 @@ export default function PlayV3Button({
   });
 
   const currency =
-    PAY_CURRENCIES.find((c) => c.id === token) ?? PAY_CURRENCIES[0];
+    ENTRY_CURRENCIES.find((c) => c.id === token) ?? ENTRY_CURRENCIES[0];
   const price = `${entryLabel(currency, locale)} ${getToken(token).symbol}`;
 
   const label =
@@ -183,10 +183,12 @@ export default function PlayV3Button({
   return (
     <div className="flex flex-col gap-2">
       {/* La moneda solo se elige cuando de verdad se va a cobrar: en la partida
-          gratis no hay nada que pagar y enseñar dos precios ahí engaña. */}
-      {entryState === "paid" && (
+          gratis no hay nada que pagar y enseñar dos precios ahí engaña. Con
+          una sola moneda disponible no hay nada que elegir — el precio ya
+          se ve en el texto de abajo, así que la rejilla no se pinta. */}
+      {entryState === "paid" && ENTRY_CURRENCIES.length > 1 && (
         <div className="grid grid-cols-2 gap-2">
-          {PAY_CURRENCIES.map((c) => (
+          {ENTRY_CURRENCIES.map((c) => (
             <button
               key={c.id}
               type="button"

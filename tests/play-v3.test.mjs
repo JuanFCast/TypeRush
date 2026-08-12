@@ -16,6 +16,9 @@ const MAX_PLAY_AGE_MS = 10 * 60_000;
 const CONTRACT = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const OTHER_CONTRACT = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const WALLET = "0xcccccccccccccccccccccccccccccccccccccccc";
+// Mismas direcciones que lib/contractsV3.ts, en minúsculas.
+const USDT_ADDRESS = "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e";
+const COPM_ADDRESS = "0x8a567e2ae79ca692bd748ab832081c45de4041ea";
 
 /** Misma fórmula que `lib/game.ts` y `/api/results`. */
 function computeStats(typed, passage, elapsedMs, mistakeCount) {
@@ -107,6 +110,15 @@ function makeApi({ mirrorFails = false } = {}) {
         (l) => l.address.toLowerCase() === CONTRACT && l.event === "PlayRecorded",
       );
       if (!log) return { ok: false, error: "not-a-play" };
+
+      // La app ya no vende entradas en COPm: una jugada PAGADA en un token
+      // que no sea USDT se rechaza. El contrato sigue aceptando COPm si
+      // alguien lo llama directo, así que este candado es lo único que
+      // impide que esa jugada llegue a registrarse y puntuar.
+      if (!log.free && String(log.token ?? "").toLowerCase() !== USDT_ADDRESS) {
+        return { ok: false, error: "token-not-supported" };
+      }
+
       if (log.mode !== mode) return { ok: false, error: "unknown-mode" };
 
       const passage = `pasaje-canonico-de-${challengeId}`;
@@ -202,6 +214,37 @@ test("una transacción sin PlayRecorded no cuenta", async () => {
   const api = makeApi();
   api.mine("0x3", { logs: [{ address: CONTRACT, event: "PotFunded" }] });
   assert.equal((await api.registerPlay({ txHash: "0x3" })).error, "not-a-play");
+});
+
+test("una jugada pagada en COPm no se registra: la app ya no la vende", async () => {
+  const api = makeApi();
+  api.mine("0xcopm1", {
+    logs: [playLog({ free: false, token: COPM_ADDRESS })],
+  });
+  const r = await api.registerPlay({ txHash: "0xcopm1" });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, "token-not-supported");
+  assert.equal(api.plays.size, 0);
+});
+
+test("una jugada pagada en USDT sí se registra", async () => {
+  const api = makeApi();
+  api.mine("0xusdt1", {
+    logs: [playLog({ free: false, token: USDT_ADDRESS })],
+  });
+  const r = await api.registerPlay({ txHash: "0xusdt1" });
+  assert.equal(r.ok, true);
+  assert.equal(api.plays.size, 1);
+});
+
+test("una jugada gratis no pasa por el candado de moneda", async () => {
+  // token=address(0) en la partida gratis: el candado solo mira jugadas pagadas.
+  const api = makeApi();
+  api.mine("0xfree1", {
+    logs: [playLog({ free: true, token: "0x0000000000000000000000000000000000000000" })],
+  });
+  const r = await api.registerPlay({ txHash: "0xfree1" });
+  assert.equal(r.ok, true);
 });
 
 test("no se puede enviar un resultado sin jugada registrada", async () => {
