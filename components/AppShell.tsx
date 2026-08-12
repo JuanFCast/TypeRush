@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import BrandLockup from "./brand/BrandLockup";
-import LanguageToggle from "./LanguageToggle";
 import SoundToggle from "./SoundToggle";
 
 /**
@@ -13,9 +12,14 @@ import SoundToggle from "./SoundToggle";
  * tamaños.
  *
  * La cabecera es una rejilla de tres columnas con los lados del MISMO ancho
- * (pastilla ES/EN a la izquierda, sonido a la derecha): así la marca queda
- * realmente centrada y la composición no cambia al saltar de ruta. La wallet no
- * vive aquí — su sitio es Perfil.
+ * (izquierda vacía a propósito, sonido a la derecha): así la marca queda
+ * realmente centrada y la composición no cambia al saltar de ruta. El idioma
+ * de la app se eligió consolidar en un único sitio, Perfil (ver
+ * `components/profile/ProfilePreferences.tsx`) — la pastilla ES/EN que vivía
+ * aquí se quitó, y el slot izquierdo se deja vacío en vez de colapsar a dos
+ * columnas porque el centrado de la marca depende de que los dos lados tengan
+ * el MISMO ancho, no de que tengan contenido. La wallet tampoco vive aquí — su
+ * sitio también es Perfil.
  *
  * La navegación NO sube al header en escritorio: la misma barra inferior en
  * todos los anchos es lo que hace que se sienta una sola app y no dos.
@@ -38,9 +42,8 @@ export default function AppShell({
             className="mx-auto grid w-full grid-cols-[4.5rem_1fr_4.5rem] items-center gap-2 py-2"
             style={{ maxWidth: "var(--app-w)", paddingInline: "var(--app-pad)" }}
           >
-            <div className="justify-self-start">
-              <LanguageToggle variant="compact" />
-            </div>
+            {/* Slot vacío a propósito: ver el docstring de arriba. */}
+            <div className="justify-self-start" />
 
             {/* `min-w-0`: sin él la pista `1fr` crece con la marca en vez de
                 dejarla desbordar, y al crecer empuja la tercera pista — es

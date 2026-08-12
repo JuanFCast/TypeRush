@@ -1,4 +1,11 @@
 // Pruebas E2E de idioma: navegador normal y simulación de MiniPay, es + en.
+//
+// ⚠️ 2026-08-12: el selector de idioma se consolidó a un único sitio, Perfil
+// (antes también vivía como pastilla en el header, visible en cualquier
+// ruta). Todo lo que antes tocaba esa pastilla en `/` ahora navega a
+// `/perfil` primero. Como consecuencia, elegir el modo de carrera (ES/EN) en
+// el lobby YA NO cambia el idioma de la app — era un acoplamiento real que
+// el propio rediseño corrigió a propósito (ver sección 3).
 import { chromium } from "playwright";
 
 const URL = "http://localhost:3000";
@@ -90,7 +97,7 @@ const run = async () => {
     await ctx.close();
   }
 
-  /* ---------- 2. El selector cambia el idioma y persiste ---------- */
+  /* ---------- 2. El selector (en Perfil) cambia el idioma y persiste ---------- */
   {
     const { ctx, page } = await newPage(browser, { locale: "es-CO" });
     await page.goto(URL, { waitUntil: "networkidle" });
@@ -99,20 +106,26 @@ const run = async () => {
 
     check("arranca en español", (await bodyText(page)).includes("reto diario"));
 
-    // Pastilla EN de la cabecera
-    await page.getByRole("radio", { name: "English" }).first().click();
+    // El único selector de idioma que queda vive en Perfil — reachable
+    // incluso sin sesión, porque es una preferencia, no algo que dependa de
+    // estar conectado.
+    await page.goto(URL + "/perfil", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    check("Perfil arranca en español", (await bodyText(page)).includes("idioma de la app"));
+
+    await page.getByRole("radio", { name: "English" }).click();
     await page.waitForTimeout(400);
-    check("tras pulsar English: UI en inglés", (await bodyText(page)).includes("daily challenge"));
+    check("tras pulsar English en Perfil: UI en inglés", (await bodyText(page)).includes("app language"));
     check("tras pulsar English: html lang = en", (await htmlLang(page)) === "en");
 
     // Persiste al RECARGAR (esto es lo que prueba que el servidor lee la cookie)
     await page.reload({ waitUntil: "networkidle" });
-    check("persiste tras recargar", (await bodyText(page)).includes("daily challenge"));
+    check("persiste tras recargar", (await bodyText(page)).includes("app language"));
     check("html lang tras recargar = en", (await htmlLang(page)) === "en");
     const ssrHtml = await page.content();
     check(
       "el HTML del servidor ya viene en inglés (sin parpadeo)",
-      ssrHtml.includes("Daily challenge"),
+      ssrHtml.toLowerCase().includes("app language"),
     );
 
     // Persiste al NAVEGAR entre las tres secciones (ahora son rutas, no pestañas)
@@ -123,19 +136,22 @@ const run = async () => {
     check("Historial en inglés", histText.includes("winners"), histText.slice(0, 60));
     check("nav en inglés", histText.includes("play") && histText.includes("profile"));
 
-    await page.getByRole("link", { name: /Profile/i }).last().click();
-    await page.waitForURL("**/perfil", { timeout: 15000 });
-    await page.waitForTimeout(1500);
-    check("Perfil en inglés", (await bodyText(page)).includes("connect your wallet"));
-
     await page.getByRole("link", { name: /Play/i }).last().click();
     await page.waitForURL(URL + "/", { timeout: 15000 });
     await page.waitForTimeout(1500);
-    check("vuelve a Jugar en inglés", (await bodyText(page)).includes("daily challenge"));
+    check(
+      "Jugar en inglés (sin haber tocado el modo)",
+      (await bodyText(page)).includes("daily challenge"),
+    );
+
+    await page.getByRole("link", { name: /Profile/i }).last().click();
+    await page.waitForURL("**/perfil", { timeout: 15000 });
+    await page.waitForTimeout(1500);
+    check("vuelve a Perfil en inglés", (await bodyText(page)).includes("app language"));
     await ctx.close();
   }
 
-  /* ---------- 3. Lobby en inglés (UI + modo) ---------- */
+  /* ---------- 3. Lobby: modo y UI de la app son independientes ---------- */
   //
   // ⚠️ Esta suite jugaba una carrera entera. Ya no puede: desde el 2026-08-09
   // toda partida es una transacción firmada contra GameV3, incluida la gratis,
@@ -143,28 +159,47 @@ const run = async () => {
   // resultado se pierde hasta que haya una wallet de pruebas — no se disimula
   // con un camino alternativo, que era justo el agujero que se cerró.
   //
-  // Lo que sí se comprueba, y es lo que motivó esta suite: la app no se rompe
-  // al cambiar de idioma, y el CTA no promete nada que no pueda cumplir.
+  // Hasta el 2026-08-12 esta sección probaba que elegir el modo English en el
+  // lobby TAMBIÉN cambiaba el idioma de la app — eso era el bug de
+  // acoplamiento que el rediseño de Perfil corrigió a propósito ("regla no
+  // negociable": ninguna selección dentro de Jugar puede tocar el idioma de
+  // la app). Ahora prueba justo lo contrario: elegir el modo cambia el TEXTO
+  // a teclear, nunca la interfaz.
   {
-    const { ctx, page } = await newPage(browser, { locale: "en-US" });
+    const { ctx, page } = await newPage(browser, { locale: "es-CO" });
     await page.goto(URL, { waitUntil: "networkidle" });
     await seedAlias(page);
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
 
-    const lobby = await bodyText(page);
-    check("lobby en inglés", lobby.includes("daily challenge"), lobby.slice(0, 90));
-    check("modalidad inglesa", lobby.includes("english") && lobby.includes("daily english"));
-
-    // Sin wallet el botón dice qué falta; nunca "Play free", porque quien
-    // decide si hay partida gratis es el contrato y aquí no hay a quién
-    // preguntarle.
+    const before = await bodyText(page);
+    check("lobby arranca en español", before.includes("reto diario"));
     check(
-      "el CTA en inglés no promete gratis sin wallet",
-      !lobby.includes("play free"),
-      lobby.slice(0, 90),
+      "retos de la modalidad española visibles (noticias/stablecoins)",
+      before.includes("noticias") && before.includes("stablecoins"),
     );
-    check("html lang sigue en en", (await htmlLang(page)) === "en");
+
+    // ⚠️ Verificado a mano antes de escribir esto: la etiqueta del botón de
+    // modo se traduce con el idioma de la APP, no con el modo que representa
+    // — con la UI en español el botón dice "Inglés", nunca "English". Ese
+    // mismo hecho es, además, la prueba más directa de que la UI no cambió:
+    // si el clic hubiera disparado setLang(), este botón ahora diría
+    // "English" en vez de "Inglés".
+    await page.getByRole("radio", { name: "Inglés", exact: true }).click();
+    await page.waitForTimeout(600);
+
+    const after = await bodyText(page);
+    check(
+      "el modo SÍ cambió: aparecen los retos de la modalidad inglesa",
+      after.includes("inglés diario") && !after.includes("noticias") && !after.includes("stablecoins"),
+      after.slice(0, 200),
+    );
+    check("la interfaz se quedó en español: sigue diciendo \"reto diario\"", after.includes("reto diario"));
+    check(
+      "el botón de modo sigue etiquetado en español (\"Inglés\", no \"English\")",
+      after.includes("inglés") && !after.includes("english"),
+    );
+    check("html lang sigue en es (el modo no lo tocó)", (await htmlLang(page)) === "es");
     await ctx.close();
   }
 
@@ -181,28 +216,31 @@ const run = async () => {
     check(`[${label}] detecta MiniPay`, await page.evaluate(() => window.ethereum?.isMiniPay === true));
     check(`[${label}] arranca en español`, (await bodyText(page)).includes("reto diario"));
 
-    await page.getByRole("radio", { name: "English" }).first().click();
+    // El único selector de idioma vive en Perfil.
+    await page.goto(URL + "/perfil", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    await page.getByRole("radio", { name: "English" }).click();
     await page.waitForTimeout(400);
-    check(`[${label}] cambia a inglés`, (await bodyText(page)).includes("daily challenge"));
+    check(`[${label}] cambia a inglés`, (await bodyText(page)).includes("app language"));
     check(`[${label}] html lang = en`, (await htmlLang(page)) === "en");
 
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     check(
       `[${label}] sigue en inglés tras recargar`,
-      (await bodyText(page)).includes("daily challenge"),
+      (await bodyText(page)).includes("app language"),
     );
     check(`[${label}] html lang = en tras recargar`, (await htmlLang(page)) === "en");
 
     // …y de vuelta a español
-    await page.getByRole("radio", { name: "Español" }).first().click();
+    await page.getByRole("radio", { name: "Español" }).click();
     await page.waitForTimeout(400);
-    check(`[${label}] vuelve a español`, (await bodyText(page)).includes("reto diario"));
+    check(`[${label}] vuelve a español`, (await bodyText(page)).includes("idioma de la app"));
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     check(
       `[${label}] español persiste tras recargar`,
-      (await bodyText(page)).includes("reto diario"),
+      (await bodyText(page)).includes("idioma de la app"),
     );
     await ctx.close();
   }
@@ -227,32 +265,46 @@ const run = async () => {
     const guarded = await page.evaluate(() => ({
       html: document.documentElement.getAttribute("translate"),
       cls: document.documentElement.className.includes("notranslate"),
-      passage: document
-        .querySelectorAll('[translate="no"]').length,
     }));
     check("[regresión] <html translate=no>", guarded.html === "no");
     check("[regresión] <html class=notranslate>", guarded.cls);
 
     // (c) Y el flujo exacto que reventaba —cambiar de idioma y seguir tocando
-    //     la pantalla— ahora funciona sin un solo error de página.
-    //
+    //     la pantalla— ahora funciona sin un solo error de página. El toggle
+    //     de idioma y el lobby ya no comparten página (el control genuinamente
+    //     vive en Perfil ahora), así que el repro queda en dos pasos
+    //     conectados en la MISMA sesión de página en vez de uno solo — sigue
+    //     cubriendo lo mismo: que re-renderizar tras cambiar de idioma no
+    //     revienta.
+    const before = results.filter((r) => !r.ok).length;
+
+    await page.goto(URL + "/perfil", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    await page.getByRole("radio", { name: "Español" }).click();
+    await page.waitForTimeout(600);
+    await page.getByRole("radio", { name: "English" }).click();
+    await page.waitForTimeout(600);
+    await page.getByRole("radio", { name: /Spanish|Español/ }).click();
+    await page.waitForTimeout(600);
+
     //     El repro original terminaba pulsando "Play free". Ese botón ya no
     //     existe sin wallet (toda partida es una transacción firmada), así que
     //     se sustituye por las otras interacciones que vuelven a pintar el
-    //     árbol: los selectores de modalidad y de reto, y el tutorial. Lo que
-    //     provocaba el `removeChild` era el re-render tras traducir, no el
-    //     hecho de jugar.
-    const before = results.filter((r) => !r.ok).length;
-    await page.getByRole("radio", { name: "Español" }).first().click();
-    await page.waitForTimeout(600);
-    await page.getByRole("radio", { name: "English" }).first().click();
-    await page.waitForTimeout(600);
-    await page.getByRole("radio", { name: /Spanish|Español/ }).last().click();
-    await page.waitForTimeout(600);
+    //     árbol: los selectores de modalidad y de reto, y el tutorial.
+    await page.goto(URL, { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    // El toggle de Perfil terminó en español (último clic arriba), así que el
+    // botón de modo del lobby muestra su etiqueta TRADUCIDA: "Inglés", no
+    // "English" (ver la nota de la sección 3 sobre por qué).
+    await page.getByRole("radio", { name: "Inglés", exact: true }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole("radio", { name: "Español", exact: true }).click();
+    await page.waitForTimeout(400);
     await page.getByRole("button", { name: /Cómo jugar|How to play/i }).first().click();
     await page.waitForTimeout(800);
     await page.keyboard.press("Escape");
     await page.waitForTimeout(800);
+
     const after = await bodyText(page);
     check(
       "[regresión] no aparece \"This page couldn't load\"",

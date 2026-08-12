@@ -374,6 +374,16 @@ export const es = {
     "Entra o conecta tu wallet para ver tu perfil, tus marcas y tus premios.",
   "profile.wallet_kind": "Tipo de wallet",
 
+  /* Cartera y saldos — solo lectura (CELO/USDT/COPm). Namespace propio,
+     separado de profile.wallet_* (esas son del flujo VIEJO de vincular
+     wallet para premios de V2, un concepto distinto). */
+  "profile.balances.title": "Cartera y saldos",
+  "profile.balances.hint":
+    "Solo lectura: lo que hay en tu wallet activa, sin ninguna acción de enviar.",
+  "profile.balances.celo": "CELO (gas)",
+  "profile.balances.error": "No se pudieron leer los saldos.",
+  "profile.balances.retry": "Reintentar",
+
   /* ------------------------- Jugada on-chain (V3) ------------------------- */
   // La entrada es gratis, pero la transacción NO: la comisión de red la paga el jugador.
   "v3.dev.cta": "Jugar (práctica)",
@@ -813,6 +823,16 @@ export const en: Record<MessageKey, string> = {
   "profile.guard":
     "Sign in or connect your wallet to see your profile, your records and your prizes.",
   "profile.wallet_kind": "Wallet type",
+
+  /* Wallet and balances — read-only (CELO/USDT/COPm). Its own namespace,
+     separate from profile.wallet_* (that's the OLD V2 prize-wallet-linking
+     flow, a different concept). */
+  "profile.balances.title": "Wallet and balances",
+  "profile.balances.hint":
+    "Read-only: what's in your active wallet, with no send action.",
+  "profile.balances.celo": "CELO (gas)",
+  "profile.balances.error": "Couldn't read the balances.",
+  "profile.balances.retry": "Retry",
 
   /* --------------------------- On-chain play (V3) ------------------------- */
   "v3.dev.cta": "Play (practice)",

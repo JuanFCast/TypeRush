@@ -20,7 +20,7 @@ import {
 } from "@/lib/passages";
 
 export default function Page() {
-  const { t, tError, lang, setLang } = useI18n();
+  const { t, tError, lang } = useI18n();
   const {
     status,
     passage,
@@ -47,13 +47,13 @@ export default function Page() {
     () => getChallengesByMode(lang)[0]?.id ?? "motivacionEs",
   );
 
+  // El modo (idioma del TEXTO a teclear) y el idioma de la app son estados
+  // independientes a propósito: elegir "English" aquí NUNCA toca el idioma de
+  // la interfaz, aunque el jugador esté leyendo la app en español. El único
+  // sitio que cambia el idioma de la app es Perfil
+  // (`components/profile/ProfilePreferences.tsx`).
   const onModeChange = (next: ModeId) => {
     setMode(next);
-    // El selector del lobby hace las DOS cosas que el jugador espera al pulsar
-    // "English": deja la app en inglés y prepara el texto en inglés. Quien
-    // quiera la app en un idioma y el texto en otro usa la pastilla ES/EN de la
-    // cabecera, que solo toca la interfaz.
-    setLang(next);
     setChallengeId(getChallengesByMode(next)[0]?.id ?? "motivacionEs");
   };
 
