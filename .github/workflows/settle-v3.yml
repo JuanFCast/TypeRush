@@ -2,11 +2,26 @@
 # rueda el pozo con `rollover()` cuando no hubo jugadores. Lo firma el OPERATOR.
 #
 # Capas (estilo Avíspate):
-#   1. PRINCIPAL — cron de Vercel `/api/cron/settle-v3` a las 00:10 UTC
+#   1. PRINCIPAL — pg_cron de Supabase a las 00:01 UTC, reintento a las 00:04
+#      (`supabase/gamev3_settle_pgcron.sql`). Es el reloj más puntual de los
+#      tres: no depende de la cola de cron de Vercel ni de que GitHub entregue
+#      un `schedule` a tiempo.
+#   2. RESPALDO — cron de Vercel `/api/cron/settle-v3` a las 00:10 UTC
 #      (19:10 Colombia), con reintentos a 00:25 y 00:45.
-#   2. RESPALDO — este workflow a las 01:10 UTC (20:10 Col). Idempotente: si
-#      la ronda ya está `settled` on-chain, reconcilia la DB y no paga otra vez.
-#   3. MANUAL — Actions → Settle (GameV3) → Run workflow.
+#   3. ÚLTIMA RED + ALARMA — este workflow a las 01:10 UTC (20:10 Col).
+#      Idempotente: si la ronda ya está `settled` on-chain, reconcilia la DB y
+#      no paga otra vez. Termina releyendo `/api/history` público; si el día de
+#      ayer NO quedó liquidado en las dos modalidades, el job FALLA a propósito.
+#   4. MANUAL — Actions → Settle (GameV3) → Run workflow.
+#
+# ⚠️ "El job falla" NO es lo mismo que "a alguien le llega un aviso". GitHub
+# solo manda correo por un workflow fallido si las notificaciones de Actions
+# están activadas en la cuenta que lo vigila: github.com → foto de perfil →
+# Settings → Notifications → sección "Actions" → marcar al menos
+# "Send notifications for failed workflows only" (o activarlo por repo en
+# Watch → Custom → Actions, en la página del repo). Sin eso, este workflow
+# puede llevar semanas en rojo sin que nadie se entere. Confirmar esto es
+# parte del checklist, no algo que este archivo pueda garantizar por sí solo.
 #
 # Interruptor: sin `GAMEV3_CRON_ENABLED=1` el script se niega a transmitir aunque
 # se pase `--live`. Ese 1 es VARIABLE de repositorio (no secreto), para poder
@@ -82,3 +97,53 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GAMEV3_CRON_ENABLED: ${{ vars.GAMEV3_CRON_ENABLED }}
+
+      # La única pregunta que importa: ¿el día de ayer tiene su ganador pagado
+      # (o rodado, si nadie jugó)? Se lee del historial público, sin
+      # credenciales — la misma fuente que ve cualquier jugador. Se salta con
+      # el input `day` explícito (rescate manual de un día concreto): "ayer" no
+      # aplica a ese caso.
+      #
+      # Un día en GameV3 es simplemente floor(epoch / 86400) — DAY_OFFSET=0,
+      # ver `contracts/src/TypeRushGameV3.sol` — así que no hace falta leer la
+      # cadena para saber qué día se está verificando.
+      #
+      # ⚠️ `/api/history` NO es ajeno a caché: aunque la ruta declara
+      # `dynamic = "force-dynamic"` (eso solo obliga a Next.js a ejecutarla de
+      # nuevo en el origen en cada miss, no a que nadie la cachee delante), el
+      # propio handler devuelve
+      # `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`
+      # (`app/api/history/route.ts`), que es una instrucción real para el CDN
+      # de Vercel — hasta 6 minutos (60+300 s) de contenido potencialmente
+      # viejo si se pide la misma URL. Para ESTA alarma en particular el hueco
+      # no importa en la práctica (verifica un día que cerró ~70 min antes, y
+      # todos los intentos de pago ya tuvieron su oportunidad mucho antes de
+      # esos 6 minutos) — pero no vale la pena confiar en ese margen cuando
+      # evitarlo cuesta una query string. Se añade un parámetro que cambia en
+      # cada corrida (`_ts`) para forzar un fallo de caché garantizado y una
+      # ejecución fresca del handler, sin tocar la ruta pública que sí quiere
+      # cachear para los visitantes normales.
+      - name: Verificar que el día de ayer quedó liquidado
+        if: (github.event_name == 'schedule' || inputs.live == 'true') && inputs.day == ''
+        run: |
+          day=$(( $(date -u +%s) / 86400 - 1 ))
+          code=$(curl -sS --max-time 30 -o /tmp/history.json -w '%{http_code}' \
+            "https://typerush.fun/api/history?limit=10&_ts=$(date -u +%s%N)" || echo 000)
+          echo "GET /api/history -> HTTP $code"
+
+          if [ "$code" != "200" ]; then
+            echo "::error::/api/history respondió $code: no se pudo verificar el día $day. Revísalo a mano."
+            exit 1
+          fi
+
+          settled=$(jq --argjson d "$day" \
+            '[.history[] | select(.source=="v3" and .day==$d and (.payout=="paid" or .payout=="rollover"))] | length' \
+            /tmp/history.json)
+          echo "Día $day (GameV3) · modalidades liquidadas: $settled/2"
+          jq --argjson d "$day" -c '.history[] | select(.source=="v3" and .day==$d)' /tmp/history.json
+
+          if [ "$settled" -lt 2 ]; then
+            echo "::error::El día $day de GameV3 NO quedó liquidado en las dos modalidades ($settled/2 pagadas o rodadas). Revisa cron.job en Supabase, los crons de Vercel y los logs de /api/cron/settle-v3."
+            exit 1
+          fi
+          echo "Día $day liquidado en las dos modalidades."

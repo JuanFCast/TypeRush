@@ -74,17 +74,20 @@ resultados as (
   select
     1 as orden,
     'CHECK v3_settlements.status'::text as prueba,
-    'pending/processing/paid/failed/rollover'::text as esperado,
+    'pending/processing/broadcast/paid/failed/rollover'::text as esperado,
     coalesce(
       (select definicion from constraints
         where tabla = 'v3_settlements' and definicion ilike '%status%' limit 1),
       '(no existe)')::text as encontrado,
+    -- Incluye 'broadcast': una instalación previa a
+    -- gamev3_settlements_broadcast_status.sql debe salir REVISAR, no OK, o el
+    -- verificador estaría ocultando exactamente el bug que ese archivo arregla.
     case when exists (
       select 1 from constraints
       where tabla = 'v3_settlements'
         and definicion ilike '%pending%'    and definicion ilike '%processing%'
-        and definicion ilike '%paid%'       and definicion ilike '%failed%'
-        and definicion ilike '%rollover%'
+        and definicion ilike '%broadcast%'  and definicion ilike '%paid%'
+        and definicion ilike '%failed%'     and definicion ilike '%rollover%'
     ) then 'OK' else 'REVISAR' end::text as ok
 
   union all

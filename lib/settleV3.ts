@@ -438,7 +438,19 @@ export async function executeRound(
   }
 }
 
-/** Escribe (o actualiza) la fila de la ronda. */
+/**
+ * Escribe (o actualiza) la fila de la ronda.
+ *
+ * ⚠️ Best-effort a propósito: la verdad de si se pagó la decide la cadena
+ * (`isSettledOnChain`), nunca esta fila — así que un fallo aquí NO debe tumbar
+ * la liquidación ni tratarse como si el pago no hubiera salido. Pero tampoco
+ * puede desaparecer en silencio: es la única pista de que `v3_settlements`
+ * pudo quedar sin el `tx_hash` de un `broadcast` (p. ej. si el `CHECK` de la
+ * columna `status` no conoce ese valor todavía — ver
+ * `supabase/gamev3_settlements_broadcast_status.sql`). Se reporta por consola,
+ * que es lo que leen tanto los logs de Vercel como los de este mismo script en
+ * GitHub Actions.
+ */
 async function persist(db: SupabaseClient, o: RoundOutcome): Promise<void> {
   const usdt = o.amounts.usdt ?? { gross: 0n, fee: 0n, net: 0n };
   const copm = o.amounts.copm ?? { gross: 0n, fee: 0n, net: 0n };
@@ -464,9 +476,16 @@ async function persist(db: SupabaseClient, o: RoundOutcome): Promise<void> {
   if (o.txHash) row.tx_hash = o.txHash;
   if (o.status === "paid") row.paid_at = new Date().toISOString();
 
-  await db.from("v3_settlements").upsert(row, {
+  const { error } = await db.from("v3_settlements").upsert(row, {
     onConflict: "onchain_day,mode_id",
   });
+  if (error) {
+    console.error(
+      `[settleV3] no se pudo guardar v3_settlements ` +
+        `(día=${o.day}, modo=${o.mode}, status=${o.status}` +
+        `${o.txHash ? `, tx=${o.txHash}` : ""}): ${error.message}`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

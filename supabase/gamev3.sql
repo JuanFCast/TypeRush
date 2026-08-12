@@ -157,18 +157,26 @@ grant select on public.v3_results to anon, authenticated;
 -- Estados del pago:
 --   pending    → ronda cerrada, aún sin intentar
 --   processing → transacción en vuelo (reservado por el robot)
+--   broadcast  → transmitida, recibo aún sin confirmar (NO es un fallo: el
+--                dinero pudo haber salido ya; el robot lo reconcilia leyendo
+--                `settled()` de la cadena antes de volver a intentar)
 --   paid       → confirmada, con `tx_hash`
 --   failed     → falló; `attempts` y `last_error` permiten reintentar
 --   rollover   → sin ganador válido: el pozo pasó al día siguiente
 --
 -- Los montos se guardan en unidades CRUDAS del token y como `numeric(78,0)`
 -- porque los 18 decimales de COPm desbordan un bigint.
+--
+-- ⚠️ Como esta tabla usa `create table if not exists`, re-ejecutar este
+-- archivo en un proyecto donde YA existe no actualiza su CHECK. Si tu
+-- instalación es anterior a que 'broadcast' se añadiera a la lista de
+-- estados, corre además `supabase/gamev3_settlements_broadcast_status.sql`.
 
 create table if not exists public.v3_settlements (
   onchain_day    bigint      not null,
   mode_id        text        not null,
   status         text        not null default 'pending'
-                   check (status in ('pending','processing','paid','failed','rollover')),
+                   check (status in ('pending','processing','broadcast','paid','failed','rollover')),
 
   winner_wallet  text,
   winner_alias   text,
