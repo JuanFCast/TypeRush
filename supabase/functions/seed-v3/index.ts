@@ -14,9 +14,9 @@
 // vez, hasta que el reintento de las 00:04 (o el respaldo horario) la liquide
 // y la vuelva a disparar.
 //
-// Modelo "completar hasta el suelo" (0,30 USDT + 1.000 COPm por modalidad):
-// nunca suma a ciegas, solo aporta lo que falte. Correrlo dos veces (o que
-// dos disparos se solapen) no acumula.
+// Modelo "completar hasta el suelo" (0,30 USDT por modalidad): nunca suma a
+// ciegas, solo aporta lo que falte. Correrlo dos veces (o que dos disparos
+// se solapen) no acumula.
 //
 // ⚠️ COPIA LITERAL de scripts/_seed-rules.mjs (planSeedMode/planSeedToken/
 // planSeed), no una reinterpretación: las Edge Functions de Supabase solo
@@ -59,7 +59,14 @@ import { Contract, JsonRpcProvider, Wallet, id } from "npm:ethers@6";
 const RPC = Deno.env.get("GAMEV3_RPC") ?? "https://forno.celo.org"; // Celo MAINNET
 const MODES = ["es", "en"];
 
-/** Suelo por modalidad — IDÉNTICO a scripts/seed-v3.mjs, elegido por Juan el 2026-08-06. */
+/**
+ * Suelo por modalidad. Solo USDT (2026-08-12, decisión de Juan: COPm queda
+ * fuera del flujo de V3 — el pozo de premio en COPm ya estaba en 0 en las dos
+ * modalidades, verificado on-chain antes de este cambio, así que quitarlo de
+ * aquí no deja nada a medio sembrar). `scripts/seed-v3.mjs` (el respaldo
+ * horario de GitHub Actions) TODAVÍA incluye COPm — no se tocó a propósito,
+ * es un cambio aparte.
+ */
 const TOKENS = [
   {
     symbol: "USDT",
@@ -69,13 +76,6 @@ const TOKENS = [
     // Fusible por ejecución, no un presupuesto: el aporte legítimo máximo es
     // el suelo entero por modalidad. Solo salta si algo está mal.
     cap: 300_000n * 2n,
-  },
-  {
-    symbol: "COPm",
-    address: "0x8A567e2aE79CA692Bd748aB832081C45de4041eA",
-    decimals: 18n,
-    floor: 1000n * 10n ** 18n, // 1.000 COPm
-    cap: 1000n * 10n ** 18n * 2n,
   },
 ];
 
