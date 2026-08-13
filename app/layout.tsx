@@ -35,19 +35,21 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     applicationName: SITE_NAME,
     alternates: { canonical: "/" },
+    // Sin `images:` aquí a propósito: `app/opengraph-image.tsx` (y su espejo
+    // `twitter-image.tsx`) generan la tarjeta y Next los descubre solos por
+    // convención de archivo. Declarar `images` a mano competía con eso y
+    // dejaba la tarjeta en el icono pelado en vez de la tarjeta con marca.
     openGraph: {
       type: "website",
       siteName: SITE_NAME,
       title,
       description,
       url: absoluteUrl("/"),
-      images: [{ url: "/icon.webp", width: 512, height: 512, alt: SITE_NAME }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/icon.webp"],
     },
     other: {
       "talentapp:project_verification":
