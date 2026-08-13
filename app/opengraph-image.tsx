@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export const alt = "TypeRush — carrera de mecanografía";
+export const alt = "TypeRush — typing race";
 export const size = {
   width: 1200,
   height: 630,
@@ -78,7 +78,7 @@ export default async function OpenGraphImage() {
                 lineHeight: 1.2,
               }}
             >
-              Escribe contra el reloj.
+              Type against the clock.
             </div>
             <div
               style={{
@@ -88,7 +88,7 @@ export default async function OpenGraphImage() {
                 lineHeight: 1.2,
               }}
             >
-              Mide tu WPM y supera tu récord.
+              Track your WPM and beat your record.
             </div>
             <div
               style={{
@@ -102,7 +102,7 @@ export default async function OpenGraphImage() {
                 fontWeight: 700,
               }}
             >
-              Carrera de mecanografía
+              Typing race
             </div>
           </div>
         </div>
