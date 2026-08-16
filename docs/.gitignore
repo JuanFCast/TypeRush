@@ -1,0 +1,13 @@
+# docs/ = notas de trabajo personales (briefs, pendientes, borradores, .docx de
+# Word). No son parte del proyecto y cambian a cada rato, así que NADA de esta
+# carpeta se versiona.
+#
+# Regla: ignorar todo lo de aquí dentro, incluidas subcarpetas como Archivo/.
+*
+
+# ...menos este propio archivo, para que la regla sí viaje en el repo.
+!.gitignore
+
+# Si algún día quieres versionar un documento concreto, añádelo aquí abajo con
+# "!" (ej. !BRIEF_DISENO_TYPERUSH.md). Ojo: para desbloquear un archivo dentro
+# de una subcarpeta hay que desbloquear antes la carpeta (!Archivo/).
