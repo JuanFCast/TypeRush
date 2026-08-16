@@ -9,7 +9,7 @@ import {
 } from "@/lib/gameV2";
 import { GAME_TOKENS, isV3Enabled } from "@/lib/contractsV3";
 import { fetchPoolsV3 } from "@/lib/poolsV3";
-import { getMsUntilNextReset } from "@/lib/gamePeriod";
+import { formatResetCountdown, getMsUntilNextReset } from "@/lib/gamePeriod";
 import { useI18n } from "@/lib/i18n/client";
 import type { ModeId } from "@/lib/passages";
 
@@ -107,21 +107,21 @@ export function usePrizePools(modeId: ModeId) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  // Cuenta regresiva al cierre (7 p. m. Colombia) en formato humano: sin
-  // segundos corriendo que compitan con el premio. Solo en cliente, para no
-  // romper la hidratación.
+  // Cuenta regresiva al cierre (7 p. m. Colombia) en HH:MM:SS, corriendo cada
+  // segundo. Antes se enseñaba redondeada a minutos y solo se refrescaba cada
+  // 30 s; el reloj exacto es lo que le dice al jugador si todavía le alcanza
+  // para una partida más.
+  //
+  // Cada tick se calcula desde la hora de cierre ABSOLUTA (no se le resta 1 al
+  // valor anterior), así que no se desfasa: si el webview de MiniPay se duerme,
+  // el primer número al despertar ya es el correcto.
+  //
+  // Solo en cliente, para no romper la hidratación.
   const [closesIn, setClosesIn] = useState<string | null>(null);
   useEffect(() => {
-    const tick = () => {
-      const ms = getMsUntilNextReset();
-      const h = Math.floor(ms / 3_600_000);
-      const m = Math.floor((ms % 3_600_000) / 60_000);
-      setClosesIn(
-        h > 0 ? `${h} h ${String(m).padStart(2, "0")} min` : `${Math.max(1, m)} min`,
-      );
-    };
+    const tick = () => setClosesIn(formatResetCountdown(getMsUntilNextReset()));
     tick();
-    const id = setInterval(tick, 30_000);
+    const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
   }, []);
 

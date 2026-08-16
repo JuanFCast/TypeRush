@@ -108,7 +108,13 @@ export function getMsUntilNextReset(now = new Date()): number {
   return Math.max(0, end.getTime() - now.getTime());
 }
 
-/** Cuenta regresiva HH:MM:SS hasta el próximo tiro gratis. */
+/**
+ * Cuenta regresiva HH:MM:SS hasta el cierre de la ronda (que es el mismo
+ * instante en que se renueva el tiro gratis). Redondea hacia ARRIBA: mientras
+ * quede una fracción de segundo se sigue viendo 00:00:01, nunca 00:00:00 con
+ * la ronda todavía abierta. Las horas caben siempre en dos dígitos porque el
+ * periodo dura 24 h.
+ */
 export function formatResetCountdown(ms: number): string {
   const totalSec = Math.max(0, Math.ceil(ms / 1000));
   const h = Math.floor(totalSec / 3600);
