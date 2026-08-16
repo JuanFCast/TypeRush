@@ -5,7 +5,13 @@
       "source": "celo-org/celopedia-skills",
       "sourceType": "github",
       "skillPath": "skills/celopedia-skill/SKILL.md",
-      "computedHash": "8b31f3876fd945cdeaa63f68b50d2dfd43b9b923d2dd15e6085a7a8078dcf525"
+      "computedHash": "5eb065e4a6f1cbf515b9d30f1480c404f60cc154c5b1ac482927ebae307b5925"
+    },
+    "docs-watch": {
+      "source": "celo-org/celopedia-skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/docs-watch/SKILL.md",
+      "computedHash": "3dc6ad7b5c0420e0ccbf854bcecadc7629050ee4ad366122ccf0f754b6377293"
     }
   }
 }

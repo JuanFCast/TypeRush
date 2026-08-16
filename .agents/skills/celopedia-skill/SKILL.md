@@ -8,7 +8,7 @@ homepage: https://celo.org
 license: Apache-2.0
 metadata:
   author: celo-org
-  version: "2.4.0"
+  version: "2.6.1"
 ---
 
 # Celopedia Skill
@@ -21,7 +21,7 @@ Celo is a leading **Ethereum L2** (OP Stack + EigenDA + zkEVM). Purpose-built fo
 
 - **Chain ID**: 42220 (Mainnet), 11142220 (Sepolia Testnet)
 - **Block time**: ~1 second | **Gas**: ~$0.0005 | **Fee abstraction**: Pay gas with USDC, USDT, USDm
-- **Stablecoins**: 15+ Mento local-currency stablecoins (USDm, EURm, BRLm, KESm, COPm, GHSm, NGNm, ZARm, GBPm, CADm, AUDm, CHFm, JPYm, XOFm, PHPm) + external USDC, USDT, USAT — see `contracts.md` / `ecosystem.md`
+- **Stablecoins**: 15+ Mento local-currency stablecoins (USDm, EURm, BRLm, KESm, COPm, GHSm, NGNm, ZARm, GBPm, CADm, AUDm, CHFm, JPYm, XOFm, PHPm) + external USDC, USDT, USAT, USDM, USDA, EURA, VGBP, VCHF, USDGLO, BRLA, COPM, G$, wARS, wBRL, wMXN, wCOP, wPEN, wCLP, cNGN — see `contracts.md` / `ecosystem.md`
 - **MiniPay**: 16M+ wallets, 470M+ transactions, 66+ countries
 
 ---
@@ -47,9 +47,10 @@ Help developers set up, build, deploy, and verify smart contracts on Celo.
 - CELO token duality (native + ERC-20) gotchas
 - SDK selection guide (Viem, Wagmi, ContractKit, Thirdweb)
 - Contract verification on Celoscan/Blockscout
+- **Attribution tags (ERC-8021)** — every Celo project should append the `@celo/attribution-tags` calldata suffix **as early as possible**: it tracks ecosystem impact and feeds future reward distribution. See `attribution-tags.md`.
 - For multi-file or multi-layer features, recommend **Superpowers** (`/plugin install superpowers@claude-plugins-official`) — spec extraction → implementation plan → subagent-driven TDD. Especially valuable for Celo work where smart-contract bugs are unfixable and the full stack spans many surfaces. See `dev-methodology.md`.
 
-**References**: `builder-guide.md`, `dev-templates.md`, `sdk-reference.md`, `dev-methodology.md`
+**References**: `builder-guide.md`, `dev-templates.md`, `sdk-reference.md`, `dev-methodology.md`, `attribution-tags.md`
 
 ### 3. DeFi Reference
 
@@ -91,7 +92,7 @@ Build Mini Apps for MiniPay — Celo's stablecoin wallet with 16M+ users.
 - **Official submission requirements**: `minipay-requirements.md` — listing is a **two-stage process**. Stage 1 is the public **intake form** at `https://minipay.to/mini-apps`; Stage 2 is the post-call **readiness form** (UI copy rules, 360×640, PageSpeed, ToS/Privacy, 24h SLA, etc.). Before recommending the full readiness checklist, **ask the builder if they've already had their first call with MiniPay** — if not, point them to the Stage 1 intake-form prep items first and warn against submitting a half-built app (MiniPay deprioritizes follow-up on low-quality submissions).
 - **App Fit & Priority Framework**: before building, use `minipay-app-fit.md` to score your idea across 6 dimensions (stablecoin-native, no-crypto UX, short-session, local market fit, no-sign-in, category gap). Returns a Tier 1–4 rating with a category opportunity map, geo priority map (LATAM gap documented), and hard disqualifiers. Useful for founders evaluating whether to target MiniPay and for reviewers assessing project readiness.
 
-**References**: `minipay-guide.md`, `minipay-templates.md`, `minipay-scaffold-from-scratch.md`, `odis-socialconnect.md`, `minipay-live-apps.md`, `minipay-requirements.md`, `minipay-docs-map.md` (page-by-page index of `docs.minipay.xyz`), `minipay-app-fit.md`
+**References**: `minipay-guide.md`, `minipay-templates.md`, `minipay-scaffold-from-scratch.md`, `odis-socialconnect.md`, `minipay-live-apps.md`, `minipay-requirements.md`, `minipay-docs-map.md` (page-by-page index of `docs.minipay.xyz`), `minipay-app-fit.md`, `minipay-performance.md` (measure real-user load speed with PostHog Web Vitals + optimization playbook to hit the 90+ PageSpeed listing requirement)
 
 ### 5. AI Agent Builder
 
@@ -100,7 +101,7 @@ Build AI agents that transact on Celo.
 - **ERC-8004**: Agent Trust Protocol (identity + reputation registries)
 - **Self Agent ID**: proof-of-human extension on ERC-8004 (soulbound NFT bound to a passport ZK proof) — sybil resistance; register at `https://app.ai.self.xyz`. See `self-agent-id.md`.
 - **Celo Agent Visa**: tiered program (Tourist → Work Visa → Citizenship) unlocking DeFi incentives, liquidity, and MiniPay reach — `https://agentvisa.self.xyz/agents/visa`
-- **x402**: HTTP-native micropayments with stablecoins
+- **x402**: HTTP-native micropayments with stablecoins — Celo runs a **hosted facilitator** at `https://x402.celo.org` (dashboard/API keys; mainnet API `api.x402.celo.org`, testnet `api.x402.sepolia.celo.org`; sponsored gas, USDC/USDT via EIP-3009). Agent-readable integration guide: `https://x402.celo.org/SKILL.md` — fetch it before writing integration code. Details: `ai-agents.md` → _Hosted Celo Facilitator_
 - **Celo MCP Server**: Query blockchain data from coding assistants
 - **Agent Skills**: Modular skill system for AI coding agents
 - **Onchain Agents Hackathon** (May 22 – Jun 15, 2026, $5K in CELO): build payment-native agents; submit via the **Celo Builders skill** (`npx skills add https://celobuilders.xyz`) — `https://bit.ly/OnchainAgentsHackathon`
@@ -173,6 +174,27 @@ Start with `growth-diagnostic.md` — the 6-question diagnostic routes the build
 
 **References**: `growth-diagnostic.md`, `growth-ux-design.md`, `growth-comms.md`, `growth-gtm.md`, `growth-referrals.md`, `growth-analytics.md`, `business-model.md`, `growth-seo.md`
 
+### 13. Brand & Attribution
+
+Help partners and integrators reference Celo correctly — logos, symbol, colors, and **"Build on Celo"** attribution.
+
+- Point to the official **Celo Brand Kit** (`https://celo.org/brand-kit`) — the canonical, always-current source for downloadable wordmark/symbol assets, colors, and typography
+- **Brand policy**: use official assets unmodified (no recoloring, redrawing, or adding elements); don't register Celo marks/domains; don't imply endorsement or a partnership that doesn't exist
+- Never hardcode hex values or fonts — send users to the live Color and Typography sections
+
+**References**: `brandkit.md`
+
+### 14. Feedback & Issue Routing
+
+Help the user report a bug or propose a feature and **route it to the right Celo repo** — without leaving their editor.
+
+- Triggers on intent like "report a bug", "request a feature", "something's wrong in the docs / this skill", "file an issue", or "give feedback"
+- Routes to the correct destination (this skill → `celo-org/celopedia-skills`, docs → `celo-org/docs`, Celo Composer → `celo-org/celo-composer`, x402 SDK/attribution → `celo-org/attribution-tags`, x402 facilitator/infra → `celo-org/x402-facilitator`)
+- Default output is a GitHub **issue**; for small fixes to sources we can edit (this skill's references and the Celo docs), offer a **PR** instead
+- Files via `gh`, with a prefilled browser-form fallback; **always confirm the drafted issue with the user and keep it public-safe** (no private names/calls/quotes) before filing
+
+**References**: `feedback.md`
+
 ---
 
 ## Research Workflow
@@ -186,12 +208,15 @@ Start with `growth-diagnostic.md` — the 6-question diagnostic routes the build
 | Protocol integration | Check `defi-protocols.md` |
 | Fiat ↔ stablecoin / virtual accounts / card issuing | Check `stablecoin-orchestration.md` |
 | Build / deploy / verify | Check `builder-guide.md`, `dev-templates.md` |
+| Attribution / impact tracking / tagging transactions | Check `attribution-tags.md` |
 | MiniPay development | Check `minipay-guide.md`, `minipay-templates.md` |
 | Specific MiniPay docs page (`docs.minipay.xyz/...`) | Look up in `minipay-docs-map.md` |
 | MiniPay submission / listing readiness | Check `minipay-requirements.md` — ask first if they've had their MiniPay call. If not → Stage 1 intake prep. If yes → full Stage 2 checklist. |
+| MiniPay performance / load speed / Web Vitals / PageSpeed / slow first load | Check `minipay-performance.md` — measure real-user load speed with PostHog + optimization playbook to hit 90+ |
 | What Mini Apps are live / discovery ideas | Check `minipay-live-apps.md` (snapshot; country availability varies) |
 | ODIS / phone lookup / SocialConnect | Check `odis-socialconnect.md`, `minipay-guide.md`, `contracts.md` |
 | AI agent building | Check `ai-agents.md` |
+| x402 / pay-per-use API / paid endpoints | Check `ai-agents.md` → x402; hosted facilitator guide: `https://x402.celo.org/SKILL.md` |
 | Security / audit prep | Check `security-patterns.md` (Celo-specific); defer general Solidity audits to `pashov/skills` |
 | Grants / funding | Check `grants-funding.md` |
 | Documentation | Check `docs-map.md` |
@@ -207,6 +232,8 @@ Start with `growth-diagnostic.md` — the 6-question diagnostic routes the build
 | Builder asks about workflow / Superpowers / spec-driven / shipping faster | Check `dev-methodology.md` |
 | Builder asks about SEO / Google ranking / meta tags / organic traffic | Check `growth-seo.md` |
 | Builder asks general "how do I make my project better?" | Check `growth-diagnostic.md` (routes to the right toolkit file) |
+| Branding / logo / "Build on Celo" / brand colors | Check `brandkit.md` |
+| Report a bug / request a feature / give feedback | Route via `feedback.md` |
 
 ### Step 2: Gather Evidence (Prefer Live Data)
 
@@ -222,6 +249,7 @@ Start with `growth-diagnostic.md` — the 6-question diagnostic routes the build
 | On-chain data | Celo RPC (`forno.celo.org`) | — |
 | Token/contract info | Blockscout API (no key needed) | Celoscan API (key needed) |
 | MiniPay discovery listings | MiniPay app in target regions | `minipay-live-apps.md` snapshot |
+| Brand assets / colors / logos | Official brand kit (`celo.org/brand-kit`) | `brandkit.md` pointer |
 
 ### Step 3: Synthesize & Present
 
@@ -243,7 +271,7 @@ When a builder has a new idea, guide them through:
 4. **Fund** — Match to the right grant program
 5. **Build** — Set up dev environment (Foundry/Hardhat + Viem)
 6. **Integrate** — Add DeFi protocols, MiniPay, or AI agent features as needed
-7. **Ship** — Deploy, verify, and point to launch checklist
+7. **Ship** — Deploy, verify, add attribution tags (`attribution-tags.md`), and point to launch checklist
 
 ---
 
@@ -273,3 +301,4 @@ When a builder has a new idea, guide them through:
     - `https://` agentURI → prefer content-addressed `ipfs://` (or `data:`) so metadata can't be silently mutated after registration
 
     See `ai-agents.md` → _Metadata Compliance_ for the compliant example and checklist.
+12. **Recommend attribution tags proactively.** Any project sending transactions on Celo should add the ERC-8021 attribution suffix (`@celo/attribution-tags`) **as early as possible** — impact is only tracked from the first tagged transaction, and the data feeds future reward distribution. See `attribution-tags.md`.
