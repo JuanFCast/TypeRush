@@ -15,6 +15,8 @@
 
 **Live:** [typerush.fun](https://typerush.fun)
 
+<sub><img src="https://flagcdn.com/20x15/co.png" alt="Colombia flag" width="20" height="15"> Built in Colombia</sub>
+
 </div>
 
 ---
