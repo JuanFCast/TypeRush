@@ -8,7 +8,9 @@ import RaceScreen from "@/components/RaceScreen";
 import ResultScreen from "@/components/ResultScreen";
 import AppShell from "@/components/AppShell";
 import CountdownScreen from "@/components/CountdownScreen";
+import TapToStartScreen from "@/components/TapToStartScreen";
 import { unlockAudio } from "@/lib/sound";
+import { isTouchDevice } from "@/lib/device";
 import ClaimBanner from "@/components/ClaimBanner";
 import { useI18n } from "@/lib/i18n/client";
 import {
@@ -33,6 +35,8 @@ export default function Page() {
     liveStats,
     challenge,
     arm,
+    armReady,
+    startCountdown,
     setServerRun,
     begin,
     reset,
@@ -57,11 +61,10 @@ export default function Page() {
     setChallengeId(getChallengesByMode(next)[0]?.id ?? "motivacionEs");
   };
 
-  // Teclado "cebador": en móvil iOS el teclado solo abre dentro del gesto del
-  // usuario. Al tocar Jugar/Empezar enfocamos este textarea para abrir el teclado
-  // dentro del gesto; acto seguido `arm()` monta el campo de escritura real y el
-  // foco se transfiere a él (mover el foco entre inputs no cierra el teclado). El
-  // input real queda montado durante todo el 3·2·1, así el teclado no se pierde.
+  // Teclado "cebador": SOLO para escritorio (ver `beginV3Race`). En escritorio
+  // pagar sigue siendo la única interacción antes del 3·2·1, así que no hace
+  // falta un segundo gesto — este truco ya bastaba antes de que pagar se
+  // volviera una espera asíncrona, y ahí sigue.
   const primerRef = useRef<HTMLTextAreaElement>(null);
   // Además de abrir el teclado, este gesto desbloquea el audio (iOS/Android solo
   // permiten crear/reanudar el AudioContext dentro de una interacción real).
@@ -69,6 +72,13 @@ export default function Page() {
     unlockAudio();
     primerRef.current?.focus();
   };
+
+  // Referencia al `<textarea>` REAL donde se escribe (dentro de `TypeField`,
+  // vía `RaceScreen`). En móvil, "Toca para empezar" lo enfoca directamente
+  // dentro de su propio gesto — nunca un cebador aparte: MiniPay puede cerrar
+  // el teclado justo cuando ese cebador se desmonta, así que el elemento que
+  // se enfoca tiene que ser el mismo que recibe el 3·2·1 y la carrera.
+  const raceInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Aviso en pantalla. Se guarda la CLAVE del mensaje, no el texto: así sigue el
   // idioma activo aunque se cambie con el aviso delante.
@@ -98,7 +108,8 @@ export default function Page() {
       body.style.width = "";
       body.style.overflow = "";
     };
-    const playing = status === "countdown" || status === "racing";
+    const playing =
+      status === "ready" || status === "countdown" || status === "racing";
     if (playing) {
       body.style.position = "fixed";
       body.style.top = "0";
@@ -125,10 +136,37 @@ export default function Page() {
   }) => {
     v3PlayRef.current = { txHash: r.txHash, challengeId: r.challengeId };
     setAttemptError(null);
+    // El pago acaba de resolverse tras un `await` (firma + confirmación
+    // on-chain): el gesto que lo disparó ya no sirve para abrir el teclado
+    // móvil (MiniPay incluido — no es solo iOS). En touch se monta el campo
+    // real YA (estado "ready") y se pide un toque NUEVO ("Toca para empezar")
+    // que lo enfoca directamente antes del 3·2·1; en escritorio nunca hubo
+    // teclado virtual que abrir, así que sigue exactamente como antes.
+    if (isTouchDevice()) {
+      armReady(r.challengeId);
+      setServerRun(r.txHash, r.passage);
+      return;
+    }
     primeKeyboard();
     arm(r.challengeId);
     // El pasaje del servidor reemplaza al local ANTES de que corra el reloj.
     setServerRun(r.txHash, r.passage);
+  };
+
+  // El toque de "Toca para empezar" es un gesto genuino y fresco: enfoca
+  // DIRECTAMENTE el `<textarea>` real (el mismo que ya está montado desde
+  // `armReady`, sin ningún cebador de por medio) y arranca el 3·2·1 en el
+  // mismo evento. `blur()` antes de `focus()`: `TypeField` ya intentó
+  // enfocarlo solo al montarse (sin gesto, probablemente sin abrir teclado);
+  // si el navegador lo considera "ya enfocado" un segundo `focus()` sin
+  // cambio real de foco puede no disparar el teclado. Forzar la transición
+  // blur→focus dentro de ESTE gesto se lo garantiza.
+  const startAfterTap = () => {
+    unlockAudio();
+    const el = raceInputRef.current;
+    el?.blur();
+    el?.focus();
+    startCountdown();
   };
 
   // Al terminar el 3·2·1 arranca el reloj. Ya no hay nada que validar contra la
@@ -139,6 +177,7 @@ export default function Page() {
       // se monta desde `beginV3Race`— pero si ocurriera, jugar sin ella daría
       // una partida que ningún servidor puede puntuar.
       reset();
+      raceInputRef.current?.blur();
       primerRef.current?.blur();
       setAttemptError("error.attempt_validation");
       return;
@@ -151,9 +190,15 @@ export default function Page() {
   // transacción ya se firmó y la cadena ya la cobró: cancelar NO la devuelve. Se
   // olvida la referencia para que el siguiente intento no reutilice un hash que
   // ya tiene su resultado.
+  //
+  // ⚠️ Este botón solo existe en `CountdownScreen` (el 3·2·1 visible). La
+  // pantalla "Toca para empezar" NO tiene cancelar a propósito: el pago ya se
+  // cobró antes de llegar ahí y esa jugada no debe poder perderse por un toque
+  // accidental — se queda en `status === "ready"` hasta que el jugador arranca.
   const onCancelCountdown = () => {
     v3PlayRef.current = null;
     reset();
+    raceInputRef.current?.blur();
     primerRef.current?.blur();
   };
 
@@ -165,7 +210,11 @@ export default function Page() {
     reset();
   };
 
-  const playing = status === "countdown" || status === "racing";
+  // "ready" incluye la pantalla de "Toca para empezar": el campo real ya está
+  // montado ahí (ver `beginV3Race`/`armReady`), así que también cuenta como
+  // "jugando" para el marco y el body fijo, igual que el 3·2·1 y la carrera.
+  const playing =
+    status === "ready" || status === "countdown" || status === "racing";
 
   return (
     // Durante la carrera el marco desaparece: sin navegación ni header que
@@ -182,6 +231,7 @@ export default function Page() {
             mistakeIndices={mistakeIndices}
             started={status === "racing"}
             onInput={onInput}
+            inputRef={raceInputRef}
           />
         </div>
       )}
@@ -230,8 +280,8 @@ export default function Page() {
         </div>
       )}
 
-      {/* Cebador de teclado (móvil): oculto y fuera del alcance de foco/lectores.
-          Solo se enfoca por código para abrir el teclado dentro de un gesto. */}
+      {/* Cebador de teclado (solo escritorio, ver `primeKeyboard`): oculto y
+          fuera del alcance de foco/lectores. */}
       <textarea
         ref={primerRef}
         aria-hidden
@@ -273,6 +323,23 @@ export default function Page() {
           })()}
           onCancel={onCancelCountdown}
           onDone={() => beginRace(challenge)}
+        />
+      )}
+
+      {/* Solo móvil (ver `beginV3Race`): puente entre el pago, ya confirmado,
+          y el 3·2·1. El toque aquí enfoca el campo real —montado desde
+          `armReady`, debajo de este overlay— y arranca el 3·2·1. */}
+      {status === "ready" && (
+        <TapToStartScreen
+          challengeName={(() => {
+            const key = getChallenge(challenge)?.titleKey;
+            return key ? t(key) : undefined;
+          })()}
+          modeName={(() => {
+            const key = getMode(getChallenge(challenge)?.modeId ?? "es")?.labelKey;
+            return key ? t(key) : undefined;
+          })()}
+          onTap={startAfterTap}
         />
       )}
     </AppShell>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { DURATION, Stats } from "@/lib/game";
 import { useT } from "@/lib/i18n/client";
 import TypeField from "./TypeField";
@@ -13,6 +14,10 @@ type Props = {
   mistakeIndices: Set<number>;
   started: boolean;
   onInput: (value: string) => void;
+  /** Referencia al `<textarea>` real de `TypeField`, para que el llamador
+   * (la pantalla "Toca para empezar", en móvil) pueda enfocarlo directamente
+   * dentro de un gesto propio. Ver `TypeField`. */
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 };
 
 export default function RaceScreen({
@@ -23,6 +28,7 @@ export default function RaceScreen({
   mistakeIndices,
   started,
   onInput,
+  inputRef,
 }: Props) {
   const t = useT();
   const urgent = remaining <= 10;
@@ -62,6 +68,7 @@ export default function RaceScreen({
         started={started}
         mistakeIndices={mistakeIndices}
         onInput={onInput}
+        focusRef={inputRef}
       />
 
       {/* Métricas en vivo */}

@@ -23,7 +23,7 @@ import {
   getMode,
 } from "@/lib/passages";
 
-export type Status = "idle" | "countdown" | "racing" | "finished";
+export type Status = "idle" | "ready" | "countdown" | "racing" | "finished";
 
 export function useTypeRush() {
   const [status, setStatus] = useState<Status>("idle");
@@ -152,11 +152,10 @@ export function useTypeRush() {
     });
   }, []);
 
-  // Prepara una partida y entra en "countdown": el pasaje y el campo de escritura
-  // ya quedan montados (para que iOS abra el teclado dentro del gesto y NO lo
-  // pierda durante el 3·2·1), pero el reloj aún no corre y el input se ignora.
-  const arm = useCallback((next?: ChallengeId) => {
-    const challengeId = next ?? challengeRef.current;
+  // Prepara el estado de una partida nueva (pasaje, contadores, marcas…) sin
+  // decidir todavía si se entra directo al 3·2·1 (`arm`) o se espera antes un
+  // toque (`armReady`).
+  const prepareRace = useCallback((challengeId: ChallengeId) => {
     setChallenge(challengeId);
     // Pasaje local de arranque (para el 3·2·1); si hay run del servidor se
     // reemplaza por el canónico vía setServerRun antes de que empiece la carrera.
@@ -169,7 +168,39 @@ export function useTypeRush() {
     setMistakeIndices(new Set());
     setStartedAt(0);
     setNowMs(0);
-    setStatus("countdown");
+  }, []);
+
+  // Prepara una partida y entra en "countdown": el pasaje y el campo de escritura
+  // ya quedan montados (para que iOS abra el teclado dentro del gesto y NO lo
+  // pierda durante el 3·2·1), pero el reloj aún no corre y el input se ignora.
+  const arm = useCallback(
+    (next?: ChallengeId) => {
+      const challengeId = next ?? challengeRef.current;
+      prepareRace(challengeId);
+      setStatus("countdown");
+    },
+    [prepareRace],
+  );
+
+  // Igual que `arm`, pero se queda en "ready": el campo de escritura real ya
+  // está montado y es enfocable, pero el 3·2·1 no arranca todavía. Existe para
+  // el toque de "Toca para empezar" en móvil (ver `app/page.tsx`): ese toque
+  // tiene que enfocar el MISMO elemento que después recibe el 3·2·1 y la
+  // carrera — nunca un input "cebador" aparte que luego se reemplaza, porque
+  // MiniPay puede cerrar el teclado justo cuando ese cebador se desmonta.
+  const armReady = useCallback(
+    (next?: ChallengeId) => {
+      const challengeId = next ?? challengeRef.current;
+      prepareRace(challengeId);
+      setStatus("ready");
+    },
+    [prepareRace],
+  );
+
+  // Arranca el 3·2·1 desde "ready" (el toque que lo pidió ya enfocó el campo
+  // real). No hace nada si el estado ya avanzó por otro camino.
+  const startCountdown = useCallback(() => {
+    setStatus((s) => (s === "ready" ? "countdown" : s));
   }, []);
 
   // Aplica el run rankeado emitido por el servidor: fija el pasaje canónico (el
@@ -259,6 +290,8 @@ export function useTypeRush() {
     remaining,
     liveStats,
     arm,
+    armReady,
+    startCountdown,
     setServerRun,
     begin,
     reset,

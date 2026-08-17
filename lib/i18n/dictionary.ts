@@ -142,6 +142,10 @@ export const es = {
   "howto.step5": "Tu WPM, tu precisión y tu progreso se calculan en vivo.",
   "howto.step6": "Tu mejor resultado válido entra al ranking del día.",
 
+  /* -------------------- Toca para empezar (solo móvil) ------------------- */
+  "tapstart.cta": "Toca para empezar",
+  "tapstart.hint": "Así se abre el teclado antes de la cuenta regresiva.",
+
   /* ---------------------------- Cuenta regresiva ------------------------- */
   "countdown.warmup": "Calienta los dedos",
   "countdown.go": "¡YA!",
@@ -589,6 +593,10 @@ export const en: Record<MessageKey, string> = {
   "howto.step4": "Hits, mistakes and corrections each have their own colour.",
   "howto.step5": "Your WPM, accuracy and progress are computed live.",
   "howto.step6": "Your best valid result goes into the daily ranking.",
+
+  /* --------------------------- Tap to start (mobile) ---------------------- */
+  "tapstart.cta": "Tap to start",
+  "tapstart.hint": "This opens the keyboard before the countdown.",
 
   /* ------------------------------ Countdown ------------------------------ */
   "countdown.warmup": "Warm up your fingers",
