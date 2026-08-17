@@ -186,22 +186,6 @@ export default function Page() {
     begin();
   };
 
-  // Cancelar durante el 3·2·1: vuelve al lobby y suelta el teclado. La
-  // transacción ya se firmó y la cadena ya la cobró: cancelar NO la devuelve. Se
-  // olvida la referencia para que el siguiente intento no reutilice un hash que
-  // ya tiene su resultado.
-  //
-  // ⚠️ Este botón solo existe en `CountdownScreen` (el 3·2·1 visible). La
-  // pantalla "Toca para empezar" NO tiene cancelar a propósito: el pago ya se
-  // cobró antes de llegar ahí y esa jugada no debe poder perderse por un toque
-  // accidental — se queda en `status === "ready"` hasta que el jugador arranca.
-  const onCancelCountdown = () => {
-    v3PlayRef.current = null;
-    reset();
-    raceInputRef.current?.blur();
-    primerRef.current?.blur();
-  };
-
   // Del resultado se vuelve SIEMPRE al mismo lobby: ya no hay una pantalla de
   // modos detrás. Solo se recupera la modalidad de la carrera recién jugada.
   const onBackToLobby = () => {
@@ -321,7 +305,6 @@ export default function Page() {
             const key = getMode(getChallenge(challenge)?.modeId ?? "es")?.labelKey;
             return key ? t(key) : undefined;
           })()}
-          onCancel={onCancelCountdown}
           onDone={() => beginRace(challenge)}
         />
       )}

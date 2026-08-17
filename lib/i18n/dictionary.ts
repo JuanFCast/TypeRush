@@ -150,7 +150,6 @@ export const es = {
   "countdown.warmup": "Calienta los dedos",
   "countdown.go": "¡YA!",
   "countdown.hint": "Escribe rápido, corrige errores y completa el texto.",
-  "countdown.cancel": "Cancelar carrera",
 
   /* ------------------------------ Resultado ------------------------------ */
   "result.new_best": "¡Nuevo récord!",
@@ -602,7 +601,6 @@ export const en: Record<MessageKey, string> = {
   "countdown.warmup": "Warm up your fingers",
   "countdown.go": "GO!",
   "countdown.hint": "Type fast, fix your mistakes and finish the text.",
-  "countdown.cancel": "Cancel race",
 
   /* ------------------------------- Result -------------------------------- */
   "result.new_best": "New record!",

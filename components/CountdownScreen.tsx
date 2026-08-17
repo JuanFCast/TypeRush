@@ -13,14 +13,12 @@ const GO_MS = 600;
 
 type Props = {
   onDone: () => void;
-  onCancel: () => void;
   modeName?: string;
   challengeName?: string;
 };
 
 export default function CountdownScreen({
   onDone,
-  onCancel,
   modeName,
   challengeName,
 }: Props) {
@@ -110,14 +108,6 @@ export default function CountdownScreen({
       <p className="max-w-xs text-balance text-sm text-muted">
         {t("countdown.hint")}
       </p>
-
-      <button
-        type="button"
-        onClick={onCancel}
-        className="mt-2 h-11 rounded-xl px-5 text-sm font-semibold text-muted transition active:scale-[0.98]"
-      >
-        {t("countdown.cancel")}
-      </button>
     </div>
   );
 }
