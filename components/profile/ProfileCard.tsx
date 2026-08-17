@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
  * tokens nuevos: son las mismas clases que se repetían literalmente 5+ veces
  * en `app/perfil/page.tsx` antes del refactor. `tone` es lo único nuevo — la
  * forma de distinguir "esto compite por atención" (Total ganado, Tus premios)
- * de "esto acompaña" (Actividad reciente, Posición de hoy), tal como pide el
- * brief de rediseño sin cambiar la paleta.
+ * de "esto acompaña" (Actividad reciente), tal como pide el brief de
+ * rediseño sin cambiar la paleta.
  */
 type Props = {
   children: ReactNode;

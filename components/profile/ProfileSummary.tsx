@@ -9,14 +9,12 @@ interface SummaryStats {
   bestAccuracy: number;
   totalUsdt: string;
   totalCopm: string;
-  rank: number | null;
 }
 
 /**
- * Partidas+Victorias → Total ganado (primario, ancho completo) → WPM+Precisión
- * → Posición (secundaria, sigue siendo "—" hasta que exista un ranking real
- * conectado — fuera de alcance de este rediseño). Este orden es el que pide
- * el brief: el total deja de estar enterrado dentro de premios.
+ * Partidas+Victorias → Total ganado (primario, ancho completo) → WPM+Precisión.
+ * Este orden es el que pide el brief: el total deja de estar enterrado dentro
+ * de premios.
  */
 export default function ProfileSummary({
   stats,
@@ -46,16 +44,6 @@ export default function ProfileSummary({
         <StatBlock
           label={t("profile.stats.best_accuracy")}
           value={`${stats.bestAccuracy}%`}
-          loading={loading}
-        />
-      </div>
-
-      {/* Secundaria: sin la misma prominencia que las de arriba, es un dato
-          de apoyo, no el foco del resumen. */}
-      <div className="opacity-75">
-        <StatBlock
-          label={t("profile.stats.rank")}
-          value={stats.rank === null ? "—" : `#${stats.rank}`}
           loading={loading}
         />
       </div>

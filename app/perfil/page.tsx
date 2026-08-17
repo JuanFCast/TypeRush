@@ -22,7 +22,6 @@ interface Stats {
   bestAccuracy: number;
   totalUsdt: string;
   totalCopm: string;
-  rank: number | null;
   prizes: Prize[];
   recent: RecentRace[];
 }
@@ -34,7 +33,6 @@ const EMPTY: Stats = {
   bestAccuracy: 0,
   totalUsdt: "0",
   totalCopm: "0",
-  rank: null,
   prizes: [],
   recent: [],
 };
@@ -140,7 +138,6 @@ export default function PerfilPage() {
             bestAccuracy: stats.bestAccuracy,
             totalUsdt: stats.totalUsdt,
             totalCopm: stats.totalCopm,
-            rank: stats.rank,
           }}
           loading={loading}
         />

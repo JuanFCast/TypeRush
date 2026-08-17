@@ -14,7 +14,6 @@ const EMPTY = {
   bestAccuracy: 0,
   totalUsdt: "0",
   totalCopm: "0",
-  rank: null as number | null,
   prizes: [] as unknown[],
   recent: [] as unknown[],
 };
@@ -179,9 +178,6 @@ export async function GET(req: Request) {
       bestAccuracy: Math.round(bestAccuracy),
       totalUsdt: totalUsdt.toString(),
       totalCopm: totalCopm.toString(),
-      // La posición del día se calcula en la pantalla Jugar con el ranking vivo;
-      // aquí sería otra consulta cara para el mismo número.
-      rank: null,
       prizes,
       recent,
     });
