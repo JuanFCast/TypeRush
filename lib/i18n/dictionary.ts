@@ -90,6 +90,7 @@ export const es = {
   "race.errors": "Errores",
   "race.corrections_short": "Correc.",
   "race.input_label": "Campo de escritura",
+  "race.tap_to_type": "Toca el texto para empezar a escribir",
 
   /* ------------------------------- Lobby --------------------------------- */
   "lobby.back": "Volver a los modos",
@@ -539,6 +540,7 @@ export const en: Record<MessageKey, string> = {
   "race.errors": "Errors",
   "race.corrections_short": "Fixes",
   "race.input_label": "Typing field",
+  "race.tap_to_type": "Tap the text to start typing",
 
   /* -------------------------------- Lobby -------------------------------- */
   "lobby.back": "Back to modes",

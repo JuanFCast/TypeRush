@@ -29,11 +29,22 @@ export default function TypeField({
   // ¿El pasaje ya hizo scroll hacia arriba? Solo entonces aplicamos el fundido
   // superior, para que la primera frase se vea nítida al arrancar.
   const [scrolled, setScrolled] = useState(false);
+  // ¿Tiene foco el input ahora mismo? Controla el aviso "toca para escribir".
+  const [focused, setFocused] = useState(false);
 
-  // Al arrancar la carrera, enfoca para abrir el teclado en móvil.
+  // Al montar (arranca el 3·2·1) enfoca para abrir el teclado en móvil y
+  // mantenerlo abierto durante la cuenta regresiva.
   useEffect(() => {
     if (active) inputRef.current?.focus();
   }, [active]);
+
+  // Al terminar la cuenta regresiva y arrancar oficialmente la carrera, vuelve
+  // a enfocar: si el foco se perdió durante el 3·2·1 (frecuente en MiniPay/iOS
+  // al tapar la pantalla con el overlay del conteo), esto lo recupera sin
+  // tocar el reloj ni el pasaje.
+  useEffect(() => {
+    if (started) inputRef.current?.focus();
+  }, [started]);
 
   // El <textarea> es NO CONTROLADO a propósito (no le pasamos `value`): así un
   // re-render del reloj o de iOS nunca le reimpone el value ni interrumpe la
@@ -127,6 +138,8 @@ export default function TypeField({
           onInput(e.currentTarget.value);
         }}
         onPaste={(e) => e.preventDefault()}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -135,6 +148,20 @@ export default function TypeField({
         aria-label={t("race.input_label")}
         className="absolute inset-0 h-full w-full resize-none rounded-2xl bg-transparent p-4 font-mono text-[1.15rem] text-transparent caret-transparent outline-none sm:p-5"
       />
+
+      {/* Aviso solo-táctil: si el teclado no se abrió solo (Safari/MiniPay a
+          veces bloquean el foco automático fuera de un gesto), esto le dice al
+          jugador dónde tocar. `hover:none` lo deja fuera de escritorio, donde
+          un clic ya enfoca por el onMouseDown del contenedor. Desaparece en
+          cuanto el input tiene foco (y por tanto en cuanto empieza a escribir). */}
+      {started && !focused && (
+        <div
+          className="pointer-events-none absolute inset-0 hidden items-center justify-center rounded-2xl bg-surface2/90 text-center text-sm font-semibold text-muted backdrop-blur-sm [@media(hover:none)]:flex"
+          aria-hidden
+        >
+          {t("race.tap_to_type")}
+        </div>
+      )}
     </div>
   );
 }
