@@ -1,10 +1,10 @@
 <div align="center">
 
-# ⌨️ TypeRush Mini
+# ⌨️ TypeRush
 
-### Escribe rápido. Gana en stablecoin. Todos los días.
+### Type fast. Win stablecoins. Every day.
 
-**Una competencia diaria de mecanografía dentro de [MiniPay](https://www.opera.com/products/minipay) — paga una entrada en stablecoin, compite por velocidad y precisión, y llévate el premio al instante.**
+**A daily typing competition living inside [MiniPay](https://www.opera.com/products/minipay) (Opera's wallet) on Celo — race a 45-second passage, get ranked by speed and accuracy, and the daily #1 wins the USDT prize pool, paid on-chain.**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -13,172 +13,210 @@
 [![Celo](https://img.shields.io/badge/Built_on-Celo-FCFF52?logo=celo&logoColor=black)](https://celo.org/)
 [![MiniPay](https://img.shields.io/badge/MiniPay-Mini_App-7C3AED)](https://www.opera.com/products/minipay)
 
+**Live:** [typerush.fun](https://typerush.fun)
+
 </div>
 
 ---
 
-## 🎯 El problema
+## What TypeRush is
 
-En mercados emergentes, **14M+ personas ya tienen stablecoins en su billetera MiniPay**, pero casi no existen razones divertidas y de bajo riesgo para *usarlos* día a día. Las apps cripto suelen ser:
+TypeRush is a casual mobile typing game with **real stablecoin prizes**, running inside MiniPay
+on **Celo mainnet**. From a home lobby the player picks a mode (`es`/`en`) and a daily challenge,
+then types a passage against a 45-second timer. The app measures WPM, accuracy, errors,
+corrections and a final score, and ranks every player against everyone else who raced the same
+mode that day.
 
-- 😵‍💫 **Complejas** — wallets, gas, frases semilla, jerga técnica.
-- 🎰 **De pura suerte o especulación** — nada que premie una habilidad real.
-- 💸 **De tickets altos** — barreras que dejan fuera a la mayoría.
+The whole interface is bilingual (Spanish/English) and independent from the typing mode: you can
+read the app in English while typing a Spanish passage, or vice versa.
 
-El resultado: saldos de stablecoin que se quedan quietos y usuarios que nunca dan el segundo paso después de recibir su primer pago digital.
+## How a round works
 
-## 💡 La solución
+- **Free play:** one free ranked attempt per mode, per day. The free entry is decided **on-chain**
+  by the smart contract itself, not by the database — the free race still costs network gas.
+- **Paid play:** once the free attempt is used, entry costs **0.10 USDT**, split between the prize
+  pool and a protocol fee.
+- **Daily close:** the game "day" resets at **7 p.m. Colombia time**. The **#1 by score** in each
+  mode wins that mode's entire USDT pool for the day.
+- If a mode has no players in a given round, its pool **rolls over** untouched to the next round
+  instead of being paid out or lost.
 
-**TypeRush Mini** convierte una habilidad cotidiana —**escribir**— en un micro-juego diario con premios reales en stablecoin, viviendo *dentro* de MiniPay donde el usuario ya está.
+## Celo / MiniPay integration
 
-> Inspirado en el formato "**daily game con recompensas**" (estilo nerdos.fun): una partida corta, justa y adictiva que da una razón para volver cada día.
+- Detects and plays through MiniPay's injected `window.ethereum`, alongside external wallets
+  (RainbowKit/wagmi) and an optional embedded wallet via Privy.
+- MiniPay's CELO balance is 0 by design, so gas is paid **in USDT** through Celo's fee-abstraction
+  (CIP-64 adapter) instead of CELO. Wallets with some CELO pay gas normally.
+- New embedded wallets can receive a small one-time "welcome gas" top-up (0.1 CELO) so a brand-new
+  wallet with no funds can still sign its first transaction.
+- No CELO is ever shown in the UI; the player only ever sees USDT.
 
-- ⚡ **Entrada mínima** (ej. `0.50 USDm`) → barrera casi nula, pensado para micro-pagos.
-- 🏆 **Gana por habilidad, no por suerte** — tu velocidad (WPM) y tu precisión deciden.
-- 💚 **Pagos en stablecoin, sin fricción** — sin CELO visible, *network fee* pagada con el mismo stablecoin vía fee abstraction de Celo.
-- 📱 **Cero onboarding** — auto-conexión dentro de MiniPay, sin botón de "connect", sin firmar mensajes.
+## Daily typing challenge
 
-Una forma sencilla de que la gente **use** sus stablecoins, gane confianza y vuelva mañana.
-
----
-
-## 🕹️ Cómo funciona
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. Entras a la ronda  →  se descuenta la entrada        │
-│     (Ranked) y entra al prize pool.                      │
-│                                                           │
-│  2. Aparece una frase. Tienes 45 segundos.               │
-│     Cada carácter se marca:  verde ✓   coral ✗           │
-│                                                           │
-│  3. Se calcula tu score en vivo:                          │
-│     WPM · Precisión · Completion                          │
-│                                                           │
-│  4. Si superas el umbral  →  payout en stablecoin 🎉     │
-│     El leaderboard te reordena al instante.              │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Fórmula de score:**
+Each mode (`es`/`en`) has a set of challenges built from curated passages. A race lasts 45 seconds;
+per-character feedback marks correct/incorrect input live. Score is computed as:
 
 ```ts
-score = Math.round(wpm * accuracy * 100 + completion * 1200)
+mistakePenalty = Math.max(0.7, 1 - mistakeCount * 0.03)              // soft penalty, up to −30%
+score = Math.round(wpm * accuracy * progress * mistakePenalty * 100) // wpm = (correctChars / 5) / minute
 ```
 
-| Concepto      | Valor                                  |
-|---------------|----------------------------------------|
-| Duración      | 45 s por ronda                         |
-| Umbral de win | `score ≥ 6200`                         |
-| Modos         | **Ranked** (con entrada) · **Practice** (gratis) |
-| Stablecoins   | `USDm` · `USDT` · `USDC` (sin CELO en la UI) |
-| Anti-cheat    | Bloqueo de pegado                      |
+The player's best score per challenge is kept in `localStorage`; every ranked race is also
+persisted to Supabase for the leaderboard and profile history.
 
----
+## USDT prize pool & smart contract
 
-## 🧱 Stack & arquitectura
+The entry fee, the pool and the payout are handled entirely on-chain by **`TypeRushGameV3`**,
+deployed and verified on **Celo mainnet (chainId 42220)**.
 
-- **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4** (tema oscuro).
-- Detección de MiniPay vía `window.ethereum.isMiniPay` — sin SDK pesado.
-- Lógica de juego **pura y testeable**, separada de la UI.
+| | |
+|---|---|
+| Contract | `TypeRushGameV3` |
+| Address | `0xD8287809e0D68E7e50D0D962f11Eb72150F48d39` |
+| Network | Celo mainnet · chainId `42220` |
+| Entry token | USDT (`0.10` per paid play) |
+| Protocol fee | 20% of each entry (the rest funds the pool) |
+| Payout model | **Push** — the operator calls `settle(day, mode, winner, tokens)` and the prize leaves for the winner's wallet in that same transaction. There is no separate claim step. |
 
-```
-app/        layout · page (shell) · globals.css (tema oscuro)
-components/  TopBar · ScoreRail · Tabs · Arena · PhraseBoard
-             RaceStats · Leaderboard · WalletView · SpeedCanvas
-hooks/       useTypeRush.ts   → máquina de estado (start → timer → finish)
-lib/         game.ts (score, stats, leaderboard) · minipay.ts (detección)
-legacy/      prototipo estático original (referencia)
-```
+`settle` only pays a wallet that actually has a recorded play for that day/mode on-chain
+(`played[day][mode][winner]`), and `rollover` moves an unplayed pool forward untouched so a quiet
+day never drains the prize. A seeding job tops each mode's pool up to a floor of **0.30 USDT** so
+the lobby never shows an empty pot.
 
----
+Contract source lives in `contracts/src/TypeRushGameV3.sol`; see `contracts/README.md` for the
+Foundry build/test/deploy workflow.
 
-## 🚀 Cómo correrlo
+## Leaderboard / ranking
+
+The live ranking for the open round is read from the same table the settlement robot uses
+(`v3_results`, filtered by the contract's own `currentDay()`), so what the UI shows and what the
+contract will actually pay always agree. Each player is ranked by their best race of the day; no
+wallet address is ever sent to the browser — only an opaque per-round identifier, since who played
+is already public on-chain. Historial and Perfil also show past rounds and a wallet's own results
+history.
+
+## Wallet support
+
+- **MiniPay** — auto-detected via the injected provider, no "connect" button, no message signing.
+- **External wallets** — connected through RainbowKit/wagmi.
+- **Embedded wallet (optional)** — via Privy, when `NEXT_PUBLIC_PRIVY_APP_ID` is configured; without
+  it the app simply runs on MiniPay + external wallets.
+
+## Anti-cheat / score validation
+
+Every race, free or paid, is backed by a signed on-chain transaction, and scoring is fully
+server-authoritative:
+
+1. The player signs `play(mode, token)` on the contract.
+2. `/api/plays` reads the transaction receipt and only accepts a `PlayRecorded` log emitted by the
+   game contract itself — player, day, mode and free/paid all come from that log, never from the
+   client. Only after that check does the server hand back the passage to type.
+3. The passage is generated server-side and stored per play, so the client never chooses the text
+   it's scored against.
+4. `/api/results` recomputes WPM/accuracy/score from the stored passage, with plausibility clamps
+   (WPM ceiling, typed length can't exceed the passage, elapsed time is clamped to the race length,
+   plays expire).
+5. Each play/result is keyed on its transaction hash (primary/unique key in Supabase), so a client
+   retry can register a race at most once and can never improve an already-stored score.
+
+## Automatic daily settlement & pool seeding
+
+- **Settlement:** `lib/settleV3.ts`, invoked by `/api/cron/settle-v3` on a Vercel cron
+  (00:10 / 00:25 / 00:45 UTC — 7:10 / 7:25 / 7:45 p.m. Colombia) and mirrored by a GitHub Actions
+  backup (`settle-v3.yml`, `scripts/settle-v3.mjs`). It picks the day's #1 per mode from
+  `v3_results`, calls `settle()` (or `rollover()` if nobody played), and tracks each attempt's state
+  (pending/processing/broadcast/paid/failed/rollover) so a transaction that was sent but not yet
+  confirmed is never retried as if it failed.
+- **Pool seeding:** `scripts/seed-v3.mjs` (GitHub Actions workflow `seed-v3.yml`, hourly) tops up
+  each mode's USDT pool to the floor once the previous day is settled. It only ever tops up — running
+  it more than once cannot add money twice.
+
+## Main technologies
+
+- **Next.js 16** (App Router) · **React 19** · **TypeScript** · **Tailwind CSS v4** (dark theme)
+- **ethers v6** + **viem** / **wagmi** / **RainbowKit** for wallet and contract interaction
+- **Privy** (optional) for embedded wallets and identity
+- **Supabase** for profiles, live ranking, results history and settlement bookkeeping
+- **Foundry** for the Solidity contracts (`contracts/`)
+- Fonts: **Sora** (identity/UI) + **JetBrains Mono** (typing passage and numeric data), via `next/font`
+
+## Running locally
 
 ```bash
-npm install      # solo la primera vez
-npm run dev      # http://localhost:3000
+npm install   # first time only
+npm run dev   # http://localhost:3000
 ```
 
-Build de producción / type-check:
+Build / type-check:
 
 ```bash
 npm run build
 ```
 
-### 📲 Probar dentro de MiniPay
+Lint:
 
-MiniPay requiere **HTTPS y un dispositivo real** (no funcionan emuladores). Expón tu localhost:
+```bash
+npm run lint
+```
+
+Unit tests (no external dependencies) and end-to-end checks:
+
+```bash
+npm test
+npm run test:e2e
+```
+
+### Testing inside MiniPay
+
+MiniPay requires **HTTPS and a real device** (emulators don't work). Expose your local server:
 
 ```bash
 npx ngrok http 3000
 ```
 
-Abre la URL HTTPS de ngrok en un teléfono con MiniPay instalado: la wallet inyecta `window.ethereum` automáticamente.
+Open the HTTPS ngrok URL on a phone with MiniPay installed, in Developer Mode → Use Testnet/Load
+Test Page — the wallet injects `window.ethereum` automatically.
 
----
+## Production URL
 
-## 🌱 Integración Celo / MiniPay
+**https://typerush.fun**
 
-Este prototipo respeta las reglas de MiniPay desde el día uno:
+## Project structure
 
-- ✅ Solo stablecoins **USDm / USDT / USDC** — **nunca** se muestra CELO.
-- ✅ Copy correcto: **"Network fee"** (no "Gas"), **"Deposit" / "Withdraw"**.
-- ✅ Deeplink de recarga cuando falta saldo (`add_cash`).
-- ✅ Sin firma de mensajes; auto-conexión dentro de la wallet.
-
-> 💡 Decimales importantes para la fase 2: **USDm = 18**, **USDC/USDT = 6** (y estos últimos requieren *adapter address* para `feeCurrency`).
-
----
-
-## ⛓️ Contrato on-chain
-
-El **pago de la entrada, el pozo y el premio** los liquida un smart contract en **Celo Sepolia** — el split y el reparto son verificables on-chain, sin intermediarios.
-
-| Campo | Valor |
-|-------|-------|
-| Contrato | `TypeRushPayToPlayMulti` (multi-moneda) |
-| Dirección | [`0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1`](https://celo-sepolia.blockscout.com/address/0x841B5D1B606A97F4eE55B167Ac11b3569836f0F1) · verificado |
-| Red | Celo Sepolia · chainId `11142220` |
-| Monedas | **USDC** (`0.10`) · **COPm** (`500`) — el jugador elige al pagar |
-| Split | 50 % al pozo · 50 % al desarrollador, en el mismo tx |
-| Premio | El #1 del día se lleva el pozo completo de **cada** moneda |
-
-**Flujo:** `approve` → `payToPlay(periodId, modeId, token)` envía la mitad al `devWallet` y acumula la otra mitad en `pool[periodId][modeId][token]`. Al cierre del día (8 p.m. Colombia) el distribuidor llama `distributeTokens(...)` y paga el pozo al #1. La "casa" siembra un piso garantizado (**1 USDC + 5.000 COPm** por modalidad) para que el pozo **nunca** quede vacío.
-
-> 📄 Detalle completo —funciones, roles, deploy y direcciones— en [`contracts/README.md`](contracts/README.md).
-
-### 🚀 Pasar a mainnet (lo que falta)
-
-El contrato ya es agnóstico de red; migrar es **redesplegar + reconfigurar**, no reescribir:
-
-- **Separar roles** — `owner` en una multisig; `distributor` en una wallet **sin** poder de owner (hoy en testnet ambos son la misma wallet, y el owner puede vaciar el contrato).
-- **Tokens mainnet** — cUSD `0x765DE816845861e75A25fCA122bb6898B8B1282a` (18 dec) · USDC `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` (6 dec, con su fee adapter) · COPm `0x8A567e2aE79CA692Bd748aB832081C45de4041eA` (18 dec).
-- **Deploy + verificación** en Celo Mainnet (chainId `42220`, RPC `https://forno.celo.org`).
-- **Fondear** la wallet sembradora con USDC/COPm reales + CELO (o fee abstraction) para el gas.
-- **Reconfigurar** Vercel (`NEXT_PUBLIC_PAY_TO_PLAY_CONTRACT_ADDRESS` + redeploy), `lib/payToPlay.ts` / `lib/prizePool.ts` (red y tokens), el GitHub Secret `PRIZE_POOL_ADDRESS` y el RPC del script.
-- **Probar end-to-end** en MiniPay mainnet (USDC y COPm).
-
----
-
-## 🗺️ Roadmap
-
-- [x] **Fase 1 — Frontend** en Next.js, tema oscuro, lógica de juego completa.
-- [x] **Fase 2 — Wallet real** (`ethers`): balances on-chain (USDC/COPm) y pago de entrada desde MiniPay.
-- [x] **Fase 3 — On-chain en Celo Sepolia**: entrada, pozo y premio liquidados por smart contract, con reparto diario automatizado.
-- [ ] **Fase 4 — Mainnet**: redeploy en Celo Mainnet con roles separados (ver checklist arriba).
-- [ ] **Fase 5 — Anti-cheat** robusto y leaderboard persistente por temporada.
-
----
-
-## ⚠️ Estado actual
-
-Funciona de punta a punta **dentro de MiniPay sobre Celo Sepolia** (testnet): pago de entrada en USDC/COPm, pozo creciente y reparto diario al #1, todo on-chain. El ranking y el reparto usan Supabase + una GitHub Action nocturna; el mejor puntaje por reto se guarda local. Lo que falta es el salto a **mainnet** (checklist arriba).
+```
+app/
+  layout.tsx    — fonts, metadata, viewport
+  page.tsx      — lobby + game states (idle → countdown → racing → finished)
+  historial/    — past rounds + winners history
+  perfil/       — wallet, alias, preferences, personal results
+  api/          — plays, results, ranking, history, settlement cron, welcome gas
+components/
+  lobby/        — daily challenge card, leaderboard preview, how-to-play
+  profile/      — profile card, wallet balances, prizes, activity
+  CountdownScreen · RaceScreen · TypeField · Track · StatBlock · ResultScreen
+  RoundRanking · FullRanking · PlayV3Button · ClaimBanner · AppShell · BottomNav
+hooks/
+  useTypeRush.ts     — game state machine
+  useModeRanking.ts  — live ranking of the open round
+  usePrizePools.ts   — on-chain pool amounts + countdown to the daily close
+lib/
+  i18n/          — UI language (independent from the typing mode)
+  game.ts        — pure scoring logic + local best-score storage
+  passages.ts    — modes, challenges and passage text
+  contractsV3.ts · playV3.ts · poolsV3.ts · settleV3.ts — GameV3 wiring
+  gamePeriod.ts  — the daily reset window
+  winners.ts · leaderboard.ts · history.ts · roundRanking.ts
+  wallet.ts · walletSession.ts · operator.ts · supabase.ts
+scripts/
+  settle-v3.mjs · seed-v3.mjs — the settlement and seeding robots
+contracts/       — Foundry project: TypeRushGameV3 (active contract)
+supabase/        — SQL schema, applied by hand in the Supabase SQL editor
+```
 
 ---
 
 <div align="center">
 
-Hecho con 💚 para el ecosistema **Celo / MiniPay**.
+Made with 💚 for the **Celo / MiniPay** ecosystem.
 
 </div>
