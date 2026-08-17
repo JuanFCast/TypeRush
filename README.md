@@ -147,6 +147,12 @@ npm install   # first time only
 npm run dev   # http://localhost:3000
 ```
 
+By default the app is fail-closed like production: it expects a real wallet signature and a
+configured Supabase project. To try a race locally without either, copy `.env.example` to
+`.env.local` and set `NEXT_PUBLIC_APP_ENV=development` — races then run with no charge, no
+ranking and no signing (`lib/devPractice.ts`). Never set this in a deployed environment: it would
+let anyone play for free.
+
 Build / type-check:
 
 ```bash
