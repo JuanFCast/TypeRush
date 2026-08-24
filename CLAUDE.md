@@ -55,6 +55,7 @@ app/
   page.tsx     — "use client"; lobby + game status (idle → countdown → racing → finished)
   globals.css  — Tailwind + @theme tokens + per-char highlight classes
   api/plays · api/results · api/ranking/round · api/cron/settle-v3 — V3 play + ranking + settle
+  perfil/estadisticas/page.tsx — public global stats (server component)
 components/
   lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · HowToPlay
                  — Jugar: ONE daily-challenge card (prize, mode, challenge, PlayV3Button, top 3)
@@ -62,6 +63,8 @@ components/
   CountdownScreen · RaceScreen · TypeField · Track · StatBlock — the race
   ResultScreen · RoundRanking · FullRanking — result and the live ranking
   PlayV3Button · ClaimBanner (V2 residual PULL) · AppShell · BottomNav · LanguageToggle
+  stats/StatsTile · StatsCard · PlaysChart — the public stats page
+  profile/ProfileStatsLink — its entry point inside Perfil
 hooks/
   useTypeRush.ts     — game state machine (idle → countdown → racing → finished)
   useModeRanking.ts  — live ranking of the open round (via /api/ranking/round → v3_results)
@@ -74,6 +77,7 @@ lib/
   gameV2.ts      — residual: ClaimBanner + PAY_CURRENCIES / entryLabel
   gamePeriod.ts  — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19)
   winners.ts · leaderboard.ts · history.ts · roundRanking.ts
+  stats/aggregate.ts · stats/publicStats.ts — public stats: pure formulas + server loader
   wallet.ts · walletSession.ts · operator.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile / alias / wallet
 scripts/
@@ -81,7 +85,7 @@ scripts/
   close-day-v2.mjs · seed-day-v2.mjs — residual V2 (pozos/claims pendientes)
 contracts/      — Foundry: TypeRushGameV3 (live) + GameV2 + legacy PayToPlay*
 supabase/       — SQL to apply by hand in the Supabase SQL editor (NOT auto-run)
-  gamev3.sql · v3_only.sql · winners_history.sql · …
+  gamev3.sql · v3_only.sql · winners_history.sql · public_stats_v3.sql · …
   functions/seed-day · close-day — robots V2 residual (pg_net)
 .agents/        — celopedia-skill (Celo/MiniPay knowledge)
 ```
@@ -472,6 +476,45 @@ payment or database rule was touched** — only composition, tokens and copy.
   be a lie, so those rounds show points instead.
 - **Deliberately NOT built**: `/stats`, `/terminos` and `/privacidad`. The brief lists them, but
   TypeRush has no such routes and inventing screens to fill a slot is exactly what it forbids.
+
+### Public stats page (added 2026-08-23) — `/perfil/estadisticas`
+
+Global, aggregated figures for the whole game — today's round, players, races, economy, on-chain —
+**public** (no wallet, no Privy session) and complete in ES/EN. It lives under `/perfil` so the
+Profile tab stays active via `activeTab`'s prefix match; **the bottom nav still has three
+destinations**. Perfil already shows personal stats from `/api/me/stats`, so this is deliberately
+NOT a second personal screen. No game logic, contract, payment or database rule was touched.
+
+- **Server component.** The service-role key and the Celo RPC stay on the server; the browser gets
+  only aggregates. **No wallet, alias, email or individual row is ever emitted** — who played is
+  already public on-chain, but this page has no reason to print a roster.
+- **The day comes from `currentDay()`**, never a clock. If the chain fails, `day` is `null` and
+  every round-scoped metric disappears instead of being recomputed against the server's time, which
+  would show the wrong round for an hour every night.
+- **A failed read is `null`, never 0.** `availability.database` / `.chain` fail independently, so a
+  dead RPC does not erase the Supabase figures and vice versa. Copy distinguishes three states:
+  "No disponible" (could not ask), "Aún sin datos" (asked, no sample yet — e.g. a retention cohort
+  that has not had N days to return) and a real 0. ⚠️ The first version of this page rendered 0 when
+  Supabase was down; that reads as "the game is empty" and was the one real bug found in review.
+- **One definition per metric.** The formulas are pure functions in `lib/stats/aggregate.ts` with
+  unit tests (`tests/public-stats.test.mjs`). `supabase/public_stats_v3.sql` adds **indexes only**,
+  no aggregation RPC: duplicating retention in PL/pgSQL would leave the copy untested, and two
+  definitions that merely look alike diverge. That file is **optional** — the page works without it.
+- **Reads are paginated** (1000/page, PostgREST's cut) with a `MAX_ROWS = 50 000` ceiling. If it were
+  ever hit, the page marks `truncated` and hides all-time totals rather than reporting them short,
+  which would look like a drop in players. That ceiling is the trigger to move the aggregation into
+  Postgres — the SQL file says how.
+- **Deliberately not shown.** `usdtIn` (entry volume) needs the entry price in force for each
+  historical race and those events are not indexed; using today's price for all history would assume
+  it never changed. No P&L either: with rollovers, subtracting prizes from fees attributes the cost
+  to the wrong day. Both absences are explained in the page's own methodology block.
+- **Money is USDT only.** COPm is named exactly once, in the methodology, to say it is no longer an
+  entry. No amount is ever rendered in it and the two are never summed — `tests/e2e/stats.mjs`
+  asserts on *a figure next to* "COPm", not the bare word, so the explanatory note stays legal.
+- The 30-day chart is plain CSS with a `sr-only` list carrying each day's exact numbers. **No
+  charting dependency** — Chart.js/Recharts would outweigh the whole page.
+- ⚠️ `lib/contractsV3.ts` gained `protocolBps` and `entryAmountOf` to `GAMEV3_ABI`. Both are public
+  state vars, so Solidity already generates the getters: nothing was deployed.
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 
