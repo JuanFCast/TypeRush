@@ -460,6 +460,142 @@ export const es = {
   "error.transfer_failed": "No se pudo enviar la transferencia.",
   "error.transfer_cancelled": "Cancelaste la transferencia.",
   "error.open_in_minipay_send": "Abre la app en MiniPay para enviar fondos.",
+
+  /* -------------------- Estadísticas públicas (/perfil/estadisticas) ------ */
+  // Enlace desde Perfil.
+  "profile.stats_link.title": "Estadísticas de TypeRush",
+  "profile.stats_link.desc": "Mira la actividad, los premios y el crecimiento del juego.",
+  "profile.stats_link.cta": "Ver estadísticas",
+
+  // Encabezado y estados globales de la página.
+  "stats.title": "Estadísticas",
+  "stats.meta_description":
+    "Actividad, jugadores, carreras y premios de TypeRush, con las cifras leídas del contrato en Celo.",
+  "stats.back": "Volver a Perfil",
+  "stats.live": "En vivo · se actualiza al recargar",
+  "stats.lead": "Cómo va TypeRush, con las cifras que sostienen cada número.",
+  "stats.unavailable": "No disponible",
+  "stats.no_data": "Aún sin datos",
+  "stats.db_down":
+    "No pudimos leer la base de datos. Las cifras de actividad no están disponibles ahora mismo.",
+  "stats.chain_down":
+    "No pudimos leer el contrato. Se conservan las cifras de la base de datos; el pozo y la ronda de hoy quedan sin dato.",
+  "stats.truncated":
+    "Hay más historial del que esta página puede recorrer de una vez. Los totales de todo el histórico quedan sin dato para no reportarlos cortos.",
+
+  // Hoy.
+  "stats.today.title": "Hoy",
+  "stats.today.round": "Ronda {day} · cierra a las 7 p. m. (Colombia)",
+  "stats.today.dau": "Jugadores de hoy",
+  "stats.today.dau_hint": "Wallets distintas que jugaron en la ronda abierta.",
+  "stats.today.plays": "Carreras iniciadas",
+  "stats.today.plays_hint": "Participaciones firmadas on-chain hoy, ES y EN juntas.",
+  "stats.today.paid_free": "Pagas / gratis",
+  "stats.today.paid_free_hint": "Gratis o pagada lo decide el contrato, no la app.",
+  "stats.today.new": "Jugadores nuevos",
+  "stats.today.new_hint": "Wallets cuya primera carrera V3 ocurrió hoy.",
+  "stats.today.pools": "Pozo de hoy",
+  "stats.today.pools_hint": "Premio actual de cada modalidad, leído del contrato.",
+  "stats.today.best_score": "Mejor puntaje",
+  "stats.today.mode_plays": "{plays} carreras · {players} jugadores",
+
+  // Jugadores.
+  "stats.players.title": "Jugadores",
+  "stats.players.total": "Jugadores desde V3",
+  "stats.players.total_hint":
+    "Wallets únicas con al menos una carrera desde que arrancó GameV3.",
+  "stats.players.wau": "Activos · 7 días",
+  "stats.players.wau_hint": "Ventana inclusiva de siete días del juego.",
+  "stats.players.mau": "Activos · 30 días",
+  "stats.players.mau_hint": "Ventana inclusiva de treinta días del juego.",
+  "stats.players.conversion": "Conversión a pago",
+  "stats.players.conversion_hint": "{paid} de {total} wallets pagaron al menos una entrada.",
+  "stats.players.distribution": "Carreras por jugador",
+  "stats.players.distribution_hint": "Los cinco tramos suman exactamente todos los jugadores.",
+  "stats.players.bucket.1": "1 carrera",
+  "stats.players.bucket.2": "2 carreras",
+  "stats.players.bucket.3-5": "3 a 5",
+  "stats.players.bucket.6-10": "6 a 10",
+  "stats.players.bucket.11+": "11 o más",
+  "stats.players.bucket_value": "{players} ({pct} %)",
+  "stats.players.retention": "Retención",
+  "stats.players.retention_hint":
+    "De quienes debutaron hace al menos N días, cuántos volvieron exactamente el día N. Quien todavía no ha tenido N días para volver no entra en la cuenta.",
+  "stats.players.retention_day": "Día {n}",
+  "stats.players.cohort": "{returned} de {cohort}",
+
+  // Carreras.
+  "stats.races.title": "Carreras",
+  "stats.races.started": "Iniciadas",
+  "stats.races.started_hint": "Participaciones cobradas on-chain, terminen o no.",
+  "stats.races.completed": "Terminadas",
+  "stats.races.completed_hint": "Carreras que entregaron un resultado válido.",
+  "stats.races.completion": "Finalización",
+  "stats.races.completion_hint": "Terminadas sobre iniciadas.",
+  "stats.races.avg_wpm": "WPM promedio",
+  "stats.races.avg_wpm_hint": "Solo de carreras terminadas.",
+  "stats.races.avg_accuracy": "Precisión promedio",
+  "stats.races.chart": "Últimos 30 días",
+  "stats.races.chart_hint": "Carreras iniciadas por día del juego. Las barras oscuras son las terminadas.",
+  "stats.races.chart_empty": "Todavía no hay carreras en los últimos 30 días.",
+  "stats.races.chart_aria": "Carreras iniciadas y terminadas en cada uno de los últimos 30 días.",
+  "stats.races.chart_point": "Día {day}: {started} iniciadas, {completed} terminadas.",
+  "stats.races.by_mode": "Por modalidad",
+  "stats.races.col_mode": "Modalidad",
+  "stats.races.col_started": "Inic.",
+  "stats.races.col_completed": "Term.",
+  "stats.races.col_paid": "Pagas",
+  "stats.races.col_players": "Jugad.",
+  "stats.races.col_avg_wpm": "WPM prom.",
+  "stats.races.col_best_wpm": "Mejor WPM",
+  "stats.races.col_prizes": "Premios",
+
+  // Economía.
+  "stats.economy.title": "Economía",
+  "stats.economy.fees": "Comisiones del protocolo",
+  "stats.economy.fees_hint": "{pct} % de cada entrada pagada. La entrada completa no es ingreso.",
+  "stats.economy.fees_hint_plain":
+    "La parte de cada entrada que se queda el protocolo. La entrada completa no es ingreso.",
+  "stats.economy.paid_out": "Premios pagados",
+  "stats.economy.paid_out_hint": "Premio neto entregado en rondas ya liquidadas.",
+  "stats.economy.biggest": "Premio más alto",
+  "stats.economy.biggest_hint": "El mayor premio neto de una sola ronda.",
+  "stats.economy.rounds": "Rondas pagadas",
+  "stats.economy.rollovers": "Rondas acumuladas",
+  "stats.economy.rollovers_hint":
+    "Sin ganador válido el pozo pasa al día siguiente, intacto. No es un premio pagado.",
+  "stats.economy.no_pnl":
+    "No se muestra utilidad ni P&L. Con rondas acumuladas, restar premios de comisiones atribuiría el costo al día equivocado.",
+
+  // On-chain.
+  "stats.onchain.title": "On-chain",
+  "stats.onchain.plays": "Jugadas verificadas",
+  "stats.onchain.plays_hint": "Cada carrera es una transacción firmada, incluida la gratis.",
+  "stats.onchain.wallets": "Wallets activas",
+  "stats.onchain.days": "Días en cadena",
+  "stats.onchain.days_hint": "Desde la primera carrera de V3.",
+  "stats.onchain.usdt_out": "USDT entregado",
+  "stats.onchain.usdt_in": "USDT de entrada",
+  "stats.onchain.settlements": "Cierres de ronda",
+  "stats.onchain.contract": "Ver el contrato en CeloScan",
+
+  // Metodología.
+  "stats.method.title": "Cómo se calculan",
+  "stats.method.sources":
+    "Las cifras salen de las participaciones y resultados de GameV3 guardados en la base de datos, y de lecturas directas al contrato en Celo mainnet.",
+  "stats.method.day":
+    "El día de la ronda lo dice el contrato, no el reloj del dispositivo. Cada día va de 7 p. m. a 7 p. m. hora de Colombia.",
+  "stats.method.scope":
+    "Solo se cuenta GameV3. El historial de V2 no se suma: sus identidades no eran wallets y mezclarlas contaría dos veces a la misma persona.",
+  "stats.method.currency":
+    "Todo el dinero está en USDT. COPm ya no se ofrece como entrada, y monedas distintas nunca se suman en una sola cifra.",
+  "stats.method.missing":
+    "«No disponible» quiere decir que esa lectura falló. Un 0 quiere decir que la consulta respondió y no había nada. No son lo mismo.",
+  "stats.method.usdt_in":
+    "El volumen de entrada no se muestra: haría falta el precio de entrada vigente en cada carrera del histórico, y hoy esos eventos no se indexan.",
+  "stats.method.privacy":
+    "No se publican wallets, alias ni listas de jugadores. Todo lo de esta página es agregado.",
+  "stats.method.updated": "Generado el {date}",
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -911,4 +1047,132 @@ export const en: Record<MessageKey, string> = {
   "error.transfer_failed": "We couldn't send the transfer.",
   "error.transfer_cancelled": "You cancelled the transfer.",
   "error.open_in_minipay_send": "Open the app in MiniPay to send funds.",
+
+  /* ------------------ Public statistics (/perfil/estadisticas) ------------ */
+  "profile.stats_link.title": "TypeRush statistics",
+  "profile.stats_link.desc": "See the game's activity, prizes, and growth.",
+  "profile.stats_link.cta": "View statistics",
+
+  "stats.title": "Statistics",
+  "stats.meta_description":
+    "TypeRush activity, players, races and prizes, with the figures read straight from the contract on Celo.",
+  "stats.back": "Back to Profile",
+  "stats.live": "Live · refresh to update",
+  "stats.lead": "How TypeRush is doing, with the sources behind every number.",
+  "stats.unavailable": "Not available",
+  "stats.no_data": "No data yet",
+  "stats.db_down":
+    "We couldn't read the database. Activity figures aren't available right now.",
+  "stats.chain_down":
+    "We couldn't read the contract. Database figures are still here; today's pot and round have no value.",
+  "stats.truncated":
+    "There is more history than this page can walk through at once. All-time totals are left blank rather than reported short.",
+
+  "stats.today.title": "Today",
+  "stats.today.round": "Round {day} · closes at 7 p.m. (Colombia)",
+  "stats.today.dau": "Players today",
+  "stats.today.dau_hint": "Distinct wallets that played in the open round.",
+  "stats.today.plays": "Races started",
+  "stats.today.plays_hint": "Entries signed on-chain today, ES and EN together.",
+  "stats.today.paid_free": "Paid / free",
+  "stats.today.paid_free_hint": "Free or paid is decided by the contract, not the app.",
+  "stats.today.new": "New players",
+  "stats.today.new_hint": "Wallets whose first V3 race happened today.",
+  "stats.today.pools": "Today's pot",
+  "stats.today.pools_hint": "Current prize for each mode, read from the contract.",
+  "stats.today.best_score": "Best score",
+  "stats.today.mode_plays": "{plays} races · {players} players",
+
+  "stats.players.title": "Players",
+  "stats.players.total": "Players since V3",
+  "stats.players.total_hint":
+    "Unique wallets with at least one race since GameV3 started.",
+  "stats.players.wau": "Active · 7 days",
+  "stats.players.wau_hint": "Inclusive seven-day game window.",
+  "stats.players.mau": "Active · 30 days",
+  "stats.players.mau_hint": "Inclusive thirty-day game window.",
+  "stats.players.conversion": "Paid conversion",
+  "stats.players.conversion_hint": "{paid} of {total} wallets paid at least one entry.",
+  "stats.players.distribution": "Races per player",
+  "stats.players.distribution_hint": "The five buckets add up to exactly every player.",
+  "stats.players.bucket.1": "1 race",
+  "stats.players.bucket.2": "2 races",
+  "stats.players.bucket.3-5": "3 to 5",
+  "stats.players.bucket.6-10": "6 to 10",
+  "stats.players.bucket.11+": "11 or more",
+  "stats.players.bucket_value": "{players} ({pct} %)",
+  "stats.players.retention": "Retention",
+  "stats.players.retention_hint":
+    "Of those who debuted at least N days ago, how many came back exactly on day N. Anyone who has not had N days to return yet is left out.",
+  "stats.players.retention_day": "Day {n}",
+  "stats.players.cohort": "{returned} of {cohort}",
+
+  "stats.races.title": "Races",
+  "stats.races.started": "Started",
+  "stats.races.started_hint": "Entries charged on-chain, finished or not.",
+  "stats.races.completed": "Completed",
+  "stats.races.completed_hint": "Races that submitted a valid result.",
+  "stats.races.completion": "Completion",
+  "stats.races.completion_hint": "Completed over started.",
+  "stats.races.avg_wpm": "Average WPM",
+  "stats.races.avg_wpm_hint": "From completed races only.",
+  "stats.races.avg_accuracy": "Average accuracy",
+  "stats.races.chart": "Last 30 days",
+  "stats.races.chart_hint": "Races started per game day. The darker bars are the completed ones.",
+  "stats.races.chart_empty": "No races in the last 30 days yet.",
+  "stats.races.chart_aria": "Races started and completed on each of the last 30 days.",
+  "stats.races.chart_point": "Day {day}: {started} started, {completed} completed.",
+  "stats.races.by_mode": "By mode",
+  "stats.races.col_mode": "Mode",
+  "stats.races.col_started": "Start.",
+  "stats.races.col_completed": "Compl.",
+  "stats.races.col_paid": "Paid",
+  "stats.races.col_players": "Players",
+  "stats.races.col_avg_wpm": "Avg. WPM",
+  "stats.races.col_best_wpm": "Best WPM",
+  "stats.races.col_prizes": "Prizes",
+
+  "stats.economy.title": "Economy",
+  "stats.economy.fees": "Protocol fees",
+  "stats.economy.fees_hint": "{pct} % of each paid entry. The full entry is not revenue.",
+  "stats.economy.fees_hint_plain":
+    "The share of each entry the protocol keeps. The full entry is not revenue.",
+  "stats.economy.paid_out": "Prizes paid",
+  "stats.economy.paid_out_hint": "Net prize handed out in rounds already settled.",
+  "stats.economy.biggest": "Biggest prize",
+  "stats.economy.biggest_hint": "The largest net prize from a single round.",
+  "stats.economy.rounds": "Rounds paid",
+  "stats.economy.rollovers": "Rounds rolled over",
+  "stats.economy.rollovers_hint":
+    "With no valid winner the pot moves to the next day, untouched. That is not a prize paid.",
+  "stats.economy.no_pnl":
+    "No profit or P&L is shown. With rolled-over rounds, subtracting prizes from fees would put the cost on the wrong day.",
+
+  "stats.onchain.title": "On-chain",
+  "stats.onchain.plays": "Verified plays",
+  "stats.onchain.plays_hint": "Every race is a signed transaction, the free one included.",
+  "stats.onchain.wallets": "Active wallets",
+  "stats.onchain.days": "Days on chain",
+  "stats.onchain.days_hint": "Since the first V3 race.",
+  "stats.onchain.usdt_out": "USDT paid out",
+  "stats.onchain.usdt_in": "USDT in",
+  "stats.onchain.settlements": "Round settlements",
+  "stats.onchain.contract": "View the contract on CeloScan",
+
+  "stats.method.title": "How these are calculated",
+  "stats.method.sources":
+    "The figures come from GameV3 entries and results stored in the database, and from direct reads of the contract on Celo mainnet.",
+  "stats.method.day":
+    "The round's day comes from the contract, not the device clock. Each day runs 7 p.m. to 7 p.m. Colombia time.",
+  "stats.method.scope":
+    "Only GameV3 is counted. V2 history is not added in: its identities were not wallets, and mixing them would count the same person twice.",
+  "stats.method.currency":
+    "All money is in USDT. COPm is no longer offered as an entry, and different currencies are never added into a single figure.",
+  "stats.method.missing":
+    "«Not available» means that read failed. A 0 means the query answered and there was nothing. They are not the same thing.",
+  "stats.method.usdt_in":
+    "Entry volume is not shown: it would need the entry price in force for each historical race, and those events are not indexed today.",
+  "stats.method.privacy":
+    "No wallets, aliases or player lists are published. Everything on this page is aggregated.",
+  "stats.method.updated": "Generated on {date}",
 };

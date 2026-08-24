@@ -8,6 +8,7 @@ import ProfileIdentity from "@/components/profile/ProfileIdentity";
 import ProfileSummary from "@/components/profile/ProfileSummary";
 import ProfilePrizes, { type Prize } from "@/components/profile/ProfilePrizes";
 import ProfileActivity, { type RecentRace } from "@/components/profile/ProfileActivity";
+import ProfileStatsLink from "@/components/profile/ProfileStatsLink";
 import ProfileWalletBalances from "@/components/profile/ProfileWalletBalances";
 import ProfilePreferences from "@/components/profile/ProfilePreferences";
 import ProfileSession from "@/components/profile/ProfileSession";
@@ -108,6 +109,15 @@ export default function PerfilPage() {
             >
               {t("nav.play")}
             </Link>
+            {/* Las estadísticas del juego son públicas: no hace falta wallet
+                para mirarlas, así que aquí van como acción secundaria en vez
+                de esconderse detrás del guard. */}
+            <Link
+              href="/perfil/estadisticas"
+              className="min-h-11 rounded-xl px-5 py-3 text-sm font-semibold text-brand-deep underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
+            >
+              {t("profile.stats_link.cta")}
+            </Link>
           </div>
 
           {/* El idioma de la app es una preferencia, no algo que dependa de
@@ -144,6 +154,10 @@ export default function PerfilPage() {
 
         <ProfilePrizes prizes={stats.prizes} loading={loading} />
         <ProfileActivity recent={stats.recent} loading={loading} />
+        {/* Las cifras GLOBALES del juego, no las tuyas: van después de tu
+            actividad y antes de la cartera, que es donde dejan de hablar de ti
+            sin llegar todavía a hablar de tu dinero. */}
+        <ProfileStatsLink />
         <ProfileWalletBalances />
         <ProfilePreferences />
         <ProfileSession />

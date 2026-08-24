@@ -191,6 +191,23 @@ export const GAMEV3_ABI = [
       { name: "net", type: "uint256" },
     ],
   },
+  // Lecturas usadas por la página pública de estadísticas
+  // (`lib/stats/publicStats.ts`). Son variables públicas del contrato, así que
+  // el getter lo genera Solidity: no hay función nueva que desplegar.
+  {
+    type: "function",
+    name: "protocolBps",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "entryAmountOf",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
   {
     type: "function",
     name: "playerCount",
