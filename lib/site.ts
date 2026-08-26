@@ -26,4 +26,10 @@ export function absoluteUrl(path = "/"): string {
 }
 
 /** Rutas públicas indexables. Las de `/api` quedan fuera a propósito. */
-export const PUBLIC_ROUTES = ["/", "/historial", "/perfil"] as const;
+export const PUBLIC_ROUTES = [
+  "/",
+  "/historial",
+  "/perfil",
+  "/terminos",
+  "/privacidad",
+] as const;

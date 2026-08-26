@@ -11,6 +11,7 @@ import ProfileActivity, { type RecentRace } from "@/components/profile/ProfileAc
 import ProfileStatsLink from "@/components/profile/ProfileStatsLink";
 import ProfileWalletBalances from "@/components/profile/ProfileWalletBalances";
 import ProfilePreferences from "@/components/profile/ProfilePreferences";
+import ProfileLegal from "@/components/profile/ProfileLegal";
 import ProfileSession from "@/components/profile/ProfileSession";
 import { useI18n } from "@/lib/i18n/client";
 import { usePrivySession } from "@/lib/privySession";
@@ -126,6 +127,10 @@ export default function PerfilPage() {
               cambiar el idioma una vez que la pastilla del header desapareció
               del resto de la app. */}
           <ProfilePreferences />
+          {/* Legal y soporte también sin sesión: quien todavía está decidiendo
+              si conecta billetera es justo quien necesita poder leer las
+              condiciones antes. */}
+          <ProfileLegal />
         </div>
       </AppShell>
     );
@@ -160,6 +165,7 @@ export default function PerfilPage() {
         <ProfileStatsLink />
         <ProfileWalletBalances />
         <ProfilePreferences />
+        <ProfileLegal />
         <ProfileSession />
       </div>
     </AppShell>

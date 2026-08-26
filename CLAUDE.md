@@ -56,6 +56,7 @@ app/
   globals.css  — Tailwind + @theme tokens + per-char highlight classes
   api/plays · api/results · api/ranking/round · api/cron/settle-v3 — V3 play + ranking + settle
   perfil/estadisticas/page.tsx — public global stats (server component)
+  terminos/page.tsx · privacidad/page.tsx — ToS + Privacy (server, es/en, no client JS)
 components/
   lobby/HomeLobby · DailyChallengeCard · LeaderboardPreview · HowToPlay
                  — Jugar: ONE daily-challenge card (prize, mode, challenge, PlayV3Button, top 3)
@@ -65,6 +66,8 @@ components/
   PlayV3Button · ClaimBanner (V2 residual PULL) · AppShell · BottomNav · LanguageToggle
   stats/StatsTile · StatsCard · PlaysChart — the public stats page
   profile/ProfileStatsLink — its entry point inside Perfil
+  legal/LegalPage — shared frame for ToS + Privacy
+  profile/ProfileLegal — Terms · Privacy · Support links inside Perfil
 hooks/
   useTypeRush.ts     — game state machine (idle → countdown → racing → finished)
   useModeRanking.ts  — live ranking of the open round (via /api/ranking/round → v3_results)
@@ -78,6 +81,8 @@ lib/
   gamePeriod.ts  — daily window (7 p.m. Bogota, PERIOD_RESET_HOUR=19)
   winners.ts · leaderboard.ts · history.ts · roundRanking.ts
   stats/aggregate.ts · stats/publicStats.ts — public stats: pure formulas + server loader
+  legal.ts       — ToS + Privacy text (es/en) + SUPPORT_EMAIL / SUPPORT_TELEGRAM_URL
+  deeplink.ts    — MINIPAY_ADD_CASH + outboundLinkProps (no new window inside MiniPay)
   wallet.ts · walletSession.ts · operator.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile / alias / wallet
 scripts/
@@ -515,6 +520,51 @@ NOT a second personal screen. No game logic, contract, payment or database rule 
   charting dependency** — Chart.js/Recharts would outweigh the whole page.
 - ⚠️ `lib/contractsV3.ts` gained `protocolBps` and `entryAmountOf` to `GAMEV3_ABI`. Both are public
   state vars, so Solidity already generates the getters: nothing was deployed.
+
+### MiniPay listing prep (added 2026-08-26) — ToS, Privacy, support, deeplink
+
+Audit against `docs.minipay.xyz/getting-started/submit-your-miniapp.html` before the intake form
+(`developer.minipay.to/mini-app-listing`) found **no blockers** — auto-connect, no message signing,
+CIP-64 gas, mainnet, USDT-only, deposit deeplink, 360×640, contract verified on Celoscan all already
+held. What was missing were the three items MiniPay lists under *Branding and legal* / *Support*.
+**No game logic, contract, payment or database rule was touched.**
+
+- **`/terminos` and `/privacidad`** — server components, one route per document for BOTH languages
+  (`getServerLang()`, same as the rest of the app; there is no `/en/terms`). No client JS: two pages
+  of prose have no state. `components/legal/LegalPage.tsx` is the shared frame so the two can't drift.
+- **The prose lives in `lib/legal.ts`, not in `dictionary.ts`** — the dictionary is a table of short
+  labels and this would have doubled it. Parity is still compile-checked: `Record<Lang, LegalDoc>`
+  does not compile with a language missing. ⚠️ **Every claim in there is read from the code**: 45 s
+  (`lib/game.ts`), 0.10 USDT entry, the 80/20 split (`protocolBps` = 2000, read on-chain), the 7 p.m.
+  close, that cancelling the countdown does not refund, the capped ten-entry `approve`, the nine
+  `localStorage` keys actually written, the exact columns inserted into `player_profiles` /
+  `v3_plays` / `v3_results`, and that `welcome_airdrops` stores an IP **hash**, never the raw IP.
+  If the game changes, these texts change with it.
+- **`ProfileLegal`** sits at the end of Perfil in **both branches, signed in and not**: leaving the
+  links behind the guard means whoever is still deciding whether to connect a wallet cannot read the
+  terms. `activeTab` now maps `/terminos` and `/privacidad` to the Perfil tab — the bar was
+  highlighting *Jugar* while you read the terms.
+- ⚠️ **PENDING: Telegram support.** The support channel is going to be a private Telegram group.
+  `SUPPORT_TELEGRAM_URL` in `lib/legal.ts` is **empty**; while it is, Perfil shows
+  `hi@casgostudio.com`, which is a real channel — a support row with no destination would leave the
+  app without the in-app support link the listing requires. Pasting the `https://t.me/+…` flips the
+  row on its own. Still to build then: the modal with a **copyable link** fallback, modelled on
+  Freaking Grammar's `SupportModal.tsx`.
+- ⚠️ **No new window inside MiniPay.** `lib/deeplink.ts` → `outboundLinkProps(inMiniPay)` returns
+  `{}` in MiniPay and `{target:"_blank", rel:"noopener noreferrer"}` outside. Android's WebView
+  without `setSupportMultipleWindows` cannot open one and some builds render an **error page** — a
+  MiniPay reviewer reported exactly that to Freaking Grammar, whose `NeedFundsModal` opens
+  `link.minipay.xyz/add_cash` with no `target` while keeping `_blank` for the external links it only
+  shows outside MiniPay. `PlayV3Button`'s deposit link now follows that; it appears precisely when
+  someone cannot play for lack of balance, so a dead end there is the worst possible ending.
+  `MINIPAY_ADD_CASH` moved to `deeplink.ts` (re-exported from `lib/minipay.ts`, no import site
+  changed) so `tests/deeplink.test.mjs` can load the rule and the destination without React or wagmi.
+  The remaining three `target="_blank"` (ProfilePrizes, Historial, Estadísticas) all point at
+  **Celoscan**, external web — deliberately left alone.
+- The intake form's own fields, verified from its client bundle: developer name, email, app URL,
+  category (**Gaming**), one-sentence description, "already supports MiniPay" (**Yes**), **3–8
+  screenshots, PNG/JPG, ≤500 KB each**, contract address, "audited?" (**No** — 56 Foundry tests, but
+  no external audit), optional on-chain analytics link (`/perfil/estadisticas`), and social media.
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 

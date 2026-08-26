@@ -37,9 +37,14 @@ export const NAV_ITEMS: {
   { id: "profile", labelKey: "nav.profile", href: "/perfil", Icon: UserIcon },
 ];
 
+/** Rutas que no cuelgan de `/perfil` pero se entran y se salen por ahí. Sin
+ *  esto la barra marcaba "Jugar" mientras se leían los términos, que es
+ *  decirle al jugador que está en una pantalla en la que no está. */
+const PROFILE_ROUTES = ["/perfil", "/terminos", "/privacidad"];
+
 export function activeTab(pathname: string): Tab {
   if (pathname.startsWith("/historial")) return "history";
-  if (pathname.startsWith("/perfil")) return "profile";
+  if (PROFILE_ROUTES.some((r) => pathname.startsWith(r))) return "profile";
   return "play";
 }
 

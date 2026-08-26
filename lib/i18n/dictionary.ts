@@ -596,6 +596,24 @@ export const es = {
   "stats.method.privacy":
     "No se publican wallets, alias ni listas de jugadores. Todo lo de esta página es agregado.",
   "stats.method.updated": "Generado el {date}",
+
+  /* ------------------------- Legal y soporte ------------------------------ */
+  // Los textos largos NO viven aquí: están en `lib/legal.ts`, que es donde se
+  // pueden leer y revisar de corrido. Aquí solo los rótulos de navegación.
+  "legal.back": "Volver a Perfil",
+  "legal.updated": "Última actualización: {date}",
+  "legal.terms.meta_description":
+    "Condiciones de uso de TypeRush: cómo se juega, qué cuesta, cómo se paga el premio y de qué respondemos.",
+  "legal.privacy.meta_description":
+    "Qué datos guarda TypeRush, dónde los guarda, qué es público en la cadena y con quién se comparten.",
+  "profile.legal.title": "Legal y soporte",
+  "profile.legal.hint":
+    "Cómo funciona el juego, qué guardamos y a quién escribir si algo falla.",
+  "profile.legal.terms": "Términos de servicio",
+  "profile.legal.privacy": "Política de privacidad",
+  "profile.legal.support": "Soporte",
+  "profile.legal.support_hint": "Escríbenos a {email}",
+  "profile.legal.support_telegram": "Únete a nuestro grupo de Telegram",
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -1175,4 +1193,20 @@ export const en: Record<MessageKey, string> = {
   "stats.method.privacy":
     "No wallets, aliases or player lists are published. Everything on this page is aggregated.",
   "stats.method.updated": "Generated on {date}",
+
+  /* --------------------------- Legal and support -------------------------- */
+  "legal.back": "Back to Profile",
+  "legal.updated": "Last updated: {date}",
+  "legal.terms.meta_description":
+    "TypeRush terms of use: how the game works, what it costs, how the prize is paid and what we are liable for.",
+  "legal.privacy.meta_description":
+    "What data TypeRush stores, where it stores it, what is public on-chain and who it is shared with.",
+  "profile.legal.title": "Legal and support",
+  "profile.legal.hint":
+    "How the game works, what we store, and who to write to if something breaks.",
+  "profile.legal.terms": "Terms of Service",
+  "profile.legal.privacy": "Privacy Policy",
+  "profile.legal.support": "Support",
+  "profile.legal.support_hint": "Write to us at {email}",
+  "profile.legal.support_telegram": "Join our Telegram group",
 };

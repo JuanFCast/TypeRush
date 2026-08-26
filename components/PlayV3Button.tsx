@@ -24,7 +24,8 @@ import {
   usePlayV3,
   type PlayStage,
 } from "@/lib/playV3";
-import { MINIPAY_ADD_CASH } from "@/lib/minipay";
+import { MINIPAY_ADD_CASH, useIsMiniPay } from "@/lib/minipay";
+import { outboundLinkProps } from "@/lib/deeplink";
 import { useWalletSession } from "@/lib/walletSession";
 import { buildPassage, type ChallengeId, type ModeId } from "@/lib/passages";
 import { useWelcomeGas } from "./WelcomeGasBridge";
@@ -59,6 +60,7 @@ export default function PlayV3Button({
 }) {
   const { t, locale } = useI18n();
   const wallet = useWalletSession();
+  const inMiniPay = useIsMiniPay();
   const gas = useWelcomeGas();
   const { play } = usePlayV3();
 
@@ -238,10 +240,15 @@ export default function PlayV3Button({
             {t(error as Parameters<typeof t>[0])}
           </p>
           {needsDeposit && (
+            /* ⚠️ Dentro de MiniPay este deeplink se abre en el PROPIO marco:
+               pedir ventana nueva en su WebView puede acabar en una página de
+               error, y este enlace aparece justo cuando alguien no puede jugar
+               por saldo — es el peor momento para dejarlo en un callejón. La
+               regla vive en `lib/deeplink.ts`, probada aparte. Fuera de
+               MiniPay no cambia nada: sigue abriendo en pestaña nueva. */
             <a
               href={MINIPAY_ADD_CASH}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...outboundLinkProps(inMiniPay)}
               className="min-h-11 px-3 text-center text-sm font-bold text-brand-deep underline underline-offset-2"
             >
               {t("funds.deposit")}

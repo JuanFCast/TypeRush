@@ -8,11 +8,12 @@ interface MiniPayEthereum {
 }
 
 /**
- * Deeplink de MiniPay para depositar saldo (USDT / USDC / USDm).
- * Docs: https://docs.minipay.xyz/technical-references/deeplinks.html
+ * El deeplink de depósito se mudó a `lib/deeplink.ts`, junto a la regla que
+ * decide si se abre en ventana nueva o en el propio marco: las pruebas cargan
+ * ese archivo directamente y aquí no podrían, porque este módulo arrastra React
+ * y wagmi. Se reexporta para que nadie tenga que cambiar su import.
  */
-export const MINIPAY_ADD_CASH =
-  "https://link.minipay.xyz/add_cash?tokens=USDT,USDC,USDm";
+export { MINIPAY_ADD_CASH } from "./deeplink";
 
 /**
  * ¿Estamos dentro del navegador de MiniPay? MiniPay inyecta su wallet con la
