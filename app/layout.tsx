@@ -3,7 +3,13 @@ import { Sora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { getServerLang, getServerT } from "@/lib/i18n/server";
-import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
+import {
+  SITE_NAME,
+  SITE_URL,
+  SOCIAL_DESCRIPTION,
+  SOCIAL_TITLE,
+  absoluteUrl,
+} from "@/lib/site";
 
 // Sora es la tipografía de identidad e interfaz (su geometría acompaña los
 // ángulos del rayo). El 800 es el del wordmark; JetBrains Mono NO es tipografía
@@ -35,6 +41,13 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     applicationName: SITE_NAME,
     alternates: { canonical: "/" },
+    // ⚠️ La TARJETA va en inglés fijo (`SOCIAL_TITLE` / `SOCIAL_DESCRIPTION`),
+    // no con `t()`. El rastreador de X no manda cookie ni `Accept-Language`, así
+    // que `getServerLang()` caía en el idioma por defecto y la tarjeta salía en
+    // español para todo el mundo. Un enlace compartido lo ve mucha gente y no
+    // hay un idioma de "el visitante" que detectar. El `title` y la
+    // `description` de arriba sí siguen el idioma: esos los lee quien entra.
+    //
     // Sin `images:` aquí a propósito: `app/opengraph-image.tsx` (y su espejo
     // `twitter-image.tsx`) generan la tarjeta y Next los descubre solos por
     // convención de archivo. Declarar `images` a mano competía con eso y
@@ -42,14 +55,14 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       siteName: SITE_NAME,
-      title,
-      description,
+      title: SOCIAL_TITLE,
+      description: SOCIAL_DESCRIPTION,
       url: absoluteUrl("/"),
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: SOCIAL_TITLE,
+      description: SOCIAL_DESCRIPTION,
     },
     other: {
       "talentapp:project_verification":

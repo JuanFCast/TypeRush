@@ -605,6 +605,16 @@ browser invented one and broke React.
   `loadModeRanking(..., locale)`, and every money formatter (`fetchPoolLabel`, `entryLabel`,
   `formatTokenUnits`, `fetchWalletBalances`, `loadWinnerRounds`). Amounts read `1,00 USDT / 1.900
   COPm` in Spanish and `1.00 USDT / 1,500 COPm` in English.
+- ⚠️ **The link-preview card is the ONE exception, and it is deliberate.** `openGraph` / `twitter`
+  in `app/layout.tsx` use `SOCIAL_TITLE` / `SOCIAL_DESCRIPTION` from `lib/site.ts` — **fixed
+  English, never `t()`**. A shared link is seen by many people in many languages, so there is no
+  "the visitor" whose language to detect; worse, X's crawler sends neither cookie nor
+  `Accept-Language`, so `getServerLang()` fell through to the default and the card went out in
+  Spanish for everyone. The page's `<title>` and meta description DO still follow the language —
+  those a single visitor reads. `tests/e2e/social.mjs` asserts both halves of that split, so
+  "fixing" the card back onto `t()` fails the suite. (2026-08-26. The grey card people were seeing
+  in X was the pre-2026-08-12 one, cached: a `summary_large_image` pointing at a 512×512 square
+  `icon.webp`. Deploying does not refresh X's cache — share `?v=2` once to force a re-crawl.)
 - **Where the player switches it:** the ES/EN control on the home screen (it sets the UI language
   *and* the mode you're about to play — pressing "English" does what it says), plus a compact ES/EN
   pill in the header available from every tab, plus the "Idioma de la app" block in **Tú**. Inside a

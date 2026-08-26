@@ -70,6 +70,10 @@ export default async function OpenGraphImage() {
             >
               TypeRush
             </div>
+            {/* La copy acompaña a `SOCIAL_TITLE` / `SOCIAL_DESCRIPTION` de
+                `lib/site.ts`: si la tarjeta se titula "Daily Rewards", la
+                imagen no puede hablar solo de récords personales. Diseño,
+                paleta y composición sin tocar — aquí solo cambia el texto. */}
             <div
               style={{
                 marginTop: "30px",
@@ -78,7 +82,7 @@ export default async function OpenGraphImage() {
                 lineHeight: 1.2,
               }}
             >
-              Type against the clock.
+              Fast typing. Daily rewards.
             </div>
             <div
               style={{
@@ -88,7 +92,7 @@ export default async function OpenGraphImage() {
                 lineHeight: 1.2,
               }}
             >
-              Track your WPM and beat your record.
+              45-second races in English and Spanish.
             </div>
             <div
               style={{
@@ -102,7 +106,7 @@ export default async function OpenGraphImage() {
                 fontWeight: 700,
               }}
             >
-              Typing race
+              Top score wins the daily USDT pot
             </div>
           </div>
         </div>
