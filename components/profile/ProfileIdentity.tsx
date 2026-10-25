@@ -3,13 +3,13 @@
 import AliasEditor from "@/components/AliasEditor";
 import TypeRushBolt from "@/components/brand/TypeRushBolt";
 import { useI18n } from "@/lib/i18n/client";
-import { WALLET_KIND_KEY, shortAddress, useWalletSession } from "@/lib/walletSession";
+import { WALLET_KIND_KEY, useWalletSession } from "@/lib/walletSession";
 import ProfileCard from "./ProfileCard";
 
 /**
- * Identidad: avatar, alias editable y wallet activa (dirección abreviada +
- * insignia). Bloque compacto a propósito — el brief pide reducir la altura
- * frente al rectángulo grande que tenía antes.
+ * Identidad: avatar, alias editable y el tipo de wallet activa. Bloque
+ * compacto a propósito — el brief pide reducir la altura frente al rectángulo
+ * grande que tenía antes.
  */
 export default function ProfileIdentity() {
   const { t } = useI18n();
@@ -21,16 +21,13 @@ export default function ProfileIdentity() {
         <TypeRushBolt className="h-7 w-7" />
       </span>
       <AliasEditor />
+      {/* ⚠️ La dirección NO se pinta, ni abreviada: MiniPay prohíbe mostrar,
+          copiar o compartir la del usuario (`0x12…ab` incluido). Tampoco hace
+          falta: V3 paga el premio a la wallet que firmó la partida. */}
       {wallet.address && (
-        <p className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted">
-          {/* Solo para reconocer la wallet, no para copiarla: V3 paga el premio
-              directo a la wallet que jugó, así que nadie necesita pegarla en
-              ninguna parte. */}
-          <span className="font-mono">{shortAddress(wallet.address)}</span>
-          <span className="rounded-full border border-line px-1.5 py-0.5 text-[0.6rem] font-semibold">
-            {t(WALLET_KIND_KEY[wallet.kind])}
-          </span>
-        </p>
+        <span className="rounded-full border border-line px-1.5 py-0.5 text-[0.6rem] font-semibold text-muted">
+          {t(WALLET_KIND_KEY[wallet.kind])}
+        </span>
       )}
     </ProfileCard>
   );

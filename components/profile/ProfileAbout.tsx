@@ -7,7 +7,6 @@ import { outboundLinkProps } from "@/lib/deeplink";
 import { DURATION } from "@/lib/game";
 import { OPERATOR_NAME } from "@/lib/legal";
 import { useIsMiniPay } from "@/lib/minipay";
-import { shortAddress } from "@/lib/walletSession";
 import ProfileCard from "./ProfileCard";
 
 /**
@@ -19,7 +18,9 @@ import ProfileCard from "./ProfileCard";
  * que no puedan contradecir a los términos el día que cambien.
  *
  * El contrato solo aparece si está configurado: sin dirección no hay nada que
- * enlazar, y una fila que dice "Contrato" sin destino no informa de nada.
+ * enlazar, y una fila que dice "Contrato" sin destino no informa de nada. Se
+ * enlaza con texto, no con la `0x…`: la revisión de MiniPay pide que no se vea
+ * ninguna dirección en pantalla, y la de Celoscan ya la enseña entera.
  */
 export default function ProfileAbout() {
   const { t } = useI18n();
@@ -50,9 +51,9 @@ export default function ProfileAbout() {
               <a
                 href={celoscanAddress(GAMEV3_ADDRESS)}
                 {...outboundLinkProps(inMiniPay)}
-                className="inline-flex min-h-11 items-center font-mono font-semibold text-brand-deep underline underline-offset-2"
+                className="inline-flex min-h-11 items-center font-semibold text-brand-deep underline underline-offset-2"
               >
-                {shortAddress(GAMEV3_ADDRESS)}
+                {t("profile.about.contract_link")}
               </a>
             </dd>
           </div>

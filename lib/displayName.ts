@@ -1,6 +1,7 @@
 /**
  * Nombre visible del jugador. MiniPay no admite direcciones `0x…` como
- * identidad primaria: alias, o un label genérico. La dirección solo como hint.
+ * identidad: alias, o un label genérico. La dirección nunca se pinta, tampoco
+ * abreviada (`0x12…ab` cuenta como mostrarla en la revisión de MiniPay).
  */
 
 /** Valor que se guarda en archivo cuando aún no hay alias (inglés, estable). */

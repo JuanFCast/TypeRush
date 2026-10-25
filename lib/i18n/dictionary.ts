@@ -399,6 +399,9 @@ export const es = {
     "Tu wallet no tiene saldo para pagar la comisión de red. Deposita USDT e inténtalo de nuevo.",
   "v3.error.rejected": "Cancelaste la firma.",
   "v3.error.insufficient": "No te alcanza el saldo para la entrada.",
+  "v3.error.short_entry":
+    "Te faltan {amount} {symbol} para la entrada y la comisión de red.",
+  "v3.error.short_fee": "Te faltan {amount} {symbol} para la comisión de red.",
   "v3.error.register_failed":
     "Tu jugada se firmó, pero no pudimos registrarla. No se te cobrará de nuevo: vuelve a intentarlo.",
   "v3.error.failed": "No se pudo iniciar la partida.",
@@ -615,6 +618,7 @@ export const es = {
   "profile.about.made_by": "Hecho por",
   "profile.about.network": "Red",
   "profile.about.contract": "Contrato",
+  "profile.about.contract_link": "Ver en Celoscan",
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -1006,6 +1010,8 @@ export const en: Record<MessageKey, string> = {
     "Your wallet has no balance to pay the network fee. Deposit USDT and try again.",
   "v3.error.rejected": "You cancelled the signature.",
   "v3.error.insufficient": "Not enough balance for the entry.",
+  "v3.error.short_entry": "You need {amount} {symbol} more for the entry and the network fee.",
+  "v3.error.short_fee": "You need {amount} {symbol} more for the network fee.",
   "v3.error.register_failed":
     "Your play was signed but we couldn't register it. You won't be charged again: please retry.",
   "v3.error.failed": "We couldn't start the race.",
@@ -1211,4 +1217,5 @@ export const en: Record<MessageKey, string> = {
   "profile.about.made_by": "Made by",
   "profile.about.network": "Network",
   "profile.about.contract": "Contract",
+  "profile.about.contract_link": "View on Celoscan",
 };

@@ -12,6 +12,8 @@ import {
   ERC20_ABI,
   GAMEV3_ABI,
   GAMEV3_ADDRESS,
+  USDT_ADDRESS,
+  USDT_DECIMALS,
   approveUnits,
   getToken,
   isV3Enabled,
@@ -19,6 +21,13 @@ import {
   type TokenId,
 } from "./contractsV3";
 import { feeOverrides, resolveGasSource } from "./feeCurrency";
+import {
+  FALLBACK_GAS,
+  feeInTokenUnits,
+  shortfall,
+  shortfallCents,
+} from "./preflight";
+import { classifyWalletError } from "./walletErrors";
 import { ensureWalletSession } from "./walletToken";
 import type { MessageKey } from "./i18n";
 
@@ -91,6 +100,13 @@ export function resolveEntryState(input: {
   return input.free ? "free" : "paid";
 }
 
+/** Lo que le falta al jugador, para decírselo con cifra. */
+export interface Shortfall {
+  /** Centavos, redondeados hacia arriba: depositar esa cifra basta. */
+  cents: bigint;
+  symbol: string;
+}
+
 export type PlayResult =
   | {
       ok: true;
@@ -100,7 +116,7 @@ export type PlayResult =
       passage: string;
       day: number;
     }
-  | { ok: false; error: PlayError };
+  | { ok: false; error: PlayError; short?: Shortfall };
 
 /**
  * Cuánto se espera a ver la transacción confirmada.
@@ -148,8 +164,8 @@ export function usePlayV3() {
         if (gas.kind === "none") return { ok: false, error: "no-gas" };
         const fee = feeOverrides(gas);
 
-        // Solo se consulta para saber si hace falta `approve`. Quien decide de
-        // verdad es el contrato al ejecutar `play`.
+        // Se consulta para saber si hace falta `approve` y cuánto debe tener el
+        // jugador. Quien decide de verdad es el contrato al ejecutar `play`.
         const free = (await publicClient.readContract({
           address: game,
           abi: GAMEV3_ABI,
@@ -157,29 +173,136 @@ export function usePlayV3() {
           args: [key, address],
         })) as boolean;
 
-        if (!free) {
-          const allowance = (await publicClient.readContract({
+        const needsApprove =
+          !free &&
+          ((await publicClient.readContract({
             address: token.address,
             abi: ERC20_ABI,
             functionName: "allowance",
             args: [address, game],
-          })) as bigint;
+          })) as bigint) < token.entry;
 
-          if (allowance < token.entry) {
-            // Monto ACOTADO (diez entradas), nunca ilimitado: MiniPay rechaza
-            // `maxUint256`, y un allowance infinito convierte cualquier fallo
-            // del contrato en un vaciado de la billetera.
-            onStage("approving");
-            const approveHash = await writeContractAsync({
-              address: token.address,
-              abi: ERC20_ABI,
-              functionName: "approve",
-              args: [game, approveUnits(token)],
-              chainId: celo.id,
-              ...fee,
-            });
-            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        // PRE-FLIGHT: entrada + comisión contra el saldo, ANTES de pedir firma.
+        // Si falta, se dice cuánto y se manda a depositar; la wallet nunca
+        // llega a enseñar su error. Si la comprobación misma falla (RPC caído),
+        // NO se bloquea: que hable la wallet, igual que en `lib/gasChoice.ts`.
+        const entry = free ? 0n : token.entry;
+        const feeToken = gas.kind === "usdt" ? (USDT_ADDRESS as `0x${string}`) : null;
+        try {
+          let feeUnits = 0n;
+          if (feeToken) {
+            const estimate = async (
+              fn: () => Promise<bigint>,
+              fallback: bigint,
+            ): Promise<bigint> => {
+              try {
+                return await fn();
+              } catch {
+                return fallback;
+              }
+            };
+            const approveGas = needsApprove
+              ? await estimate(
+                  () =>
+                    publicClient.estimateContractGas({
+                      address: token.address,
+                      abi: ERC20_ABI,
+                      functionName: "approve",
+                      args: [game, approveUnits(token)],
+                      account: address,
+                      ...fee,
+                    }),
+                  FALLBACK_GAS.approve,
+                )
+              : 0n;
+            // Con el approve pendiente, estimar `play` revierte (aún no puede
+            // cobrar): se usa la reserva en vez de dar el saldo por bueno.
+            const playGas = needsApprove
+              ? FALLBACK_GAS.play
+              : await estimate(
+                  () =>
+                    publicClient.estimateContractGas({
+                      address: game,
+                      abi: GAMEV3_ABI,
+                      functionName: "play",
+                      args: [key, token.address],
+                      account: address,
+                      ...fee,
+                    }),
+                  FALLBACK_GAS.play,
+                );
+            // Celo acepta `feeCurrency` en `eth_gasPrice`; viem no lo tipa.
+            const request = publicClient.request as unknown as (a: {
+              method: "eth_gasPrice";
+              params: [`0x${string}`];
+            }) => Promise<`0x${string}`>;
+            const price = BigInt(
+              await request({
+                method: "eth_gasPrice",
+                params: [(gas as { feeCurrency: `0x${string}` }).feeCurrency],
+              }),
+            );
+            feeUnits = feeInTokenUnits(approveGas + playGas, price, USDT_DECIMALS);
           }
+
+          const sameToken = feeToken !== null && feeToken === token.address;
+          const entryBalance = entry > 0n || sameToken
+            ? ((await publicClient.readContract({
+                address: token.address,
+                abi: ERC20_ABI,
+                functionName: "balanceOf",
+                args: [address],
+              })) as bigint)
+            : 0n;
+          const missEntry = shortfall({
+            balance: entryBalance,
+            entry,
+            fee: sameToken ? feeUnits : 0n,
+          });
+          if (missEntry > 0n) {
+            return {
+              ok: false,
+              error: entry > 0n ? "insufficient" : "no-gas",
+              short: {
+                cents: shortfallCents(missEntry, token.decimals),
+                symbol: token.symbol,
+              },
+            };
+          }
+          if (feeToken && !sameToken) {
+            const feeBalance = (await publicClient.readContract({
+              address: feeToken,
+              abi: ERC20_ABI,
+              functionName: "balanceOf",
+              args: [address],
+            })) as bigint;
+            const missFee = shortfall({ balance: feeBalance, entry: 0n, fee: feeUnits });
+            if (missFee > 0n) {
+              return {
+                ok: false,
+                error: "no-gas",
+                short: { cents: shortfallCents(missFee, USDT_DECIMALS), symbol: "USDT" },
+              };
+            }
+          }
+        } catch {
+          // Ante la duda no se bloquea.
+        }
+
+        if (needsApprove) {
+          // Monto ACOTADO (diez entradas), nunca ilimitado: MiniPay rechaza
+          // `maxUint256`, y un allowance infinito convierte cualquier fallo
+          // del contrato en un vaciado de la billetera.
+          onStage("approving");
+          const approveHash = await writeContractAsync({
+            address: token.address,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [game, approveUnits(token)],
+            chainId: celo.id,
+            ...fee,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
         }
 
         onStage("signing");
@@ -242,14 +365,9 @@ export function usePlayV3() {
           day: data.day ?? 0,
         };
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "";
-        if (/reject|denied|cancel|User rejected/i.test(msg)) {
-          return { ok: false, error: "rejected" };
-        }
-        if (/insufficient|exceeds balance|transfer amount/i.test(msg)) {
-          return { ok: false, error: "insufficient" };
-        }
-        return { ok: false, error: "failed" };
+        // Por CÓDIGO y nombre de error, nunca por el texto (cambia con el
+        // idioma y la versión de la wallet). Ver `lib/walletErrors.ts`.
+        return { ok: false, error: classifyWalletError(e) };
       }
     },
     [address, chainId, publicClient, writeContractAsync, switchChainAsync],

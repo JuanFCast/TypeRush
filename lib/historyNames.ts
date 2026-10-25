@@ -6,9 +6,9 @@
  * igual que Avíspate. Así, si PipeRabby cambia de nombre, todas sus victorias
  * anteriores enseñan el nuevo alias en la siguiente consulta.
  *
- * Sin perfil o sin alias → `null`. La UI pone el label "Jugador" y deja la
- * wallet abreviada solo como hint secundario (requisito MiniPay: no liderar
- * con `0x…`).
+ * Sin perfil o sin alias → `null`. La UI pone el label "Jugador". La wallet
+ * abreviada viaja en la respuesta solo para saber que hubo ganador: la UI no la
+ * pinta (requisito MiniPay: ninguna `0x…` en pantalla, ni abreviada).
  */
 
 /** Nunca sale de aquí una dirección completa. */

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/client";
 import { ALIAS_MAX, ALIAS_MIN, validateAlias } from "@/lib/alias";
+import { isAddressLikeName } from "@/lib/displayName";
 import { useProfile } from "@/lib/profileContext";
 import { useWalletSession } from "@/lib/walletSession";
 import { walletToken } from "@/lib/walletToken";
@@ -71,7 +72,10 @@ export default function AliasEditor() {
     };
   }, [profile.authenticated, wallet.address]);
 
-  const current = profile.alias ?? walletAlias;
+  // Un alias con forma de dirección (`0x12…ab`, resto del espejo de V2) no es
+  // un nombre: se trata como si no hubiera, para no pintar una dirección.
+  const stored = profile.alias ?? walletAlias;
+  const current = stored && !isAddressLikeName(stored) ? stored : null;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();

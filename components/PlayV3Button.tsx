@@ -4,6 +4,7 @@ import { useState } from "react";
 import { celo } from "viem/chains";
 import { useReadContract } from "wagmi";
 import { useI18n } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n";
 import { ENTRY_CURRENCIES, entryLabel } from "@/lib/gameV2";
 import {
   GAMEV3_ABI,
@@ -65,7 +66,11 @@ export default function PlayV3Button({
   const { play } = usePlayV3();
 
   const [stage, setStage] = useState<PlayStage | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Clave del mensaje + cifras (lo que falta), para que siga el idioma.
+  const [error, setError] = useState<{
+    key: MessageKey;
+    vars?: Record<string, string>;
+  } | null>(null);
   const [token, setToken] = useState<TokenId>("usdt");
 
   const practice = isDevPractice();
@@ -173,14 +178,31 @@ export default function PlayV3Button({
     // refleje sin esperar a que alguien recargue la pantalla.
     void refetchFree();
     if (!res.ok) {
-      setError(PLAY_ERROR_KEY[res.error]);
+      // Con cifra cuando el pre-flight sabe cuánto falta: "te faltan 0,03 USDT"
+      // dice qué hacer; "no te alcanza" solo dice que algo va mal.
+      if (res.short) {
+        const amount = (Number(res.short.cents) / 100).toLocaleString(locale, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        setError({
+          key: res.error === "insufficient" ? "v3.error.short_entry" : "v3.error.short_fee",
+          vars: { amount, symbol: res.short.symbol },
+        });
+        return;
+      }
+      setError({ key: PLAY_ERROR_KEY[res.error] });
       return;
     }
     onReady({ txHash: res.txHash, passage: res.passage, wasFree: res.wasFree });
   };
 
   const needsDeposit =
-    error === "v3.error.insufficient" || error === "v3.error.no_gas";
+    error !== null &&
+    (error.key === "v3.error.insufficient" ||
+      error.key === "v3.error.no_gas" ||
+      error.key === "v3.error.short_entry" ||
+      error.key === "v3.error.short_fee");
 
   return (
     <div className="flex flex-col gap-2">
@@ -237,7 +259,7 @@ export default function PlayV3Button({
       {error && (
         <div className="flex flex-col items-center gap-1.5" aria-live="polite">
           <p className="text-center text-xs text-danger">
-            {t(error as Parameters<typeof t>[0])}
+            {t(error.key, error.vars)}
           </p>
           {needsDeposit && (
             /* ⚠️ Dentro de MiniPay este deeplink se abre en el PROPIO marco:

@@ -7,6 +7,7 @@ import { TrophyIcon, UserIcon } from "@/components/brand/icons";
 import { useI18n } from "@/lib/i18n/client";
 import { celoscanTx } from "@/lib/chain";
 import { COPM_DECIMALS, USDT_DECIMALS } from "@/lib/contractsV3";
+import { displayPlayerName } from "@/lib/displayName";
 import { MODES, getMode, type ModeId } from "@/lib/passages";
 import { useWalletSession } from "@/lib/walletSession";
 import type { MessageKey } from "@/lib/i18n";
@@ -286,8 +287,10 @@ function RoundCard({
 }) {
   const mode = getMode(round.mode as ModeId);
   // Alias primero; sin él "Jugador" si hay wallet. Sin wallet = sin ganador.
+  // ⚠️ La wallet solo decide SI hubo ganador: nunca se pinta, ni abreviada
+  // (regla de MiniPay). Un alias con forma de dirección también cae a "Jugador".
   const winner = round.winnerAlias
-    ? round.winnerAlias
+    ? displayPlayerName(round.winnerAlias, t("ranking.anonymous"))
     : round.winnerWallet
       ? t("ranking.anonymous")
       : null;
@@ -329,11 +332,6 @@ function RoundCard({
           <p className="truncate text-sm font-bold text-ink">
             {winner ?? t("winners.no_winner")}
           </p>
-          {round.winnerWallet && (
-            <p className="font-mono text-[0.65rem] text-muted">
-              {round.winnerWallet}
-            </p>
-          )}
         </div>
       </div>
 

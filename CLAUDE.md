@@ -84,6 +84,7 @@ lib/
   stats/aggregate.ts · stats/publicStats.ts — public stats: pure formulas + server loader
   legal.ts       — ToS + Privacy text (es/en) + SUPPORT_EMAIL / SUPPORT_TELEGRAM_URL
   deeplink.ts    — MINIPAY_ADD_CASH + outboundLinkProps (no new window inside MiniPay)
+  preflight.ts · walletErrors.ts — entry+fee balance check · wallet errors by code (both pure)
   wallet.ts · walletSession.ts · operator.ts · supabase.ts
   player.ts · playerProfile.ts — local player id/name + Supabase profile / alias / wallet
 scripts/
@@ -476,7 +477,7 @@ payment or database rule was touched** — only composition, tokens and copy.
   With automatic seeding off, a freshly opened round legitimately reads 0 and a zero proves no
   formatting. Paid prizes do carry real thousands (1.500 COPm / 1,500 COPm).
 - **Historial and Perfil** close the pass: Historial is a single centred 720 px list with a short
-  lead, Perfil a 560 px column with the bolt as avatar, the address shown shortened (no longer copyable since 2026-10-24 — V3 pushes the prize to the wallet that played, nobody needs to paste it), and the **"Idioma de
+  lead, Perfil a 560 px column with the bolt as avatar, the address NOT shown at all since 2026-10-25 (see "MiniPay review rules" below), and the **"Idioma de
   la app" block back** (it existed before the three-route refactor and was lost in it). The round
   card already showed WPM/accuracy where they exist — V2 never stored them, and printing a 0 would
   be a lie, so those rounds show points instead.
@@ -566,6 +567,28 @@ held. What was missing were the three items MiniPay lists under *Branding and le
   category (**Gaming**), one-sentence description, "already supports MiniPay" (**Yes**), **3–8
   screenshots, PNG/JPG, ≤500 KB each**, contract address, "audited?" (**No** — 56 Foundry tests, but
   no external audit), optional on-chain analytics link (`/perfil/estadisticas`), and social media.
+
+### MiniPay review rules (2026-10-25) — no address on screen, pre-flight, error codes
+
+celopedia-skill 2.13.0 made three MiniPay listing rules explicit, and TypeRush broke all three.
+
+- **No wallet address in the DOM, not even truncated** (`0x12…ab` counts). Perfil shows only the
+  wallet-kind badge; Historial uses the wallet only to know there WAS a winner and shows the alias
+  or "Jugador"; an address-shaped alias (V2 mirror residue) is masked by `displayPlayerName` /
+  `isAddressLikeName` (`lib/displayName.ts`), in rankings, Historial and `AliasEditor`. The About
+  card links the contract as "Ver en Celoscan", never as `0x…`. `/api/history` still sends the
+  shortened `winnerWallet` (public on-chain anyway) — the rule is about rendering it.
+- **Pre-flight against entry + network fee, before any signature** (`lib/playV3.ts`, maths in
+  `lib/preflight.ts`, tested). When gas is paid in USDT (MiniPay, CIP-64) the fee comes out of the
+  same balance as the entry. Gas units are estimated; `play` can't be estimated before its
+  `approve`, so `FALLBACK_GAS` is used. ⚠️ `eth_gasPrice` with the USDT **adapter** returns an
+  18-decimal price (verified on mainnet: ~1.6e10), so the fee is divided by 10^12 — the skill's own
+  template omits this and would block everyone. On a shortfall the button says how much is missing
+  ("Te faltan 0,01 USDT…") plus the Add Cash deeplink. If the pre-flight's own reads fail, it does
+  NOT block (same rule as `lib/gasChoice.ts`).
+- **Wallet errors classified by code / error name, never by message text** (`lib/walletErrors.ts`,
+  tested): 4001 / `UserRejectedRequestError` → cancelled, `InsufficientFundsError` → no fee money,
+  ERC-6093 revert names → insufficient, else generic.
 
 ### Interface language (added 2026-08-03) — and the crash it fixed
 
