@@ -68,6 +68,7 @@ components/
   profile/ProfileStatsLink — its entry point inside Perfil
   legal/LegalPage — shared frame for ToS + Privacy
   profile/ProfileLegal — Terms · Privacy · Support links inside Perfil
+  profile/ProfileAbout — "Acerca de": what TypeRush is, who makes it, the contract link
 hooks/
   useTypeRush.ts     — game state machine (idle → countdown → racing → finished)
   useModeRanking.ts  — live ranking of the open round (via /api/ranking/round → v3_results)
@@ -475,7 +476,7 @@ payment or database rule was touched** — only composition, tokens and copy.
   With automatic seeding off, a freshly opened round legitimately reads 0 and a zero proves no
   formatting. Paid prizes do carry real thousands (1.500 COPm / 1,500 COPm).
 - **Historial and Perfil** close the pass: Historial is a single centred 720 px list with a short
-  lead, Perfil a 560 px column with the bolt as avatar, the address copyable, and the **"Idioma de
+  lead, Perfil a 560 px column with the bolt as avatar, the address shown shortened (no longer copyable since 2026-10-24 — V3 pushes the prize to the wallet that played, nobody needs to paste it), and the **"Idioma de
   la app" block back** (it existed before the three-route refactor and was lost in it). The round
   card already showed WPM/accuracy where they exist — V2 never stored them, and printing a 0 would
   be a lie, so those rounds show points instead.

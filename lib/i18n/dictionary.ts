@@ -186,8 +186,6 @@ export const es = {
   "funds.body": "Para pagar la entrada necesitas {needed} {symbol}.",
   "funds.deposit": "Depositar saldo",
   "funds.send": "Envía {symbol} a tu wallet:",
-  "funds.copied": "Copiado",
-  "funds.copy": "Copiar",
   "funds.ok": "Entendido",
 
   /* ------------------------------- Alias --------------------------------- */
@@ -279,9 +277,6 @@ export const es = {
   "profile.wallet_need_name":
     "Primero guarda tu nombre de jugador arriba. La wallet se vincula a tu perfil en el servidor.",
   "profile.wallet_loading": "Cargando wallet…",
-  "profile.address_label": "Tu dirección (cópiala para recibir fondos)",
-  "profile.copied": "Copiada",
-  "profile.copy_address": "Copiar dirección",
   "profile.balance": "Tu saldo",
   "profile.updating": "Actualizando…",
   "profile.refresh": "Actualizar",
@@ -614,6 +609,12 @@ export const es = {
   "profile.legal.support": "Soporte",
   "profile.legal.support_hint": "Escríbenos a {email}",
   "profile.legal.support_telegram": "Únete a nuestro grupo de Telegram",
+  "profile.about.title": "Acerca de TypeRush",
+  "profile.about.body":
+    "TypeRush es un juego de mecanografía: carreras de {seconds} segundos en español o inglés. Cada día, la mejor puntuación de cada modo se lleva el pozo en USDT. Es un servicio independiente: no lo operan MiniPay, Opera ni Celo.",
+  "profile.about.made_by": "Hecho por",
+  "profile.about.network": "Red",
+  "profile.about.contract": "Contrato",
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -791,8 +792,6 @@ export const en: Record<MessageKey, string> = {
   "funds.body": "You need {needed} {symbol} to pay the entry.",
   "funds.deposit": "Deposit funds",
   "funds.send": "Send {symbol} to your wallet:",
-  "funds.copied": "Copied",
-  "funds.copy": "Copy",
   "funds.ok": "Got it",
 
   /* -------------------------------- Alias -------------------------------- */
@@ -886,9 +885,6 @@ export const en: Record<MessageKey, string> = {
   "profile.wallet_need_name":
     "Save your player name above first. The wallet is linked to your profile on the server.",
   "profile.wallet_loading": "Loading wallet…",
-  "profile.address_label": "Your address (copy it to receive funds)",
-  "profile.copied": "Copied",
-  "profile.copy_address": "Copy address",
   "profile.balance": "Your balance",
   "profile.updating": "Refreshing…",
   "profile.refresh": "Refresh",
@@ -1209,4 +1205,10 @@ export const en: Record<MessageKey, string> = {
   "profile.legal.support": "Support",
   "profile.legal.support_hint": "Write to us at {email}",
   "profile.legal.support_telegram": "Join our Telegram group",
+  "profile.about.title": "About TypeRush",
+  "profile.about.body":
+    "TypeRush is a typing game: {seconds}-second races in English or Spanish. Every day, the top score in each mode takes the USDT prize pool. It is an independent service, not operated by MiniPay, Opera or Celo.",
+  "profile.about.made_by": "Made by",
+  "profile.about.network": "Network",
+  "profile.about.contract": "Contract",
 };

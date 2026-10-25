@@ -11,6 +11,7 @@ import ProfileActivity, { type RecentRace } from "@/components/profile/ProfileAc
 import ProfileStatsLink from "@/components/profile/ProfileStatsLink";
 import ProfileWalletBalances from "@/components/profile/ProfileWalletBalances";
 import ProfilePreferences from "@/components/profile/ProfilePreferences";
+import ProfileAbout from "@/components/profile/ProfileAbout";
 import ProfileLegal from "@/components/profile/ProfileLegal";
 import ProfileSession from "@/components/profile/ProfileSession";
 import { useI18n } from "@/lib/i18n/client";
@@ -43,7 +44,7 @@ const EMPTY: Stats = {
  * Perfil: cascarón delgado que hace el fetch de `/api/me/stats` y compone las
  * secciones de `components/profile/*` en el orden del rediseño (Identidad →
  * Resumen con Total ganado destacado → Premios → Actividad → Cartera y saldos
- * → Preferencias → Sesión). Ninguna sección toca datos, contratos ni pagos —
+ * → Preferencias → Acerca de → Legal → Sesión). Ninguna sección toca datos, contratos ni pagos —
  * solo presentación.
  */
 export default function PerfilPage() {
@@ -130,6 +131,8 @@ export default function PerfilPage() {
           {/* Legal y soporte también sin sesión: quien todavía está decidiendo
               si conecta billetera es justo quien necesita poder leer las
               condiciones antes. */}
+          <ProfileAbout />
+
           <ProfileLegal />
         </div>
       </AppShell>
@@ -165,6 +168,8 @@ export default function PerfilPage() {
         <ProfileStatsLink />
         <ProfileWalletBalances />
         <ProfilePreferences />
+        <ProfileAbout />
+
         <ProfileLegal />
         <ProfileSession />
       </div>
