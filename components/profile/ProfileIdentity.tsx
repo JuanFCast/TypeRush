@@ -23,8 +23,11 @@ export default function ProfileIdentity() {
       <AliasEditor />
       {/* ⚠️ La dirección NO se pinta, ni abreviada: MiniPay prohíbe mostrar,
           copiar o compartir la del usuario (`0x12…ab` incluido). Tampoco hace
-          falta: V3 paga el premio a la wallet que firmó la partida. */}
-      {wallet.address && (
+          falta: V3 paga el premio a la wallet que firmó la partida.
+          Dentro de MiniPay tampoco va la etiqueta: el revisor pidió quitar la
+          mención a MiniPay junto al nombre, y ahí solo hay una wallet posible,
+          así que nombrarla no le dice nada al jugador. */}
+      {wallet.address && wallet.kind !== "minipay" && (
         <span className="rounded-full border border-line px-1.5 py-0.5 text-[0.6rem] font-semibold text-muted">
           {t(WALLET_KIND_KEY[wallet.kind])}
         </span>

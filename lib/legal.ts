@@ -53,7 +53,7 @@ export function hasTelegramSupport(): boolean {
 export const OPERATOR_NAME = "Casgo Studio";
 
 /** Última revisión de los dos documentos. Se muestra al pie de cada uno. */
-export const LEGAL_UPDATED = "2026-08-25";
+export const LEGAL_UPDATED = "2026-10-31";
 
 export interface LegalSection {
   heading: string;
@@ -105,7 +105,7 @@ export const TERMS: Record<Lang, LegalDoc> = {
           "La primera carrera del día en cada modalidad la marca el contrato como sin costo de entrada. Aun así, como toda transacción, paga una comisión de red: dentro de MiniPay esa comisión se cobra en USDT, no en CELO.",
           "Cuando ya usaste la carrera sin costo del día, la entrada de la siguiente es de 0,10 USDT. El precio lo fija el contrato; la app solo lo muestra.",
           "De cada entrada pagada, el 80 % entra al pozo del día de esa modalidad y el 20 % queda como comisión del protocolo. Ese reparto está escrito en el contrato y no lo decide la app.",
-          "Para poder cobrar la entrada, tu billetera te pedirá autorizar el token. La autorización que solicitamos está acotada al equivalente de diez entradas: nunca pedimos una autorización ilimitada.",
+          "Para poder cobrar la entrada, tu billetera te pedirá autorizar el token. La autorización que solicitamos está acotada al equivalente de cincuenta entradas (5 USDT): nunca pedimos una autorización ilimitada. Se pide una sola vez y se renueva solo cuando ya no alcanza para una entrada, así que casi siempre confirmas una única transacción por carrera.",
         ],
       },
       {
@@ -204,7 +204,7 @@ export const TERMS: Record<Lang, LegalDoc> = {
           "The first race of the day in each mode is marked by the contract as having no entry fee. It still pays a network fee, like any transaction: inside MiniPay that fee is charged in USDT, not in CELO.",
           "Once you have used the day's free race, the entry for the next one is 0.10 USDT. The price is set by the contract; the app only displays it.",
           "Of every paid entry, 80% goes into that mode's prize pool for the day and 20% is kept as a protocol fee. That split is written into the contract and is not decided by the app.",
-          "To be able to charge the entry, your wallet will ask you to approve the token. The approval we request is capped at the equivalent of ten entries: we never ask for an unlimited approval.",
+          "To be able to charge the entry, your wallet will ask you to approve the token. The approval we request is capped at the equivalent of fifty entries (5 USDT): we never ask for an unlimited approval. It is requested once and renewed only when it no longer covers an entry, so you almost always confirm a single transaction per race.",
         ],
       },
       {

@@ -290,9 +290,10 @@ export function usePlayV3() {
         }
 
         if (needsApprove) {
-          // Monto ACOTADO (diez entradas), nunca ilimitado: MiniPay rechaza
-          // `maxUint256`, y un allowance infinito convierte cualquier fallo
-          // del contrato en un vaciado de la billetera.
+          // Monto ACOTADO (cincuenta entradas), nunca ilimitado: MiniPay
+          // rechaza `maxUint256`, y un allowance infinito convierte cualquier
+          // fallo del contrato en un vaciado de la billetera. Se repone solo
+          // cuando ya no cubre una entrada: casi toda jugada es UNA firma.
           onStage("approving");
           const approveHash = await writeContractAsync({
             address: token.address,

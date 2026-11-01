@@ -87,15 +87,20 @@ export function getToken(id: TokenId): GameToken {
 }
 
 /**
- * Cuánto se aprueba de una vez: diez entradas, NUNCA ilimitado.
+ * Cuánto se aprueba de una vez: cincuenta entradas (5 USDT), NUNCA ilimitado.
  *
- * Dos razones. MiniPay rechaza `maxUint256` de plano, así que un approve
- * infinito simplemente no funciona ahí. Y un allowance acotado limita el daño
- * si el contrato tuviera un fallo: solo puede tirar diez entradas, no la
- * billetera entera.
+ * Eran diez (1 USDT) y se notaba: cada pocas jugadas volvían las DOS hojas de
+ * firma —autorizar y jugar—, y el revisor de MiniPay lo reportó como "dos
+ * ventanas por transacción". MiniPay no agrupa transacciones ni firma permits,
+ * así que la primera jugada pagada sigue pidiendo dos; lo que sí se puede es
+ * que sea la única. 5 USDT es lo mismo que aprueban Avíspate y nerdos.fun.
+ *
+ * Acotado por dos razones: MiniPay auto-rechaza `maxUint256` (-32604, sin
+ * enseñar la hoja), y un allowance acotado limita el daño si el contrato
+ * tuviera un fallo: solo puede tirar ese bloque, no la billetera entera.
  */
 export function approveUnits(token: GameToken): bigint {
-  return token.entry * 10n;
+  return token.entry * 50n;
 }
 
 /** `keccak256("es")` / `keccak256("en")`, como los espera el contrato. */

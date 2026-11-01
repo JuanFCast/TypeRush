@@ -538,7 +538,7 @@ held. What was missing were the three items MiniPay lists under *Branding and le
   labels and this would have doubled it. Parity is still compile-checked: `Record<Lang, LegalDoc>`
   does not compile with a language missing. ⚠️ **Every claim in there is read from the code**: 45 s
   (`lib/game.ts`), 0.10 USDT entry, the 80/20 split (`protocolBps` = 2000, read on-chain), the 7 p.m.
-  close, that cancelling the countdown does not refund, the capped ten-entry `approve`, the nine
+  close, that cancelling the countdown does not refund, the capped fifty-entry (5 USDT) `approve`, the nine
   `localStorage` keys actually written, the exact columns inserted into `player_profiles` /
   `v3_plays` / `v3_results`, and that `welcome_airdrops` stores an IP **hash**, never the raw IP.
   If the game changes, these texts change with it.
@@ -586,6 +586,13 @@ celopedia-skill 2.13.0 made three MiniPay listing rules explicit, and TypeRush b
   template omits this and would block everyone. On a shortfall the button says how much is missing
   ("Te faltan 0,01 USDT…") plus the Add Cash deeplink. If the pre-flight's own reads fail, it does
   NOT block (same rule as `lib/gasChoice.ts`).
+- **One pop-up per play, almost always (2026-10-31, reviewer report).** MiniPay cannot batch
+  transactions or sign permits, and `play()` pulls the entry with `transferFrom`, so the FIRST paid
+  play still needs approve + play. `approveUnits` now approves 50 entries (5 USDT, same as Avíspate
+  and nerdos.fun; MiniPay rejects `maxUint256` with -32604) instead of 10, so the double prompt
+  comes back once per 50 paid plays instead of every 10. Free plays never approve.
+- **No "MiniPay" next to the name in Perfil**: the wallet-kind badge under the alias is hidden when
+  `wallet.kind === "minipay"` (reviewer request). Privy / external still show theirs.
 - **Wallet errors classified by code / error name, never by message text** (`lib/walletErrors.ts`,
   tested): 4001 / `UserRejectedRequestError` → cancelled, `InsufficientFundsError` → no fee money,
   ERC-6093 revert names → insufficient, else generic.
